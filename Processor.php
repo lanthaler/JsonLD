@@ -87,13 +87,15 @@ class Processor
     /**
      * Expands a JSON-LD document.
      *
-     * @param  mixed  $jsonld An already parsed JSON-LD document
+     * @param mixed  $jsonld     An already parsed JSON-LD document
+     * @param array  $activectx  The active context
+     * @param string $baseiri    The base IRI
      *
      * @return mixed  A PHP value
      *
      * @throws ParseException If the JSON-LD document is not valid
      */
-    public function expand(&$jsonld, $activectx = array())
+    public function expand(&$jsonld, $activectx = array(), $baseiri = '')
     {
         if (is_object($jsonld))
         {
@@ -111,8 +113,25 @@ class Processor
 
             if (property_exists($jsonld, '@type'))
             {
-                // without @value
-                // TODO Check if value is string and expand type
+                // TODO without @value
+                if (is_string($jsonld->{'@type'}))
+                {
+                    $jsonld->{'@type'} = $this->expandIri($jsonld->{'@type'}, $activectx, $baseiri);
+                }
+                elseif (is_array($jsonld->{'@type'}))
+                {
+                    foreach ($jsonld->{'@type'} as &$iri)
+                    {
+                        // TODO Check if string
+                        $iri = $this->expandIri($iri, $activectx, $baseiri);
+                    }
+                }
+                else
+                {
+                    throw new ParseException(
+                        'Invalid value for @type detected. Expected string or array, got ' .
+                        var_export($jsonld->{'@type'}, true));
+                }
             }
 
             // TODO Check @value (with @type), @language, @list, @list
@@ -153,18 +172,63 @@ class Processor
     }
 
     /**
+     * Expands a JSON-LD IRI to an absolute IRI.
+     *
+     * @param mixed  $value      The value to be expanded to an absolute IRI
+     * @param array  $activectx  The active context
+     * @param string $baseiri    The base IRI
+     *
+     * @return StdClass  The expanded value in object form
+     */
+    protected function expandIri($value, $activectx = array(), $baseiri)
+    {
+        // TODO Handle relative IRIs
+
+        if (array_key_exists($value, $activectx))
+        {
+            return $activectx[$value];
+        }
+        elseif ((false !== ($colon = strpos($value, ':'))) && ($colon < strlen($value) - 1))
+        {
+            if ('://' == substr($value, $colon, 2))
+            {
+                // Safety measure to prevent reassigned of, e.g., http://
+                return $value;
+            }
+            else
+            {
+                $prefix = substr($value, 0, $colon);
+                if ('_' == $prefix)
+                {
+                    // it is a named blank node
+                    return $value;
+                }
+                elseif (array_key_exists($prefix, $activectx) && isset($activectx[$prefix]['@id']))
+                {
+                    // compact IRI
+                    return $activectx[$prefix]['@id'] . substr($value, $colon + 1);
+                }
+            }
+        }
+
+        // can't expand it, return as is
+        return $value;
+    }
+
+    /**
      * Expands compact IRIs in the context
      *
-     * @param string $value      the (compact) IRI that should be expanded
-     * @param array  $loclctx    the local context
-     * @param array  $activectx  the active context
-     * @param array  $path       a path of already processed terms
+     * @param string $value      The (compact) IRI that should be expanded
+     * @param array  $loclctx    The local context
+     * @param array  $activectx  The active context
+     * @param array  $path       A path of already processed terms
      *
      * @throws ProcessException If the JSON-LD document is not valid
      */
     protected function contextIriExpansion($value, $loclctx, $activectx, $path = array())
     {
-        // TODO: Rename this method??
+        // TODO Rename this method??
+        // TODO And, more important, check it is doing the right thing
 
         if (strpos($value, ':') === false)
             return $value;  // not prefix:suffix
@@ -198,8 +262,8 @@ class Processor
     /**
      * Updates the active context with a local context.
      *
-     * @param array  $activectx  the active context
-     * @param array  $loclctx    the local context
+     * @param array  $activectx  The active context
+     * @param array  $loclctx    The local context
      *
      * @throws ProcessException If the JSON-LD document is not valid
      */
