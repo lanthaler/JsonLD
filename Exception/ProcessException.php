@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-namespace ML\JsonLD\Exception\Exception;
+namespace ML\JsonLD\Exception;
 
 /**
  * Exception class thrown when an error occurs during processing.
