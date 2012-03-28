@@ -105,6 +105,7 @@ class ProcessException extends \RuntimeException
 
         if ($this->snippet) {
             $this->message .= sprintf(' (near "%s")', $this->snippet);
+        }
 
         if ($dot) {
             $this->message .= '.';
