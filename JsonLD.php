@@ -32,8 +32,8 @@ class JsonLD
      *   print_r($array);
      *  </code>
      *
-     * @param string $input Path to a JSON-LD file or a string containing
-     *                      JSON-LD
+     * @param string $document Path to a JSON-LD document or a string
+     *                         containing a JSON-LD document
      *
      * @return array The JSON-LD document converted to a PHP array
      *
@@ -41,22 +41,24 @@ class JsonLD
      *
      * @api
      */
-    static public function parse($input)
+    static public function parse($document)
     {
+        // TODO Allow to pass an IRI?
+
         // if input is a file, process it
         $file = '';
-        if ((strpos($input, "{") === false) && (strpos($input, "[") === false) && is_file($input)) {
-            if (false === is_readable($input)) {
-                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $input));
+        if ((strpos($document, "{") === false) && (strpos($document, "[") === false) && is_file($document)) {
+            if (false === is_readable($document)) {
+                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $document));
             }
-            $file = $input;
-            $input = file_get_contents($file);
+            $file = $document;
+            $document = file_get_contents($file);
         }
 
         $jsonld = new Processor();
 
         try {
-            return $jsonld->parse($input);
+            return $jsonld->parse($document);
         } catch (ParseException $e) {
             if ($file) {
                 $e->setParsedFile($file);
@@ -78,8 +80,9 @@ class JsonLD
      *   print_r($array);
      *  </code>
      *
-     * @param string $input Path to a JSON-LD file or a string containing
-     *                      JSON-LD
+     * @param string $document Path to a JSON-LD document or a string
+     *                         containing a JSON-LD document
+     * @param string $baseiri  The base IRI
      *
      * @return array The JSON-LD document converted to a PHP array
      *
@@ -87,24 +90,22 @@ class JsonLD
      *
      * @api
      */
-    static public function expand($input)
+    static public function expand($document, $baseiri = null)
     {
-        $input = self::parse($input);
+        // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
+        $document = self::parse($document);
 
-        $processor = new Processor();
+        $processor = new Processor($baseiri);
         $activectx = array();
 
-        if (false === is_array($input))
+        $processor->expand($document, $activectx);
+
+        if (false === is_array($document))
         {
-            $input = array($input);
+            $document = array($document);
         }
 
-        foreach ($input as &$obj)
-        {
-            $processor->expand($obj, $activectx);
-        }
-
-        return $input;
+        return $document;
     }
 
     /**
