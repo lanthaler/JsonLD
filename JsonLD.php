@@ -69,22 +69,22 @@ class JsonLD
     }
 
     /**
-     * Expands a JSON-LD document into a PHP array.
+     * Expands a JSON-LD document.
      *
      * The parse method, when supplied with a JSON-LD stream (string or
      * file), will do its best to convert JSON-LD into a PHP array.
      *
      *  Usage:
      *  <code>
-     *   $array = JsonLD::parse('document.jsonld');
-     *   print_r($array);
+     *   $expanded = JsonLD::expand('document.jsonld');
+     *   print_r($expanded);
      *  </code>
      *
      * @param string $document Path to a JSON-LD document or a string
      *                         containing a JSON-LD document
      * @param string $baseiri  The base IRI
      *
-     * @return array The JSON-LD document converted to a PHP array
+     * @return array The expanded JSON-LD document
      *
      * @throws ParseException If the JSON-LD is not valid
      *
@@ -92,6 +92,8 @@ class JsonLD
      */
     static public function expand($document, $baseiri = null)
     {
+        // TODO Document other exceptions that are thrown
+
         // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
         $document = self::parse($document);
 

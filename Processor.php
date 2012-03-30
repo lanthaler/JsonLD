@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 require("Exception\SyntaxException.php");
+require("Exception\ParseException.php");
 use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
@@ -96,7 +97,7 @@ class Processor
     /**
      * Expands a JSON-LD document.
      *
-     * @param mixed  $element    A JSON-LD elemnt to be expanded
+     * @param mixed  $element    A JSON-LD element to be expanded
      * @param array  $activectx  The active context
      * @param string $activeprty The active property
      *
@@ -269,7 +270,7 @@ class Processor
                     }
                     $element->{'@list'} = $result;
                 }
-                elseif ('@value' == $property)
+                elseif (('@value' == $property) || ('@language' == $property))
                 {
                     // nothing to do, already expanded
                     continue;
@@ -280,10 +281,15 @@ class Processor
 
                     // TODO Check if this check is enough
                     // TODO Spec Update spec accordingly
-                    if (false === strpos($property, ':'))
+                    if ((false === strpos($property, ':')) &&
+                        (false == in_array($property, self::$keywords)))
                     {
                         // if the property doesn't contain a colon it is not a valid
                         // absolute IRI and thus plain JSON that isn't further processed
+                        // but dropped
+
+                        // TODO Check this, ISSUE-56
+                        unset($element->{$activeprty});
                         continue;
                     }
 
@@ -353,7 +359,7 @@ class Processor
      *
      * The value can be of any scalar type (i.e., not an object or array)
      *
-     * @param mixed  $value      The value to be expanded to an absolute IRI
+     * @param mixed  $value      The value to be expanded
      * @param mixed  $activeprty The active property
      * @param array  $activectx  The active context
      *
@@ -361,6 +367,8 @@ class Processor
      */
     protected function expandValue($value, $activeprty, $activectx)
     {
+        // TODO Check if $value can really just be a scalar type!
+
         if (isset($activectx[$activeprty]['@type']))
         {
             // TODO 1) If value is a number and the active property is the target of typed literal
@@ -559,7 +567,7 @@ class Processor
                     $activectx[$key]['@id'] = $expanded;
                 }
 
-                if(property_exists($value, '@type'))
+                if (property_exists($value, '@type'))
                 {
                     $expanded = $this->contextIriExpansion($value->{'@type'}, $loclctx, $activectx);
 
@@ -567,6 +575,19 @@ class Processor
                     {
                         $loclctx->{$key}->{'@type'} = $expanded;
                         $activectx[$key]['@type'] = $expanded;
+                    }
+                }
+                elseif (property_exists($value, '@language') && is_string($value->{'@language'}))
+                {
+                    // language tagging applies just to untyped literals
+                    $activectx[$key]['@language'] = $value->{'@language'};
+                }
+
+                if (property_exists($value, '@container'))
+                {
+                    if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
+                    {
+                        $activectx[$key]['@container'] = $value->{'@container'};
                     }
                 }
             }
