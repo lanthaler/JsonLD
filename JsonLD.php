@@ -111,6 +111,72 @@ class JsonLD
     }
 
     /**
+     * Compacts a JSON-LD document.
+     *
+     * The parse method, when supplied with a JSON-LD stream (string or
+     * file), will do its best to convert JSON-LD into a PHP array.
+     *
+     *  Usage:
+     *  <code>
+     *   $compacted = JsonLD::compact('document.jsonld');
+     *   print_r($compacted);
+     *  </code>
+     *
+     * @param string $document Path to a JSON-LD document or a string
+     *                         containing a JSON-LD document
+     * @param mixed  $context  The context to use to compact the passed document
+     * @param string $baseiri  The base IRI
+     * @param bool   $optimize If set to true, the JSON-LD processor is allowed optimize
+     *                         the passed context to produce even compacter representations
+     *
+     * @return mixed The compacted JSON-LD document
+     *
+     * @throws ParseException If the JSON-LD is not valid
+     *
+     * @api
+     */
+    static public function compact($document, $context, $baseiri = null, $optimize = false)
+    {
+        // TODO Document other exceptions that are thrown
+
+        // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
+        $document = self::expand($document);
+
+        $processor = new Processor($baseiri);
+
+        // TODO Support contexts that are passed in the form of an IRI
+        $activectx = array();
+        $processor->processContext(clone $context, $activectx);
+
+        if (0 == count($activectx))
+        {
+            // passed context was empty, just return expanded document
+            return (1 === count($document)) ? $document[0] : $document;
+        }
+
+        // Sort active context as compact() requires this
+        uksort($activectx, array('ML\JsonLD\Processor', 'compare'));
+
+        $processor->compact($document, $activectx, null, $optimize);
+
+        // TODO Spec add context to result
+        if (is_array($document))
+        {
+            $compactedDocument = new \stdClass();
+            $compactedDocument->{'@context'} = $context;
+            $compactedDocument->{'@graph'} = $document;  // TODO Handle @graph aliases??
+
+            return $compactedDocument;
+        }
+        else
+        {
+            $document->{'@context'} = $context;
+        }
+
+        return $document;
+    }
+
+    /**
      * Dumps a PHP value to a JSON-LD string.
      *
      * The dump method will do its best to convert the supplied value into

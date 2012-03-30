@@ -29,6 +29,44 @@ class Processor
     /** The base IRI */
     private $baseiri = null;
 
+    /**
+     * Compares two values by their length and then lexicographically.
+     *
+     * If two strings have different lenghts, the shorter one will be considered
+     * less than the other. If they have the same lenght, they are compared
+     * lexicographically.
+     *
+     * @param mixed $a Value A
+     * @param mixed $a Value B
+     *
+     * @return int If value A is shorter than value B, -1 will be returned; if it's
+     *             longer 1 will be returned. If both values have the same lenght
+     *             and value A is considered lexicographically less, -1 will be
+     *             returned, if they are equal 0 will be returned, otherwise 1
+     *             will be returned.
+     */
+    public static function compare($a, $b)
+    {
+        $lenA = strlen($a);
+        $lenB = strlen($b);
+
+        if ($lenA < $lenB)
+        {
+            return -1;
+        }
+        elseif ($lenA == $lenB)
+        {
+            if ($a == $b)
+            {
+                return 0;
+            }
+            return ($a < $b) ? -1 : 1;
+        }
+        else
+        {
+            return 1;
+        }
+    }
 
     /**
      * Constructor
@@ -206,10 +244,9 @@ class Processor
                     }
                     else
                     {
-                        // TODO Spec, add other clause
-                        throw new ParseException(
-                            'Invalid value for @id detected. Expected string or array, got ' .
-                            var_export($element->{'@type'}, true));
+                        // TODO Spec, add other clause.. either ignore or throw exception
+                        throw new SyntaxException('Invalid value for @id detected.',
+                                                  json_encode($element, true));
                     }
                 }
                 elseif ('@type' == $property)
@@ -472,6 +509,260 @@ class Processor
     }
 
     /**
+     * Compacts a JSON-LD document.
+     *
+     * @param mixed  $element    A JSON-LD element to be compacted
+     * @param array  $activectx  The active context
+     * @param string $activeprty The active property
+     * @param bool   $optimize   If set to true, the JSON-LD processor is allowed optimize
+     *                           the passed context to produce even compacter representations
+     *
+     * @return mixed  A PHP value
+     *
+     * @throws ParseException If the JSON-LD document is not valid
+     */
+    public function compact(&$element, $activectx = array(), $activeprty = null, $optimize = false)
+    {
+        if (is_array($element))
+        {
+            foreach ($element as &$item)
+            {
+                $this->compact($item, $activectx, $activeprty, $optimize);
+            }
+
+            // TODO Spec Add this optimization to spec
+            if (1 == count($element) &&
+                ((false == isset($activectx[$activeprty]['@container'])) ||
+                 (('@set' != $activectx[$activeprty]['@container']) /*&&    // TODO Spec This is not how it's currently done
+                  ('@list' != $activectx[$activeprty]['@container'])*/)))
+            {
+                $element = $element[0];
+            }
+        }
+        elseif (is_object($element))
+        {
+            // TODO Check why I have to put this here
+            if (isset($activectx[$activeprty]['@type']) &&
+                property_exists($element, '@value') && property_exists($element, '@type') &&
+                (($element->{'@type'} == $activectx[$activeprty]['@type'])))
+            {
+                $element = $element->{'@value'};
+                return;
+            }
+
+
+            foreach ($element as $property => $value)
+            {
+                // TODO Handle keyword aliases
+                // TODO Spec Handle keyword aliases
+                if (('@id' == $property) || ('@type' == $property))
+                {
+                    // Make sure the value is always an array, this will optimized
+                    // away again
+                    if (is_string($value))
+                    {
+                        $element->{$property} = array($value);
+                    }
+
+                    // TODO Update spec, it compacted recursively
+                    foreach ($element->{$property} as $key => &$iri)
+                    {
+                        if (is_string($iri))
+                        {
+                            // TODO Transform to relative IRIs by default??
+                            $iri = $this->compactIri($iri, $activectx, $optimize);
+                        }
+                        else
+                        {
+                            // TODO Check this, should not be possible!
+                            throw new SyntaxException('Detected invalid value of @id or @type. Must be a string or an array of strings.',
+                                                      json_encode($element));
+                        }
+                    }
+
+                    if (1 === count($element->{$property}))
+                    {
+                        $element->{$property} = $element->{$property}[0];
+                    }
+                }
+                // TODO Spec This is not in the spec at this place as @list objects in an array are not expected
+                elseif (('@list' == $property) && (1 === count(get_object_vars($element))) &&
+                        isset($activectx[$activeprty]['@container']) && ('@list' == $activectx[$activeprty]['@container']))
+                {
+                    // TODO Spec Make last part of the following sentence clearer: Otherwise, if value contains only a @list property, and the active property is subject to list coercion, the compacted value is the result of performing this algorithm on that value.
+                    $element = $element->{'@list'};
+                    $this->compact($element, $activeprty, $activectx, $optimize);
+                }
+                else
+                {
+                    if (false == in_array($property, self::$keywords))
+                    {
+                        // TODO Make this step in the spec clearer
+                        $activeprty = $this->compactIri($property, $activectx, $optimize);
+
+                        if ($activeprty != $property)
+                        {
+                            unset($element->{$property});
+
+                            if (property_exists($element, $activeprty))
+                            {
+                                // TODO Spec Handle term collissions
+                                if (false === is_array($element->{$activeprty}))
+                                {
+                                    $element->{$activeprty} = array($element->{$activeprty});
+                                }
+                                $element->{$activeprty}[] = $value;
+                            }
+                            else
+                            {
+                                $element->{$activeprty} = $value;
+                            }
+
+                            $property = $activeprty;
+                        }
+                    }
+
+
+                    if (is_object($value))
+                    {
+                        // This code should never be reached
+                        $numberProperties = count(get_object_vars($value));
+
+                        if (property_exists($value, '@value') ||
+                            (property_exists($value, '@id') && (1 === $numberProperties)))
+                        {
+                            $element->{$property} = $this->compactValue($value, $activeprty, $activectx, $optimize);
+                        }
+                        else if (property_exists($value, '@list') && (1 === $numberProperties) &&
+                                 isset($activectx[$activeprty]['@container']) && ('@list' == $activectx[$activeprty]['@container']))
+                        {
+                            // TODO Spec Make last part of the following sentence clearer: Otherwise, if value contains only a @list property, and the active property is subject to list coercion, the compacted value is the result of performing this algorithm on that value.
+                            $element->{$property} = $this->compactValue($value->{'@list'}, $activeprty, $activectx, $optimize);
+                        }
+                        else
+                        {
+                            $this->compact($element->{$property}, $activectx, $activeprty, $optimize);
+                        }
+                    }
+                    elseif (is_array($value))
+                    {
+                        $this->compact($element->{$property}, $activectx, $activeprty, $optimize);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     *
+     * Please note that this method requires the active context to be sorted already
+     * (with {@link compare()}).
+     *
+     * @param mixed  $value         The value to be expanded to an absolute IRI
+     * @param array  $activectx     The active context
+     * @param bool   $toRelativeIri Specifies whether $value should be treated
+     *                              transformed to a relative IRI if possible
+     *
+     * @return StdClass  The expanded value in object form
+     */
+    private function compactIri($value, $activectx, $toRelativeIri = false)
+    {
+        // TODO Handle "to relative IRIs" or remove it.
+        $compactIris = array();
+
+        foreach ($activectx as $term => $definition)
+        {
+            if (isset($definition['@id']))
+            {
+                if ($value == $definition['@id'])
+                {
+                    return $term;
+                }
+
+                if (0 === substr_compare($value, $definition['@id'], 0, strlen($definition['@id'])))
+                {
+                    $compactIris[] = $term . ':' . substr($value, strlen($definition['@id']));
+                }
+            }
+        }
+
+        if (count($compactIris) > 0)
+        {
+            usort($compactIris, array($this, 'compare'));
+            return $compactIris[0];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Compacts an expanded JSON-LD value.
+     *
+     * @param mixed  $value      The expanded value to be compacted
+     * @param mixed  $activeprty The active property
+     * @param array  $activectx  The active context
+     * @param bool   $toRelativeIri Specifies whether $value should be treated
+     *                              transformed to a relative IRI if possible
+     *
+     * @return mixed The compacted value
+     */
+    protected function compactValue($value, $activeprty, $activectx, $toRelativeIri)
+    {
+        // TODO Handle "to relative IRIs" or remove it.
+          // TODO Spec This check is not in the spec
+        if (property_exists($value, '@value') && (is_bool($value->{'@value'}) || is_numeric($value->{'@value'})))
+        {
+            // TODO Remove this completely from the spec??
+die('#####################################################################################');
+            // TODO Check if term has other type coercion
+            return $value->{'@value'};
+        }
+        elseif (isset($activectx[$activeprty]['@type']))
+        {
+            // TODO Check if @id exists
+            if (('@id' == $activectx[$activeprty]['@type']) && property_exists($value, '@id'))
+            {
+                return $this->compactIri($value->{'@id'}, $activectx, $toRelativeIri);
+            }
+            // TODO Check that @value exists and that types match
+            elseif (property_exists($value, '@value') && property_exists($value, '@type') &&
+                    (($value->{'@type'} == $activectx[$activeprty]['@type'])))
+            {
+                echo $value->{'@type'};
+                return $value->{'@value'};
+            }
+        }
+        elseif (property_exists($value, '@id'))
+        {
+            $value->{'@id'} = $this->compactIri($value->{'@id'}, $activectx, $toRelativeIri);
+            return $value;
+        }
+        elseif (property_exists($value, '@value') &&
+                ((1 === count(get_object_vars($value))) ||
+                  (property_exists($value, '@language') && isset($activectx[$activeprty]['@language']) &&
+                   ($value->{'@language'} == $activectx[$activeprty]['@language']))))
+        {
+            return $value->{'@value'};
+        }
+        elseif (property_exists($value, '@list')) /*&&
+                isset($activectx[$activeprty]['@container']) &&
+                ('@list' == $activectx[$activeprty]['@container']))*/
+
+        {
+die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~++++++++++++++++++++++++++++++++++++++++++++++');
+            return $value->{'@list'};
+        }
+        elseif (property_exists($value, '@type'))
+        {
+            $value->{'@type'} = $this->compactIri($value->{'@type'}, $activectx, $toRelativeIri);
+            return $value;
+        }
+
+        return $value;
+    }
+
+    /**
      * Expands compact IRIs in the context
      *
      * @param string $value      The (compact) IRI that should be expanded
@@ -524,7 +815,7 @@ class Processor
      *
      * @throws ProcessException If processing of the JSON-LD document failed
      */
-    protected function processContext($loclctx, &$activectx)
+    public function processContext($loclctx, &$activectx)
     {
         // TODO Make sure that all @id's are absolute IRIs?
         // TODO Spec Do we need to check that we end up with an absolute IRI?
@@ -559,6 +850,7 @@ class Processor
             {
                 // term definitions can't be modified but just be replaced
                 unset($activectx[$key]);
+                $loclctx->{$key} = clone $loclctx->{$key};
 
                 if (isset($value->{'@id'}))
                 {
