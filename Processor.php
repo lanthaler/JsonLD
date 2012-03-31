@@ -8,8 +8,7 @@
  */
 
 namespace ML\JsonLD;
-require("Exception\SyntaxException.php");
-require("Exception\ParseException.php");
+
 use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
@@ -89,21 +88,14 @@ class Processor
      */
     public function parse($document)
     {
-        if (function_exists('mb_detect_encoding') && false === mb_detect_encoding($document, 'UTF-8', true)) {
+        if (function_exists('mb_detect_encoding') &&
+            (false === mb_detect_encoding($document, 'UTF-8', true)))
+        {
             throw new ParseException('The JSON-LD document does not appear to be valid UTF-8.');
-        }
-
-        if (function_exists('mb_internal_encoding') && ((int) ini_get('mbstring.func_overload')) & 2) {
-            $mbEncoding = mb_internal_encoding();
-            mb_internal_encoding('UTF-8');
         }
 
         $error = null;
         $data = json_decode($document, false, 512, JSON_UNESCAPED_SLASHES);
-
-        if (isset($mbEncoding)) {
-            mb_internal_encoding($mbEncoding);
-        }
 
         switch (json_last_error())
         {
@@ -129,7 +121,7 @@ class Processor
                 break;
         }
 
-        return empty($data) ? null : $data;
+        return (empty($data)) ? null : $data;
     }
 
     /**
@@ -145,249 +137,338 @@ class Processor
      */
     public function expand(&$element, $activectx = array(), $activeprty = null)
     {
-        // TODO Spec: Define precedence @graph, @value
-        // TODO Add support for keyword aliasing
-
         if (is_array($element))
         {
             $result = array();
             foreach($element as &$item)
             {
                 $this->expand($item, $activectx);
-                if(false === is_null($item))
+
+                if (is_array($item))
+                {
+                    if (isset($activectx[$activeprty]['@container']) &&
+                        ('@list' == $activectx[$activeprty]['@container']))
+                    {
+                        $result[] = $item;
+                    }
+                    else
+                    {
+                        $result = array_merge($result, $item);
+                    }
+                }
+                elseif (false === is_null($item))
                 {
                     $result[] = $item;
                 }
             }
 
             $element = $result;
+            return;
         }
-        elseif (is_object($element))
+
+        if (false == is_object($element))
         {
-            if (property_exists($element, '@context'))
-            {
-                $this->processContext($element->{'@context'}, $activectx);
-                unset($element->{'@context'});
-            }
+            $element = $this->expandValue($element, $activeprty, $activectx);
+            return;
+        }
 
-            // Preprocess object to restore aliased-keywords
-            foreach ($element as $property => $value)
+        // $element is an object, try to process local context
+        if (property_exists($element, '@context'))
+        {
+            $this->processContext($element->{'@context'}, $activectx);
+            unset($element->{'@context'});
+        }
+
+        // Preprocess object to restore aliased-keywords
+        $properties = get_object_vars($element);
+        foreach ($properties as $property => &$value)
+        {
+            $keyword = null;
+
+            // All keyword aliases are stored under the '@context' key
+            // in the active context since that key will never be
+            // overwritten
+            if (isset($activectx['@context'][$property]))
             {
-                if (isset($activectx['@aliases'][$property]))
+                $keyword = $activectx['@context'][$property];
+                unset($element->{$property});
+
+                if (property_exists($element, $keyword))
                 {
-                    $keyword = $activectx['@aliases'][$property];
-                    unset($element->{$property});
-
-                    if (property_exists($element, $keyword))
+                    // if the keyword already exists, merge it with this property's value
+                    if (false === is_array($element->{$keyword}))
                     {
-                        // if the keyword already exists, merge it with this property's value
-                        if (is_array($element[$keyword]))
-                        {
-                            $element->{$keyword}[] = $value;
-                        }
-                        else
-                        {
-                            $element->{$keyword} = array($element->{$keyword}, $value);
-                        }
+                        $element->{$keyword} = array($element->{$keyword});
+                    }
+
+                    if (false == is_array($value))
+                    {
+                        $element->{$keyword}[] = $value;
                     }
                     else
                     {
-                        $element->{$keyword} = $value;
+                        $element->{$keyword} = array_merge($element->{$keyword}, $value);
                     }
+                }
+                else
+                {
+                    $element->{$keyword} = $value;
                 }
             }
 
-            // TODO Define precedence
-            if (property_exists($element, '@graph'))
+            // Remove properties with null values except @value as we need it
+            // to determine what @type means
+            if (is_null($value) && ('@value' != $keyword))
             {
-                // TODO Check for invalid other properties
-                $this->expand($element->{'@graph'}, $activectx);
-                $element = $element->{'@graph'};
-                return;
+                unset($element->{$property});
+                continue;
             }
+        }
 
-            // TODO Check @value (with @type), @language, @list, @set
+        // Process properties
+        $properties = get_object_vars($element);
+        foreach ($properties as $property => &$value)
+        {
+            $activeprty = $property;
 
-            // TODO Check @container -> invalid?
-
-            // Process all other properties
-            $properties = get_object_vars($element);
-            foreach ($properties as $property => &$value)
+            if ('@id' == $property)
             {
-                $activeprty = $property;
-
-                if (is_null($value))
+                if (is_string($value))
                 {
-                    unset($element->{$property});
-                    continue;
-                }
-                elseif(is_object($value))
-                {
-                    if (((property_exists($value, '@value')) && (false === isset($value->{'@value'}))) ||
-                        ((property_exists($value, '@list')) && (false === isset($value->{'@list'}))) ||
-                        ((property_exists($value, '@set')) && (false === isset($value->{'@set'}))))
-                    {
-                        unset($element->{$property});
-                        continue;
-                    }
-                    elseif (property_exists($value, '@set') && isset($value->{'@set'}))
-                    {
-                        $value = $value->{'@set'};
-                    }
-                }
-
-                if ('@id' == $property)
-                {
-                    if (is_string($value))
-                    {
-                        $element->{'@id'} = $this->expandIri($value, $activectx, true);
-                    }
-                    else
-                    {
-                        // TODO Spec, add other clause.. either ignore or throw exception
-                        throw new SyntaxException('Invalid value for @id detected.',
-                                                  json_encode($element, true));
-                    }
-                }
-                elseif ('@type' == $property)
-                {
-                    // TODO Check what to do if @type can't be converted to absolute IRI
-                    if (is_string($value))
-                    {
-                        $element->{'@type'} = $this->expandIri($value, $activectx);
-                        if (false == property_exists($element, '@value'))
-                        {
-                            $element->{'@type'} = array($element->{'@type'});
-                        }
-                    }
-                    elseif (is_array($value))
-                    {
-                        if (property_exists($element, '@value'))
-                        {
-                            throw new SyntaxException(
-                                    'Detected @type with an value of an array in an element where @value is present as well.',
-                                    var_export($element, true));
-                        }
-
-                        $element->{'@type'} = array();
-                        foreach ($value as $item)
-                        {
-                            if (false === is_string($item))
-                            {
-                                throw new SyntaxException(
-                                        'Invalid value in @type array detected. Expected string, got ' .
-                                        var_export($item, true));
-                            }
-                            $element->{'@type'}[] = $this->expandIri($item, $activectx);
-                        }
-                    }
-                    else
-                    {
-                        throw new SyntaxException(
-                            'Invalid value for @type detected. Expected string or array, got ' .
-                            var_export($element->{'@type'}, true));
-                    }
-                }
-                elseif ('@list' == $property)
-                {
-                    // TODO Check for other keywords and throw exception??
-                    if (false === is_array($value))
-                    {
-                        $value = array($value);
-                    }
-
-                    $result = array();
-                    foreach ($value as &$item)
-                    {
-                        $this->expand($item, $activectx, $activeprty);
-                        if(false === is_null($item))
-                        {
-                            $result[] = $item;
-                        }
-                    }
-                    $element->{'@list'} = $result;
-                }
-                elseif (('@value' == $property) || ('@language' == $property))
-                {
-                    // nothing to do, already expanded
+                    $element->{'@id'} = $this->expandIri($value, $activectx, true);
                     continue;
                 }
                 else
                 {
-                    $property = $this->expandIri($property, $activectx);
-
-                    // TODO Check if this check is enough
-                    // TODO Spec Update spec accordingly
-                    if ((false === strpos($property, ':')) &&
-                        (false == in_array($property, self::$keywords)))
+                    // TODO Spec, add other clause.. either ignore or throw exception
+                    throw new SyntaxException(
+                        'Invalid value for @id detected (must be a string).',
+                        $element);
+                }
+            }
+            elseif ('@type' == $property)
+            {
+                if (is_string($value))
+                {
+                    $element->{'@type'} = $this->expandIri($value, $activectx);
+                    if (false == property_exists($element, '@value')) {
+                        $element->{'@type'} = array($element->{'@type'});
+                    }
+                }
+                elseif (is_array($value))
+                {
+                    if (property_exists($element, '@value'))
                     {
-                        // if the property doesn't contain a colon it is not a valid
-                        // absolute IRI and thus plain JSON that isn't further processed
-                        // but dropped
-
-                        // TODO Check this, ISSUE-56
-                        unset($element->{$activeprty});
-                        continue;
+                        throw new SyntaxException(
+                            'Detected @type with an value of an array in an element where @value is present as well.',
+                            $element);
                     }
 
-                    // Remove un-expanded property
-                    // TODO Check this
-                    if ($property !== $activeprty)
+                    $element->{'@type'} = array();
+                    foreach ($value as $item)
                     {
-                        // value is still referenced in $value
-                        unset($element->{$activeprty});
+                        if (false === is_string($item))
+                        {
+                            throw new SyntaxException(
+                                'Invalid value in @type array detected (must be a string).',
+                                $value);
+                        }
+                        $element->{'@type'}[] = $this->expandIri($item, $activectx);
                     }
-                    else
+                }
+                else
+                {
+                    throw new SyntaxException('Invalid value for @type detected (must be a string or array).',
+                                              $value);
+                }
+
+                // fully processed
+                continue;
+            }
+            elseif (('@value' == $property) || ('@language' == $property))
+            {
+                if (is_object($value) || is_array($value))
+                {
+                    throw new SyntaxException(
+                        "Invalid value for $property detected (must be a scalar).",
+                        $value);
+                }
+
+                if (('@language' == $property) && (false == property_exists($element, '@value')))
+                {
+                    // drop @language property if there's no corresponding @value property
+                    unset($element->{'@language'});
+                }
+
+                // nothing to do, already expanded
+                continue;
+            }
+            elseif (('@list' == $property) || ('@set' == $property))
+            {
+                if (false == is_array($value))
+                {
+                    $value = array($value);
+                }
+
+                $result = array();
+                foreach ($value as &$item)
+                {
+                    $this->expand($item, $activectx, $activeprty);
+                    if(false === is_null($item))
                     {
-                        // remove value as it will be merged in again
-                        unset($element->{$property});
+                        $result[] = $item;
                     }
 
-                    // Create expanded property and make sure it's an array
-                    if (false === property_exists($element, $property))
+                    if (is_object($item) && ('@list' == $property) && property_exists($item, '@list'))
                     {
-                        $element->{$property} = array();
+                        throw new SyntaxException('List of lists are not allowed.',
+                                                  $value);
                     }
-                    elseif (false === is_array($element->{$property}))
+                }
+
+                // @set is optimized away after the whole object has been
+                // processed
+                $element->{$property} = $result;
+
+                continue;
+            }
+            else
+            {
+                // Remove property from object, we will merge it back using
+                // the expanded IRI later
+                unset($element->{$activeprty});
+                $property = $this->expandIri($property, $activectx);
+
+
+                // TODO Check if this check is enough; see ISSUE-84 and ISSUE-56
+                // TODO Spec Update spec accordingly
+
+                // If the extended property doesn't contain a colon it is not a
+                // valid absolute IRI. That means it is plain old JSON has to be
+                // dropped, we did that already, continue with next property
+                if ((false === strpos($property, ':')) &&
+                    (false == in_array($property, self::$keywords)))
+                {
+                    continue;
+                }
+
+                // Create expanded property if it doesn't exist, otherwise
+                // just make sure it's an array
+                if (false === property_exists($element, $property))
+                {
+                    $element->{$property} = array();
+                }
+                elseif (false === is_array($element->{$property}))
+                {
+                    $element->{$property} = array($element->{$property});
+                }
+
+                if (is_array($value) || is_object($value))
+                {
+                    $this->expand($value, $activectx, $activeprty);
+                }
+                else
+                {
+                    $value = $this->expandValue($value, $activeprty, $activectx);
+                }
+
+                if (false == is_null($value))
+                {
+                    // If property has an @list container, and value is not yet an
+                    // expanded @list-object, transform it to one
+                    if (isset($activectx[$activeprty]['@container']) &&
+                        ('@list' == $activectx[$activeprty]['@container']) &&
+                        ((false == is_object($value) || (false == property_exists($value, '@list')))))
                     {
-                        $element->{$property} = array($element->{$property});
+                        if (false == is_array($value))
+                        {
+                            $value = array($value);
+                        }
+                        else
+                        {
+                            // Check for lists of lists
+                            foreach ($value as $item)
+                            {
+                                if (is_object($item) && property_exists($item, '@list'))
+                                {
+                                    throw new SyntaxException(
+                                        "List of lists detected. Property \"$activeprty\" ($property) is also list-coerced.",
+                                        $element);
+                                }
+                            }
+                        }
+
+                        $obj = new \stdClass();
+                        $obj->{'@list'} = $value;
+                        $value = array($obj);
                     }
 
                     if (is_array($value))
                     {
-                        // if @list coercion transform to object and merge to prop
-                        // otherwise process each item recursively and merge to prop
-                        $result = array();
-
-                        foreach ($value as $key => &$item)
-                        {
-                            $this->expand($item, $activectx, $activeprty);
-                            if (false === is_null($item))
-                            {
-                                $result[] = $item;
-                            }
-                        }
-                        $element->{$property} = array_merge($element->{$property}, $result);
-                    }
-                    elseif (is_object($value))
-                    {
-                        $this->expand($value, $activectx, $activeprty);
-                        $element->{$property}[] = $value;
+                        $element->{$property} = array_merge($element->{$property}, $value);
                     }
                     else
                     {
-                        $value = $this->expandValue($value, $activeprty, $activectx);
-                        if (isset($value))
-                        {
-                            $element->{$property}[] = $value;
-                        }
+                        $element->{$property}[] = $value;
                     }
                 }
             }
         }
-        else
+
+        // All properties have been processed. Make sure the result is valid
+        // and optimize object where possible
+        $numProps = count(get_object_vars($element));
+
+        // TODO Remove this when @graph is removed
+        if (property_exists($element, '@graph'))
         {
-            $element = $this->expandValue($element, $activeprty, $activectx);
+            if ($numProps > 1)
+            {
+                throw new SyntaxException('Found @graph with other properties on same object.',
+                                          $element);
+            }
+
+            $element = $element->{'@graph'};
+            return;
+        }
+
+        if (property_exists($element, '@value'))
+        {
+            if (($numProps > 2) ||
+                ((2 == $numProps) &&
+                    (false == property_exists($element, '@language')) &&
+                    (false == property_exists($element, '@type'))))
+            {
+                new SyntaxException(
+                    'Detected an expanded object notation that contains additional data.',
+                    $element);
+            }
+            elseif (1 == $numProps)
+            {
+                // object has just an @value property, can be replaced with that value
+                $element = $element->{'@value'};
+            }
+            elseif (is_null($element->{'@value'}))
+            {
+                $element = null;
+            }
+        }
+        elseif (($numProps > 1) && (property_exists($element, '@list') ||
+                                    property_exists($element, '@set') ||
+                                    property_exists($element, '@graph')))   // TODO Remove this if @graph is removed
+        {
+                new SyntaxException(
+                    'An object with an @list, @set, or @graph property can\'t contain other data.',
+                    $element);
+        }
+        elseif (property_exists($element, '@set'))
+        {
+            // @set objects can be optimized away as they are just syntactic sugar
+            $element = $element->{'@set'};
+        }
+        elseif (($numProps == 1) && property_exists($element, '@language'))
+        {
+            $element == null;
         }
     }
 
@@ -402,7 +483,7 @@ class Processor
      *
      * @return StdClass  The expanded value in object form
      */
-    protected function expandValue($value, $activeprty, $activectx)
+    private function expandValue($value, $activeprty, $activectx)
     {
         // TODO Check if $value can really just be a scalar type!
 
@@ -576,7 +657,7 @@ class Processor
                         {
                             // TODO Check this, should not be possible!
                             throw new SyntaxException('Detected invalid value of @id or @type. Must be a string or an array of strings.',
-                                                      json_encode($element));
+                                                      $element);
                         }
                     }
 
@@ -591,7 +672,7 @@ class Processor
                 {
                     // TODO Spec Make last part of the following sentence clearer: Otherwise, if value contains only a @list property, and the active property is subject to list coercion, the compacted value is the result of performing this algorithm on that value.
                     $element = $element->{'@list'};
-                    $this->compact($element, $activeprty, $activectx, $optimize);
+                    $this->compact($element, $activectx, $activeprty, $optimize);
                 }
                 else
                 {
@@ -707,7 +788,7 @@ class Processor
      *
      * @return mixed The compacted value
      */
-    protected function compactValue($value, $activeprty, $activectx, $toRelativeIri)
+    private function compactValue($value, $activeprty, $activectx, $toRelativeIri)
     {
         // TODO Handle "to relative IRIs" or remove it.
           // TODO Spec This check is not in the spec
@@ -772,7 +853,7 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
      *
      * @throws SyntaxException If a JSON-LD syntax error is detected
      */
-    protected function contextIriExpansion($value, $loclctx, $activectx, $path = array())
+    private function contextIriExpansion($value, $loclctx, $activectx, $path = array())
     {
         // TODO Rename this method??
         // TODO And, more important, check that it's doing the right thing
@@ -785,8 +866,9 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
 
         if (in_array($prefix, $path))
         {
-            throw new SyntaxException('Cycle in context definition detected: ' .
-                                      join(' -> ', $path) . ' -> ' . $path[0]);
+            throw new ProcessException(
+                'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
+                $loclctx);
         }
         else
         {
@@ -819,74 +901,99 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
     {
         // TODO Make sure that all @id's are absolute IRIs?
         // TODO Spec Do we need to check that we end up with an absolute IRI?
+        $loclctx = clone $loclctx;
 
-        foreach ($loclctx as $key => $value)
+        if (false == is_array($loclctx))
         {
-            if (is_null($value))
+            $loclctx = array($loclctx);
+        }
+
+        foreach ($loclctx as $context)
+        {
+            if (is_null($context))
             {
-                unset($activectx[$key]);
-                unset($activectx['@aliases'][$key]);  // TODO create keyword mapping
+                // TODO Add test for context reset
+                $activectx = array();
             }
-            elseif (is_string($value))
+            elseif (is_object($context))
             {
-                // either IRI or prefix:suffix
-                $expanded = $this->contextIriExpansion($value, $loclctx, $activectx);
-                $loclctx->{$key} = $expanded;
-
-                if (in_array($expanded, self::$keywords))
+                foreach ($context as $key => $value)
                 {
-                    // if it's a keyword alias, add it to special map and remove from active context
-                    // TODO create keyword mapping
-                    $activectx['@aliases'][$key] = $expanded;
-                    unset($activectx[$key]);
-                }
-                else
-                {
-                    // term definitions can't be modified but just be replaced
-                    $activectx[$key] = array('@id' => $expanded);
-                }
-            }
-            elseif (is_object($value))
-            {
-                // term definitions can't be modified but just be replaced
-                unset($activectx[$key]);
-                $loclctx->{$key} = clone $loclctx->{$key};
+                    // TODO Handle remote contexts!!
 
-                if (isset($value->{'@id'}))
-                {
-                    $expanded = $this->contextIriExpansion($value->{'@id'}, $loclctx, $activectx);
-                    $loclctx->{$key}->{'@id'} = $expanded;
-                    $activectx[$key]['@id'] = $expanded;
-                }
-
-                if (property_exists($value, '@type'))
-                {
-                    $expanded = $this->contextIriExpansion($value->{'@type'}, $loclctx, $activectx);
-
-                    if(!is_null($expanded))
+                    if (in_array($key, self::$keywords))
                     {
-                        $loclctx->{$key}->{'@type'} = $expanded;
-                        $activectx[$key]['@type'] = $expanded;
+                        // Keywords can't be altered
+                        continue;
                     }
-                }
-                elseif (property_exists($value, '@language') && is_string($value->{'@language'}))
-                {
-                    // language tagging applies just to untyped literals
-                    $activectx[$key]['@language'] = $value->{'@language'};
-                }
 
-                if (property_exists($value, '@container'))
-                {
-                    if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
+                    if (is_null($value))
                     {
-                        $activectx[$key]['@container'] = $value->{'@container'};
+                        unset($activectx[$key]);
+                        unset($activectx['@context'][$key]);  // TODO create keyword mapping
+                    }
+                    elseif (is_string($value))
+                    {
+                        // either IRI or prefix:suffix
+                        $expanded = $this->contextIriExpansion($value, $context, $activectx);
+                        $context->{$key} = $expanded;
+
+                        if (in_array($expanded, self::$keywords))
+                        {
+                            // if it's a keyword alias, add it to special map and remove from active context
+                            // TODO create keyword mapping
+                            $activectx['@context'][$key] = $expanded;
+                            unset($activectx[$key]);
+                        }
+                        else
+                        {
+                            // term definitions can't be modified but just be replaced
+                            $activectx[$key] = array('@id' => $expanded);
+                        }
+                    }
+                    elseif (is_object($value))
+                    {
+                        // term definitions can't be modified but just be replaced
+                        unset($activectx[$key]);
+                        $context->{$key} = clone $context->{$key};
+
+                        if (isset($value->{'@id'}))
+                        {
+                            $expanded = $this->contextIriExpansion($value->{'@id'}, $context, $activectx);
+                            $context->{$key}->{'@id'} = $expanded;
+                            $activectx[$key]['@id'] = $expanded;
+                        }
+
+                        if (property_exists($value, '@type'))
+                        {
+                            $expanded = $this->contextIriExpansion($value->{'@type'}, $context, $activectx);
+
+                            if(!is_null($expanded))
+                            {
+                                $context->{$key}->{'@type'} = $expanded;
+                                $activectx[$key]['@type'] = $expanded;
+                            }
+                        }
+                        elseif (property_exists($value, '@language') && is_string($value->{'@language'}))
+                        {
+                            // language tagging applies just to untyped literals
+                            $activectx[$key]['@language'] = $value->{'@language'};
+                        }
+
+                        if (property_exists($value, '@container'))
+                        {
+                            if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
+                            {
+                                $activectx[$key]['@container'] = $value->{'@container'};
+                            }
+                        }
                     }
                 }
             }
             else
             {
-                throw new ProcessException('Found invalid value in context.',
-                                           $key . ': ' . json_encode($value, JSON_UNESCAPED_SLASHES));
+                // TODO Handle remote contexts
+                throw new \Exception("Remote contexts are not implemented yet");
             }
         }
     }

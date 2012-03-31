@@ -146,7 +146,7 @@ class JsonLD
 
         // TODO Support contexts that are passed in the form of an IRI
         $activectx = array();
-        $processor->processContext(clone $context, $activectx);
+        $processor->processContext($context, $activectx);
 
         if (0 == count($activectx))
         {

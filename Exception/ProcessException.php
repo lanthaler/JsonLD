@@ -9,6 +9,9 @@
 
 namespace ML\JsonLD\Exception;
 
+use ML\JsonLD\JsonLD;
+
+
 /**
  * Exception class thrown when an error occurs during processing.
  *
@@ -26,13 +29,14 @@ class ProcessException extends \RuntimeException
      * Constructor.
      *
      * @param string    $message    The error message
+     * @param mixed     $snippet    The code snippet
      * @param string    $parsedFile The file name where the error occurred
      * @param Exception $previous   The previous exception
      */
     public function __construct($message, $snippet = null, $parsedFile = null, Exception $previous = null)
     {
         $this->parsedFile = $parsedFile;
-        $this->snippet = $snippet;
+        $this->snippet = JsonLD::dump($snippet, true);
         $this->rawMessage = $message;
 
         $this->updateMessage();
@@ -57,7 +61,7 @@ class ProcessException extends \RuntimeException
      */
     public function setSnippet($snippet)
     {
-        $this->snippet = $snippet;
+        $this->snippet = JsonLD::dump($snippet, true);
 
         $this->updateMessage();
     }

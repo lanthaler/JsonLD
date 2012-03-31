@@ -9,6 +9,9 @@
 
 namespace ML\JsonLD\Exception;
 
+use ML\JsonLD\JsonLD;
+
+
 /**
  * Exception class thrown when a JSON-LD syntax error is detected.
  *
@@ -26,13 +29,14 @@ class SyntaxException extends \RuntimeException
      * Constructor.
      *
      * @param string    $message    The error message
+     * @param mixed     $snippet    The code snippet
      * @param string    $parsedFile The file name where the error occurred
      * @param Exception $previous   The previous exception
      */
     public function __construct($message, $snippet = null, $parsedFile = null, Exception $previous = null)
     {
         $this->parsedFile = $parsedFile;
-        $this->snippet = $snippet;
+        $this->snippet = JsonLD::dump($snippet, true);
         $this->rawMessage = $message;
 
         $this->updateMessage();
@@ -53,11 +57,11 @@ class SyntaxException extends \RuntimeException
     /**
      * Sets the snippet of code near the error.
      *
-     * @param string $snippet The code snippet
+     * @param mixed $snippet The code snippet
      */
     public function setSnippet($snippet)
     {
-        $this->snippet = $snippet;
+        $this->snippet = JsonLD::dump($snippet, true);
 
         $this->updateMessage();
     }
