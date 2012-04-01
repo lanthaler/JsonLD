@@ -23,7 +23,7 @@ class Processor
 {
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language',
-                                     '@type', '@container', '@list', '@set', '@graph');
+                                     '@type', '@container', '@list', '@set');
 
     /** The base IRI */
     private $baseiri = null;
@@ -432,19 +432,6 @@ class Processor
         // and optimize object where possible
         $numProps = count(get_object_vars($element));
 
-        // TODO Remove this when @graph is removed
-        if (property_exists($element, '@graph'))
-        {
-            if ($numProps > 1)
-            {
-                throw new SyntaxException('Found @graph with other properties on same object.',
-                                          $element);
-            }
-
-            $element = $element->{'@graph'};
-            return;
-        }
-
         if (property_exists($element, '@value'))
         {
             if (($numProps > 2) ||
@@ -467,11 +454,10 @@ class Processor
             }
         }
         elseif (($numProps > 1) && (property_exists($element, '@list') ||
-                                    property_exists($element, '@set') ||
-                                    property_exists($element, '@graph')))   // TODO Remove this if @graph is removed
+                                    property_exists($element, '@set')))
         {
                 new SyntaxException(
-                    'An object with an @list, @set, or @graph property can\'t contain other data.',
+                    'A @list or @set object can\'t contain other properties.',
                     $element);
         }
         elseif (property_exists($element, '@set'))

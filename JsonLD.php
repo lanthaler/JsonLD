@@ -164,7 +164,7 @@ class JsonLD
         {
             $compactedDocument = new \stdClass();
             $compactedDocument->{'@context'} = $context;
-            $compactedDocument->{'@graph'} = $document;  // TODO Handle @graph aliases??
+            $compactedDocument->{'@set'} = $document;  // TODO Handle @set aliases!?
 
             return $compactedDocument;
         }
