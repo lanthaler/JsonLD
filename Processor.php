@@ -29,6 +29,35 @@ class Processor
     private $baseiri = null;
 
     /**
+     * Merges a value into a property of an object.
+     *
+     * @param object $object   The object having
+     * @param string $property The name of the property to which the value should be merged into
+     * @param mixed  $value    The value to merge into the property
+     */
+    private static function mergeIntoProperty(&$object, $property, $value)
+    {
+        if (false == is_array($value))
+        {
+            $value = array($value);
+        }
+
+        if (property_exists($object, $property))
+        {
+            if (false === is_array($object->{$property}))
+            {
+                $object->{$property} = array($object->{$property});
+            }
+
+            $object->{$property} = array_merge($object->{$property}, $value);
+        }
+        else
+        {
+            $object->{$property} = $value;
+        }
+    }
+
+    /**
      * Compares two values by their length and then lexicographically.
      *
      * If two strings have different lenghts, the shorter one will be considered
@@ -70,7 +99,7 @@ class Processor
     /**
      * Constructor
      *
-     * @param string $baseiri    The base IRI
+     * @param string $baseiri The base IRI
      */
     public function __construct($baseiri = null)
     {
@@ -179,68 +208,44 @@ class Processor
             unset($element->{'@context'});
         }
 
-        // Preprocess object to restore aliased-keywords
-        $properties = get_object_vars($element);
-        foreach ($properties as $property => &$value)
-        {
-            $keyword = null;
-
-            // All keyword aliases are stored under the '@context' key
-            // in the active context since that key will never be
-            // overwritten
-            if (isset($activectx['@context'][$property]))
-            {
-                $keyword = $activectx['@context'][$property];
-                unset($element->{$property});
-
-                if (property_exists($element, $keyword))
-                {
-                    // if the keyword already exists, merge it with this property's value
-                    if (false === is_array($element->{$keyword}))
-                    {
-                        $element->{$keyword} = array($element->{$keyword});
-                    }
-
-                    if (false == is_array($value))
-                    {
-                        $element->{$keyword}[] = $value;
-                    }
-                    else
-                    {
-                        $element->{$keyword} = array_merge($element->{$keyword}, $value);
-                    }
-                }
-                else
-                {
-                    $element->{$keyword} = $value;
-                }
-            }
-
-            // Remove properties with null values except @value as we need it
-            // to determine what @type means
-            if (is_null($value) && ('@value' != $keyword))
-            {
-                unset($element->{$property});
-                continue;
-            }
-        }
-
         // Process properties
         $properties = get_object_vars($element);
         foreach ($properties as $property => &$value)
-        {
+        {   // Remove property from object..
+            unset($element->{$property});
+
+            // It will be re-added later using the expanded IRI
             $activeprty = $property;
+            $property = $this->expandIri($property, $activectx, false);
+
+            // Remove properties with null values except (@value as we need
+            // it to determine what @type means) and all properties that are
+            // neither keywords nor valid IRIs (i.e., they don't contain a
+            // colon) since we drop unmapped JSON
+            if ((is_null($value) && ('@value' != $property)) ||
+                ((false === strpos($property, ':')) &&
+                 (false == in_array($property, self::$keywords))))
+            {
+                // TODO Check if this check is enough to detect unmapped JSON (see ISSUE-84 and ISSUE-56)
+                // TODO Spec Update spec accordingly
+                continue;
+            }
 
             if ('@id' == $property)
             {
-                if (is_string($value))
+                if (property_exists($element, '@id'))
+                {
+                    throw new SyntaxException(
+                        "Two @id properties found (used alias: $activeprty)",
+                        $element);
+                }
+                elseif (is_string($value))
                 {
                     $element->{'@id'} = $this->expandIri($value, $activectx, true);
                     continue;
                 }
                 else
                 {
-                    // TODO Spec, add other clause.. either ignore or throw exception
                     throw new SyntaxException(
                         'Invalid value for @id detected (must be a string).',
                         $element);
@@ -250,36 +255,45 @@ class Processor
             {
                 if (is_string($value))
                 {
-                    $element->{'@type'} = $this->expandIri($value, $activectx);
-                    if (false == property_exists($element, '@value')) {
-                        $element->{'@type'} = array($element->{'@type'});
-                    }
-                }
-                elseif (is_array($value))
-                {
-                    if (property_exists($element, '@value'))
+                    if (property_exists($element, '@type'))
                     {
                         throw new SyntaxException(
-                            'Detected @type with an value of an array in an element where @value is present as well.',
+                            "Two @type properties found (used alias: $activeprty)",
                             $element);
                     }
 
-                    $element->{'@type'} = array();
+                    $element->{$property} = $this->expandIri($value, $activectx);
+                }
+                elseif (is_array($value))
+                {
+                    $result = array();
                     foreach ($value as $item)
                     {
+                        if (is_null($value))
+                        {
+                            continue;
+                        }
                         if (false === is_string($item))
                         {
                             throw new SyntaxException(
                                 'Invalid value in @type array detected (must be a string).',
                                 $value);
                         }
-                        $element->{'@type'}[] = $this->expandIri($item, $activectx);
+                        $result[] = $this->expandIri($item, $activectx);
+                    }
+
+                    // Don't keep empty arrays
+                    // TODO Check this
+                    if (count($result) >= 1)
+                    {
+                        self::mergeIntoProperty($element, $property, $result);
                     }
                 }
                 else
                 {
-                    throw new SyntaxException('Invalid value for @type detected (must be a string or array).',
-                                              $value);
+                    throw new SyntaxException(
+                        'Invalid value for @type detected (must be a string or array).',
+                        $value);
                 }
 
                 // fully processed
@@ -293,14 +307,16 @@ class Processor
                         "Invalid value for $property detected (must be a scalar).",
                         $value);
                 }
-
-                if (('@language' == $property) && (false == property_exists($element, '@value')))
+                elseif (property_exists($element, $property))
                 {
-                    // drop @language property if there's no corresponding @value property
-                    unset($element->{'@language'});
+                    // A @value or @language property exists already,
+                    // that's illegal on expanded object form
+                    throw new SyntaxException(
+                        "Two $property properties found (used alias: $activeprty)",
+                        $element);
                 }
 
-                // nothing to do, already expanded
+                $element->{$property} = $value;
                 continue;
             }
             elseif (('@list' == $property) || ('@set' == $property))
@@ -319,50 +335,27 @@ class Processor
                         $result[] = $item;
                     }
 
-                    if (is_object($item) && ('@list' == $property) && property_exists($item, '@list'))
+                    if (('@list' == $property) && is_object($item) && property_exists($item, '@list'))
                     {
                         throw new SyntaxException('List of lists are not allowed.',
                                                   $value);
                     }
                 }
 
-                // @set is optimized away after the whole object has been
-                // processed
-                $element->{$property} = $result;
+                if (property_exists($element, $property))
+                {
+                    // A @set or @list property exists already, that's illegal on expanded object form
+                    throw new SyntaxException(
+                        "Two $property properties found (used alias: $activeprty)",
+                        $element);
+                }
 
+                // @set is optimized away after the whole object has been processed
+                $element->{$property} = $result;
                 continue;
             }
             else
             {
-                // Remove property from object, we will merge it back using
-                // the expanded IRI later
-                unset($element->{$activeprty});
-                $property = $this->expandIri($property, $activectx);
-
-
-                // TODO Check if this check is enough; see ISSUE-84 and ISSUE-56
-                // TODO Spec Update spec accordingly
-
-                // If the extended property doesn't contain a colon it is not a
-                // valid absolute IRI. That means it is plain old JSON has to be
-                // dropped, we did that already, continue with next property
-                if ((false === strpos($property, ':')) &&
-                    (false == in_array($property, self::$keywords)))
-                {
-                    continue;
-                }
-
-                // Create expanded property if it doesn't exist, otherwise
-                // just make sure it's an array
-                if (false === property_exists($element, $property))
-                {
-                    $element->{$property} = array();
-                }
-                elseif (false === is_array($element->{$property}))
-                {
-                    $element->{$property} = array($element->{$property});
-                }
-
                 if (is_array($value) || is_object($value))
                 {
                     $this->expand($value, $activectx, $activeprty);
@@ -403,17 +396,37 @@ class Processor
                         $value = array($obj);
                     }
 
-                    if (is_array($value))
-                    {
-                        $element->{$property} = array_merge($element->{$property}, $value);
-                    }
-                    else
-                    {
-                        $element->{$property}[] = $value;
-                    }
+                    self::mergeIntoProperty($element, $property, $value);
                 }
             }
         }
+
+        // Check @type for @value objects
+        if (property_exists($element, '@value'))
+        {
+            // @type MUST NOT be an array if @value is set
+            if (property_exists($element, '@type') && is_array($element->{'@type'}))
+            {
+                throw new SyntaxException(
+                    'Invalid value for @type detected (must be a string).',
+                    $element);
+            }
+        }
+        else
+        {
+            // Drop @language property if there's no corresponding @value property
+            if (property_exists($element, '@language'))
+            {
+                unset($element->{'@language'});
+            }
+
+            // Make sure @type is an array if there's no @value
+            if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
+            {
+                $element->{'@type'} = array($element->{'@type'});
+            }
+        }
+
 
         // All properties have been processed. Make sure the result is valid
         // and optimize object where possible
@@ -440,7 +453,7 @@ class Processor
                     (false == property_exists($element, '@type'))))
             {
                 new SyntaxException(
-                    'Detected an expanded object notation that contains additional data.',
+                    'Detected an @value object that contains additional data.',
                     $element);
             }
             elseif (1 == $numProps)
@@ -924,13 +937,13 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
                     if (in_array($key, self::$keywords))
                     {
                         // Keywords can't be altered
+                        // TODO Throw exception??
                         continue;
                     }
 
                     if (is_null($value))
                     {
                         unset($activectx[$key]);
-                        unset($activectx['@context'][$key]);  // TODO create keyword mapping
                     }
                     elseif (is_string($value))
                     {
@@ -938,18 +951,8 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
                         $expanded = $this->contextIriExpansion($value, $context, $activectx);
                         $context->{$key} = $expanded;
 
-                        if (in_array($expanded, self::$keywords))
-                        {
-                            // if it's a keyword alias, add it to special map and remove from active context
-                            // TODO create keyword mapping
-                            $activectx['@context'][$key] = $expanded;
-                            unset($activectx[$key]);
-                        }
-                        else
-                        {
-                            // term definitions can't be modified but just be replaced
-                            $activectx[$key] = array('@id' => $expanded);
-                        }
+                        // term definitions can't be modified but just be replaced
+                        $activectx[$key] = array('@id' => $expanded);
                     }
                     elseif (is_object($value))
                     {
@@ -993,6 +996,7 @@ die('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+++++++++++++++++
             else
             {
                 // TODO Handle remote contexts
+                // See http://fabien.potencier.org/article/20/tweeting-from-php
                 throw new \Exception("Remote contexts are not implemented yet");
             }
         }
