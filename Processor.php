@@ -21,6 +21,9 @@ use ML\JsonLD\Exception\ProcessException;
  */
 class Processor
 {
+    /** Timeout for retrieving remote documents in seconds */
+    const REMOTE_TIMEOUT = 10;
+
     /** Maximum number of recursion that are allowed to resolve an IRI */
     const CONTEXT_MAX_IRI_RECURSIONS = 10;
 
@@ -32,14 +35,14 @@ class Processor
     private $baseiri = null;
 
     /**
-     * Adds a property to an object if it doesn't exist yet.
+     * Adds a property to an object if it doesn't exist yet
      *
      * If the property already exists, an exception is thrown as the existing
      * value would be lost.
      *
-     * @param object $object   The object
-     * @param string $property The name of the property
-     * @param mixed  $value    The value of the property
+     * @param object $object   The object.
+     * @param string $property The name of the property.
+     * @param mixed  $value    The value of the property.
      *
      * @throws SyntaxException If the property exists already JSON-LD.
      */
@@ -56,12 +59,12 @@ class Processor
     }
 
     /**
-     * Merges a value into a property of an object.
+     * Merges a value into a property of an object
      *
-     * @param object $object      The object
-     * @param string $property    The name of the property to which the value should be merged into
-     * @param mixed  $value       The value to merge into the property
-     * @param bool   $alwaysArray If set to true, the resulting property will always be an array
+     * @param object $object      The object.
+     * @param string $property    The name of the property to which the value should be merged into.
+     * @param mixed  $value       The value to merge into the property.
+     * @param bool   $alwaysArray If set to true, the resulting property will always be an array.
      */
     private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false)
     {
@@ -95,14 +98,14 @@ class Processor
     }
 
     /**
-     * Compares two values by their length and then lexicographically.
+     * Compares two values by their length and then lexicographically
      *
-     * If two strings have different lenghts, the shorter one will be considered
-     * less than the other. If they have the same lenght, they are compared
-     * lexicographically.
+     * If two strings have different lenghts, the shorter one will be
+     * considered less than the other. If they have the same lenght, they
+     * are compared lexicographically.
      *
-     * @param mixed $a Value A
-     * @param mixed $a Value B
+     * @param mixed $a Value A.
+     * @param mixed $a Value B.
      *
      * @return int If value A is shorter than value B, -1 will be returned; if it's
      *             longer 1 will be returned. If both values have the same lenght
@@ -136,7 +139,7 @@ class Processor
     /**
      * Constructor
      *
-     * @param string $baseiri The base IRI
+     * @param string $baseiri The base IRI.
      */
     public function __construct($baseiri = null)
     {
@@ -144,13 +147,13 @@ class Processor
     }
 
     /**
-     * Parses a JSON-LD document to a PHP value.
+     * Parses a JSON-LD document to a PHP value
      *
-     * @param  string $document A JSON-LD document
+     * @param  string $document A JSON-LD document.
      *
-     * @return mixed  A PHP value
+     * @return mixed  A PHP value.
      *
-     * @throws ParseException If the JSON-LD document is not valid
+     * @throws ParseException If the JSON-LD document is not valid.
      */
     public function parse($document)
     {
@@ -191,15 +194,17 @@ class Processor
     }
 
     /**
-     * Expands a JSON-LD document.
+     * Expands a JSON-LD document
      *
-     * @param mixed  $element    A JSON-LD element to be expanded
-     * @param array  $activectx  The active context
-     * @param string $activeprty The active property
+     * @param mixed  $element    A JSON-LD element to be expanded.
+     * @param array  $activectx  The active context.
+     * @param string $activeprty The active property.
      *
-     * @return mixed  A PHP value
+     * @return mixed The expanded document.
      *
-     * @throws ParseException If the JSON-LD document is not valid
+     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
+     * @throws ProcessException If the expansion failed.
+     * @throws ParseException   If a remote context couldn't be processed.
      */
     public function expand(&$element, $activectx = array(), $activeprty = null)
     {
@@ -479,15 +484,15 @@ class Processor
     }
 
     /**
-     * Expands a JSON-LD value.
+     * Expands a JSON-LD value
      *
-     * The value can be of any scalar type (i.e., not an object or array)
+     * The value can be of any scalar type (i.e., not an object or array).
      *
-     * @param mixed  $value      The value to be expanded
-     * @param mixed  $activeprty The active property
-     * @param array  $activectx  The active context
+     * @param mixed $value      The value to be expanded.
+     * @param mixed $activeprty The active property.
+     * @param array $activectx  The active context.
      *
-     * @return StdClass  The expanded value in object form
+     * @return object The expanded value in object form.
      */
     private function expandValue($value, $activeprty, $activectx)
     {
@@ -529,14 +534,14 @@ class Processor
     }
 
     /**
-     * Expands a JSON-LD IRI to an absolute IRI.
+     * Expands a JSON-LD IRI to an absolute IRI
      *
-     * @param mixed  $value        The value to be expanded to an absolute IRI
-     * @param array  $activectx    The active context
-     * @param bool   $relativeIri  Specifies if $value should be treated as relative
-     *                             IRI as fallback or not
+     * @param mixed  $value        The value to be expanded to an absolute IRI.
+     * @param array  $activectx    The active context.
+     * @param bool   $relativeIri  Specifies if $value should be treated as
+     *                             relative IRI as fallback or not.
      *
-     * @return StdClass  The expanded value in object form
+     * @return string The expanded IRI.
      */
     private function expandIri($value, $activectx, $relativeIri = false)
     {
@@ -580,17 +585,15 @@ class Processor
     }
 
     /**
-     * Compacts a JSON-LD document.
+     * Compacts a JSON-LD document
      *
-     * @param mixed  $element    A JSON-LD element to be compacted
-     * @param array  $activectx  The active context
-     * @param string $activeprty The active property
+     * @param mixed  $element    A JSON-LD element to be compacted.
+     * @param array  $activectx  The active context.
+     * @param string $activeprty The active property.
      * @param bool   $optimize   If set to true, the JSON-LD processor is allowed optimize
-     *                           the passed context to produce even compacter representations
+     *                           the passed context to produce even compacter representations.
      *
-     * @return mixed  A PHP value
-     *
-     * @throws ParseException If the JSON-LD document is not valid
+     * @return mixed The compacted JSON-LD document.
      */
     public function compact(&$element, $activectx = array(), $activeprty = null, $optimize = false)
     {
@@ -722,12 +725,12 @@ class Processor
      * Please note that this method requires the active context to be sorted already
      * (with {@link compare()}).
      *
-     * @param mixed  $value         The value to be expanded to an absolute IRI
-     * @param array  $activectx     The active context
-     * @param bool   $toRelativeIri Specifies whether $value should be treated
-     *                              transformed to a relative IRI if possible
+     * @param mixed  $value         The IRI to be compacted.
+     * @param array  $activectx     The active context.
+     * @param bool   $toRelativeIri Specifies whether $value should be
+     *                              transformed to a relative IRI as fallback.
      *
-     * @return StdClass  The expanded value in object form
+     * @return string The compacted IRI.
      */
     private function compactIri($value, $activectx, $toRelativeIri = false)
     {
@@ -762,14 +765,14 @@ class Processor
     /**
      * Expands compact IRIs in the context
      *
-     * @param string $value      The (compact) IRI that should be expanded
-     * @param array  $loclctx    The local context
-     * @param array  $activectx  The active context
-     * @param array  $path       A path of already processed terms
+     * @param string $value      The IRI that should be expanded.
+     * @param array  $loclctx    The local context.
+     * @param array  $activectx  The active context.
+     * @param array  $path       A path of already processed terms.
      *
-     * @return string Returns the expanded IRI or null if it couldn't be expanded.
+     * @return string Returns the expanded IRI.
      *
-     * @throws ProcessException If a cycle is detected while expanding an IRI
+     * @throws ProcessException If a cycle is detected while expanding the IRI.
      */
     private function contextIriExpansion($value, $loclctx, $activectx, $path = array())
     {
@@ -816,12 +819,13 @@ class Processor
     }
 
     /**
-     * Processes a local context to update the active context.
+     * Processes a local context to update the active context
      *
-     * @param array  $loclctx    The local context
-     * @param array  $activectx  The active context
+     * @param array  $loclctx    The local context.
+     * @param array  $activectx  The active context.
      *
-     * @throws ProcessException If processing of the JSON-LD document failed
+     * @throws ProcessException If processing of the context failed.
+     * @throws ParseException   If a remote context couldn't be processed.
      */
     public function processContext($loclctx, &$activectx)
     {
@@ -929,8 +933,16 @@ class Processor
             }
             else
             {
-                // TODO Handle remote contexts
-                throw new \Exception("Remote contexts are not implemented yet");
+                $remoteContext = JSONLD::parse($context);
+
+                if (is_object($remoteContext) && property_exists($remoteContext, '@context'))
+                {
+                    $this->processContext($remoteContext, $activectx);
+                }
+                else
+                {
+                    throw new ProcessException('Remote context "' . $context . '" is invalid.');
+                }
             }
         }
     }

@@ -21,15 +21,15 @@ use ML\JsonLD\Exception\ParseException;
 class JsonLD
 {
     /**
-     * Parses JSON-LD.
+     * Parses a JSON-LD document
      *
-     * The parse method, when supplied with a JSON-LD stream (string or
-     * file), will do its best to convert JSON-LD into a PHP representation.
+     * The document can be supplied directly as a string or by passing a
+     * file path or an IRI.
      *
      *  Usage:
      *  <code>
-     *   $document = JsonLD::parse('document.jsonld');
-     *   print_r($document);
+     *    $document = JsonLD::parse('document.jsonld');
+     *    print_r($document);
      *  </code>
      *
      * @param string $document Path to a JSON-LD document or a string
@@ -37,30 +37,53 @@ class JsonLD
      *
      * @return mixed The JSON-LD document converted to a PHP representation.
      *
-     * @throws ParseException If the JSON-LD is not valid
+     * @throws ParseException If the JSON-LD is not valid.
      *
      * @api
      */
     static public function parse($document)
     {
-        // TODO Allow to pass an IRI?
-
-        // if input is a file, process it
-        $file = '';
-        if ((strpos($document, "{") === false) && (strpos($document, "[") === false) && is_file($document)) {
-            if (false === is_readable($document)) {
-                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $document));
-            }
-            $file = $document;
-            $document = file_get_contents($file);
+        if (false == is_string($document))
+        {
+            // Return as is, is already in processable form
+            return $document;
         }
 
-        $jsonld = new Processor();
+        // if input is a file, process it
+        $file = $document;
+        if (((strpos($file, "{") === false) && (strpos($file, "[") === false)) ||
+            @is_readable($file)) {
 
-        try {
+              $context = stream_context_create(array(
+                'http' => array(
+                  'method'  => 'GET',
+                  'header'  => "Accept: application/ld+json\r\n",
+                  'timeout' => Processor::REMOTE_TIMEOUT,
+                ),
+                'https' => array(
+                  'method'  => 'GET',
+                  'header'  => "Accept: application/ld+json\r\n",
+                  'timeout' => Processor::REMOTE_TIMEOUT,
+                )
+              ));
+
+            if (false === ($document = file_get_contents($file, false, $context)))
+            {
+                throw new ParseException(
+                    sprintf('Unable to parse "%s" as the file is not readable.', $file));
+            }
+        }
+
+        try
+        {
+            $jsonld = new Processor();
+
             return $jsonld->parse($document);
-        } catch (ParseException $e) {
-            if ($file) {
+        }
+        catch (ParseException $e)
+        {
+            if ($file)
+            {
                 $e->setParsedFile($file);
             }
 
@@ -69,24 +92,23 @@ class JsonLD
     }
 
     /**
-     * Expands a JSON-LD document.
+     * Expands a JSON-LD document
      *
-     * The parse method, when supplied with a JSON-LD stream (string or
-     * file), will do its best to convert JSON-LD into a PHP array.
+     * The document can be supplied directly as a string or by passing a
+     * file path or an IRI.
      *
      *  Usage:
      *  <code>
-     *   $expanded = JsonLD::expand('document.jsonld');
-     *   print_r($expanded);
+     *    $expanded = JsonLD::expand('document.jsonld');
+     *    print_r($expanded);
      *  </code>
      *
-     * @param string $document Path to a JSON-LD document or a string
-     *                         containing a JSON-LD document
-     * @param string $baseiri  The base IRI
+     * @param string $document The JSON-LD document to expand.
+     * @param string $baseiri  The base IRI.
      *
      * @return array The expanded JSON-LD document
      *
-     * @throws ParseException   If the JSON-LD document couldn't be parsed.
+     * @throws ParseException   If the JSON-LD document or a remote context couldn't be parsed.
      * @throws SyntaxException  If the JSON-LD document contains syntax errors.
      * @throws ProcessException If processing of the JSON-LD document failed.
      *
@@ -94,8 +116,6 @@ class JsonLD
      */
     static public function expand($document, $baseiri = null)
     {
-        // TODO Document other exceptions that are thrown
-
         // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
         $document = self::parse($document);
 
@@ -113,44 +133,47 @@ class JsonLD
     }
 
     /**
-     * Compacts a JSON-LD document.
+     * Compacts a JSON-LD document according a supplied context
      *
-     * The parse method, when supplied with a JSON-LD stream (string or
-     * file), will do its best to convert JSON-LD into a PHP array.
+     * Both, the document and context can be supplied directly as strings or
+     * by passing a file path or an IRI.
      *
      *  Usage:
      *  <code>
-     *   $compacted = JsonLD::compact('document.jsonld');
-     *   print_r($compacted);
+     *    $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
+     *    print_r($compacted);
      *  </code>
      *
-     * @param string $document Path to a JSON-LD document or a string
-     *                         containing a JSON-LD document
-     * @param mixed  $context  The context to use to compact the passed document
-     * @param string $baseiri  The base IRI
+     * @param mixed  $document The JSON-LD document to compact.
+     * @param mixed  $context  The context.
+     * @param string $baseiri  The base IRI.
      * @param bool   $optimize If set to true, the JSON-LD processor is allowed optimize
-     *                         the passed context to produce even compacter representations
+     *                         the passed context to produce even compacter representations.
      *
-     * @return mixed The compacted JSON-LD document
+     * @return mixed The compacted JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD document couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
-     * @throws ProcessException If processing of the JSON-LD document failed.
+     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
+     * @throws ProcessException If compaction failed.
      *
      * @api
      */
     static public function compact($document, $context, $baseiri = null, $optimize = false)
     {
-        // TODO Document other exceptions that are thrown
-
         // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
         $document = self::expand($document);
+        $context = self::parse($context);
 
+        if (false == is_object($context) || (false == property_exists($context, '@context')))
+        {
+            // no context passed, just return expanded document
+            return (1 === count($document)) ? $document[0] : $document;
+        }
+
+        $activectx = array();
         $processor = new Processor($baseiri);
 
-        // TODO Support contexts that are passed in the form of an IRI
-        $activectx = array();
-        $processor->processContext($context, $activectx);
+        $processor->processContext($context->{'@context'}, $activectx);
 
         if (0 == count($activectx))
         {
@@ -163,18 +186,17 @@ class JsonLD
 
         $processor->compact($document, $activectx, null, $optimize);
 
-        // TODO Spec add context to result
         if (is_array($document))
         {
             $compactedDocument = new \stdClass();
-            $compactedDocument->{'@context'} = $context;
+            $compactedDocument->{'@context'} = $context->{'@context'};
             $compactedDocument->{'@set'} = $document;  // TODO Handle @set aliases!?
 
             return $compactedDocument;
         }
         else
         {
-            $document->{'@context'} = $context;
+            $document->{'@context'} = $context->{'@context'};
         }
 
         return $document;
