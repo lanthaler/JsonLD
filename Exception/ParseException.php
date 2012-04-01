@@ -75,7 +75,7 @@ class ParseException extends \RuntimeException
             $dot = true;
         }
 
-        if (null !== $this->parsedFile) {
+        if ($this->parsedFile) {
             $this->message .= sprintf(' in %s', json_encode($this->parsedFile));
         }
 
