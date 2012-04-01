@@ -1,0 +1,22 @@
+{
+    "name": "ml/json-ld",
+    "type": "library",
+    "description": "JSON-LD Processor for PHP",
+    "keywords": [ "JSON-LD" ],
+    "homepage": "http://www.markus-lanthaler.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Markus Lanthaler",
+            "email": "mail@markus-lanthaler.com",
+            "homepage": "http://www.markus-lanthaler.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+        "psr-0": { "ML\\JsonLD": "" }
+    },
+    "target-dir": "ML/JsonLD"
+}
