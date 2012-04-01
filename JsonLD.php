@@ -21,21 +21,21 @@ use ML\JsonLD\Exception\ParseException;
 class JsonLD
 {
     /**
-     * Parses JSON-LD into a PHP array.
+     * Parses JSON-LD.
      *
      * The parse method, when supplied with a JSON-LD stream (string or
-     * file), will do its best to convert JSON-LD into a PHP array.
+     * file), will do its best to convert JSON-LD into a PHP representation.
      *
      *  Usage:
      *  <code>
-     *   $array = JsonLD::parse('document.jsonld');
-     *   print_r($array);
+     *   $document = JsonLD::parse('document.jsonld');
+     *   print_r($document);
      *  </code>
      *
      * @param string $document Path to a JSON-LD document or a string
-     *                         containing a JSON-LD document
+     *                         containing a JSON-LD document.
      *
-     * @return array The JSON-LD document converted to a PHP array
+     * @return mixed The JSON-LD document converted to a PHP representation.
      *
      * @throws ParseException If the JSON-LD is not valid
      *
@@ -86,7 +86,9 @@ class JsonLD
      *
      * @return array The expanded JSON-LD document
      *
-     * @throws ParseException If the JSON-LD is not valid
+     * @throws ParseException   If the JSON-LD document couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
+     * @throws ProcessException If processing of the JSON-LD document failed.
      *
      * @api
      */
@@ -131,7 +133,9 @@ class JsonLD
      *
      * @return mixed The compacted JSON-LD document
      *
-     * @throws ParseException If the JSON-LD is not valid
+     * @throws ParseException   If the JSON-LD document couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
+     * @throws ProcessException If processing of the JSON-LD document failed.
      *
      * @api
      */
@@ -177,19 +181,19 @@ class JsonLD
     }
 
     /**
-     * Dumps a PHP value to a JSON-LD string.
+     * Converts a PHP value to a JSON-LD string.
      *
      * The dump method will do its best to convert the supplied value into
-     * friendly JSON-LD.
+     * a JSON-LD string.
      *
-     * @param mixed   $value  The value being converted.
-     * @param boolean $pretty Use whitespace in returned string to format it?
+     * @param mixed $value  The value to convert.
+     * @param bool  $pretty Use whitespace in returned string to format it?
      *
-     * @return string A JSON-LD string representing the original PHP array
+     * @return string A JSON-LD string.
      *
      * @api
      */
-    static public function dump($value, $pretty = false)
+    static public function toString($value, $pretty = false)
     {
         $options = JSON_UNESCAPED_SLASHES;
         if ($pretty)

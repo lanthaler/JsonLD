@@ -36,7 +36,7 @@ class ProcessException extends \RuntimeException
     public function __construct($message, $snippet = null, $parsedFile = null, Exception $previous = null)
     {
         $this->parsedFile = $parsedFile;
-        $this->snippet = JsonLD::dump($snippet, true);
+        $this->snippet = JsonLD::toString($snippet);
         $this->rawMessage = $message;
 
         $this->updateMessage();
@@ -61,7 +61,7 @@ class ProcessException extends \RuntimeException
      */
     public function setSnippet($snippet)
     {
-        $this->snippet = JsonLD::dump($snippet, true);
+        $this->snippet = JsonLD::toString($snippet);
 
         $this->updateMessage();
     }
