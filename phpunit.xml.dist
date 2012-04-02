@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit backupGlobals="false"
+         backupStaticAttributes="false"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         strict="true"
+         bootstrap="./Test/bootstrap.php">
+
+    <testsuites>
+        <testsuite name="JsonLD Test Suite">
+            <directory suffix="Test.php">./Test/</directory>
+        </testsuite>
+    </testsuites>
+
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory>./</directory>
+            <exclude>
+                <directory>./Test</directory>
+            </exclude>
+        </whitelist>
+    </filter>
+
+  <logging>
+    <log type="coverage-text" target="php://stdout" showUncoveredFiles="true" />
+  </logging>
+
+</phpunit>
