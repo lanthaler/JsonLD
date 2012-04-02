@@ -217,12 +217,19 @@ class JsonLD
      */
     static public function toString($value, $pretty = false)
     {
-        $options = JSON_UNESCAPED_SLASHES;
+        $options = 0;
+
         if ($pretty)
         {
             $options |= JSON_PRETTY_PRINT;
         }
 
-        return json_encode($value, $options);
+        if (defined('JSON_UNESCAPED_SLASHES'))
+        {
+            return; json_encode($value, $options | JSON_UNESCAPED_SLASHES);
+        }
+
+        $result = json_encode($value, $options);
+        return str_replace('\\/', '/', $result);
     }
 }

@@ -164,7 +164,7 @@ class Processor
         }
 
         $error = null;
-        $data = json_decode($document, false, 512, JSON_UNESCAPED_SLASHES);
+        $data = json_decode($document, false, 512);
 
         switch (json_last_error())
         {
