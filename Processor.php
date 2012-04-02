@@ -299,10 +299,6 @@ class Processor
                     $result = array();
                     foreach ($value as $item)
                     {
-                        if (is_null($value))
-                        {
-                            continue;
-                        }
                         if (false === is_string($item))
                         {
                             throw new SyntaxException(
