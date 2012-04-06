@@ -210,7 +210,8 @@ class JsonLD
      * a JSON-LD string.
      *
      * @param mixed $value  The value to convert.
-     * @param bool  $pretty Use whitespace in returned string to format it?
+     * @param bool  $pretty Use whitespace in returned string to format it
+     *                      (this just works in PHP >=5.4)?
      *
      * @return string A JSON-LD string.
      *
@@ -218,19 +219,18 @@ class JsonLD
      */
     static public function toString($value, $pretty = false)
     {
-        $options = 0;
-
-        if ($pretty)
-        {
-            $options |= JSON_PRETTY_PRINT;
-        }
-
         if (defined('JSON_UNESCAPED_SLASHES'))
         {
-            return json_encode($value, $options | JSON_UNESCAPED_SLASHES);
+            $options = JSON_UNESCAPED_SLASHES;
+            if ($pretty)
+            {
+                $options |= JSON_PRETTY_PRINT;
+            }
+
+            return json_encode($value, $options);
         }
 
-        $result = json_encode($value, $options);
+        $result = json_encode($value);
         return str_replace('\\/', '/', $result);
     }
 }

@@ -507,7 +507,7 @@ class Processor
         if (is_string($value))
         {
             $language = @$activectx['@language'];
-            if (isset($activeprty['@language']))
+            if (is_array($activeprty) && array_key_exists('@language', $activeprty))
             {
                 $language = $activeprty['@language'];
             }
