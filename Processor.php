@@ -215,24 +215,28 @@ class Processor
             {
                 $this->expand($item, $activectx);
 
-                if (is_array($item))
+                // Check for lists of lists
+                if ((isset($activectx[$activeprty]['@container']) &&
+                     ('@list' == $activectx[$activeprty]['@container'])) ||
+                    ('@list' == $activeprty))
                 {
-                    if ((isset($activectx[$activeprty]['@container']) &&
-                        ('@list' == $activectx[$activeprty]['@container'])) ||
-                        ('@list' == $activeprty))
+                    if (is_array($item) || (is_object($item) && property_exists($item, '@list')))
                     {
                         throw new SyntaxException(
                             "List of lists detected in property \"$activeprty\".",
                             $element);
                     }
-                    else
+                }
+                if (false === is_null($item))
+                {
+                    if (is_array($item))
                     {
                         $result = array_merge($result, $item);
                     }
-                }
-                elseif (false === is_null($item))
-                {
-                    $result[] = $item;
+                    else
+                    {
+                        $result[] = $item;
+                    }
                 }
             }
 
@@ -340,12 +344,12 @@ class Processor
             }
             elseif (('@list' == $property) || ('@set' == $property) || ('@graph' == $property))
             {
+                $this->expand($value, $activectx, $property);
+
                 if (false == is_array($value))
                 {
                     $value = array($value);
                 }
-
-                $this->expand($value, $activectx, $property);
 
                 // @set is optimized away after the whole object has been processed
                 self::setProperty($element, $property, $value);
@@ -353,15 +357,10 @@ class Processor
             }
             else
             {
-                if (is_array($value) || is_object($value))
-                {
-                    $this->expand($value, $activectx, $activeprty);
-                }
-                else
-                {
-                    $value = $this->expandValue($value, $activeprty, $activectx);
-                }
+                // Expand value
+                $this->expand($value, $activectx, $activeprty);
 
+                // ... and re-add it to the object if the expanded value is not null
                 if (false == is_null($value))
                 {
                     // If property has an @list container, and value is not yet an
@@ -374,19 +373,6 @@ class Processor
                         {
                             $value = array($value);
                         }
-                        else
-                        {
-                            // Check for lists of lists
-                            foreach ($value as $item)
-                            {
-                                if (is_object($item) && property_exists($item, '@list'))
-                                {
-                                    throw new SyntaxException(
-                                        "List of lists detected. Property \"$activeprty\" ($property) is also list-coerced.",
-                                        $element);
-                                }
-                            }
-                        }
 
                         $obj = new \stdClass();
                         $obj->{'@list'} = $value;
@@ -398,7 +384,11 @@ class Processor
             }
         }
 
-        // Check @type for @value objects
+
+        // All properties have been processed. Make sure the result is valid
+        // and optimize object where possible
+        $numProps = count(get_object_vars($element));
+
         if (property_exists($element, '@value'))
         {
             // @type MUST NOT be an array if @value is set
@@ -408,30 +398,7 @@ class Processor
                     'Invalid value for @type detected (must be a string).',
                     $element);
             }
-        }
-        else
-        {
-            // Drop @language property if there's no corresponding @value property
-            if (property_exists($element, '@language'))
-            {
-                unset($element->{'@language'});
-            }
-
-            // Make sure @type is an array if there's no @value
-            if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
-            {
-                $element->{'@type'} = array($element->{'@type'});
-            }
-        }
-
-
-        // All properties have been processed. Make sure the result is valid
-        // and optimize object where possible
-        $numProps = count(get_object_vars($element));
-
-        if (property_exists($element, '@value'))
-        {
-            if (($numProps > 2) ||
+            elseif (($numProps > 2) ||
                 ((2 == $numProps) &&
                     (false == property_exists($element, '@language')) &&
                     (false == property_exists($element, '@type'))))
@@ -449,14 +416,24 @@ class Processor
             {
                 $element = null;
             }
+
+            return;
         }
-        elseif (($numProps > 1) && (property_exists($element, '@list') ||
-                                    property_exists($element, '@set') ||
-                                    property_exists($element, '@graph')))
+
+        // Not an @value object, make sure @type is an array
+        if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
         {
-                new SyntaxException(
-                    'An object with a @list, @set, or @graph property can\'t contain other properties.',
-                    $element);
+
+            $element->{'@type'} = array($element->{'@type'});
+        }
+
+        if (($numProps > 1) && (property_exists($element, '@list') ||
+                                property_exists($element, '@set') ||
+                                property_exists($element, '@graph')))
+        {
+            new SyntaxException(
+                'An object with a @list, @set, or @graph property can\'t contain other properties.',
+                $element);
         }
         elseif (property_exists($element, '@set'))
         {
@@ -470,6 +447,7 @@ class Processor
         }
         elseif (($numProps == 1) && property_exists($element, '@language'))
         {
+            // if there's just @language and nothing else, drop whole object
             $element = null;
         }
     }
