@@ -226,7 +226,7 @@ class JsonLD
 
         if (defined('JSON_UNESCAPED_SLASHES'))
         {
-            return; json_encode($value, $options | JSON_UNESCAPED_SLASHES);
+            return json_encode($value, $options | JSON_UNESCAPED_SLASHES);
         }
 
         $result = json_encode($value, $options);
