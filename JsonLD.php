@@ -190,7 +190,8 @@ class JsonLD
         {
             $compactedDocument = new \stdClass();
             $compactedDocument->{'@context'} = $context->{'@context'};
-            $compactedDocument->{'@set'} = $document;  // TODO Handle @set aliases!?
+            $graphKeyword = $processor->compactIri('@graph', $activectx);
+            $compactedDocument->{$graphKeyword} = $document;
 
             return $compactedDocument;
         }

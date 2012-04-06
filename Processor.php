@@ -28,8 +28,8 @@ class Processor
     const CONTEXT_MAX_IRI_RECURSIONS = 10;
 
     /** A list of all defined keywords */
-    private static $keywords = array('@context', '@id', '@value', '@language',
-                                     '@type', '@container', '@list', '@set');
+    private static $keywords = array('@context', '@id', '@value', '@language', '@type',
+                                     '@container', '@list', '@set', '@graph');
 
     /** The base IRI */
     private $baseiri = null;
@@ -263,7 +263,7 @@ class Processor
             $activeprty = $property;
             $property = $this->expandIri($property, $activectx, false);
 
-            // Remove properties with null values except (@value as we need
+            // Remove properties with null values (except @value as we need
             // it to determine what @type means) and all properties that are
             // neither keywords nor valid IRIs (i.e., they don't contain a
             // colon) since we drop unmapped JSON
@@ -338,7 +338,7 @@ class Processor
                 self::setProperty($element, $property, $value);
                 continue;
             }
-            elseif (('@list' == $property) || ('@set' == $property))
+            elseif (('@list' == $property) || ('@set' == $property) || ('@graph' == $property))
             {
                 if (false == is_array($value))
                 {
@@ -451,16 +451,22 @@ class Processor
             }
         }
         elseif (($numProps > 1) && (property_exists($element, '@list') ||
-                                    property_exists($element, '@set')))
+                                    property_exists($element, '@set') ||
+                                    property_exists($element, '@graph')))
         {
                 new SyntaxException(
-                    'A @list or @set object can\'t contain other properties.',
+                    'An object with a @list, @set, or @graph property can\'t contain other properties.',
                     $element);
         }
         elseif (property_exists($element, '@set'))
         {
             // @set objects can be optimized away as they are just syntactic sugar
             $element = $element->{'@set'};
+        }
+        elseif (property_exists($element, '@graph'))
+        {
+            // @graph objects can be optimized away as currently they are just syntactic sugar
+            $element = $element->{'@graph'};
         }
         elseif (($numProps == 1) && property_exists($element, '@language'))
         {
@@ -717,7 +723,7 @@ class Processor
      *
      * @return string The compacted IRI.
      */
-    private function compactIri($value, $activectx, $toRelativeIri = false)
+    public function compactIri($value, $activectx, $toRelativeIri = false)
     {
         // TODO Handle $toRelativeIri or remove it
         $compactIris = array();
