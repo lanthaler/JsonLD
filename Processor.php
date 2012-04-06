@@ -485,9 +485,10 @@ class Processor
         if (is_string($value))
         {
             $language = @$activectx['@language'];
-            if (is_array($activeprty) && array_key_exists('@language', $activeprty))
+            if (isset($activectx[$activeprty]) && is_array($activectx[$activeprty]) &&
+                array_key_exists('@language', $activectx[$activeprty]))
             {
-                $language = $activeprty['@language'];
+                $language = $activectx[$activeprty]['@language'];
             }
 
             if(isset($language))
@@ -819,17 +820,31 @@ class Processor
             {
                 foreach ($context as $key => $value)
                 {
+                    if (is_null($value))
+                    {
+                        unset($activectx[$key]);
+                        continue;
+                    }
+
                     if (in_array($key, self::$keywords))
                     {
+                        if ('@language' == $key)
+                        {
+                            if (false == is_string($value))
+                            {
+                                throw new SyntaxException(
+                                    'The value of @language must be a string.',
+                                    $context);
+                            }
+
+                            $activectx[$key] = $value;
+                        }
+
                         // Keywords can't be altered
                         continue;
                     }
 
-                    if (is_null($value))
-                    {
-                        unset($activectx[$key]);
-                    }
-                    elseif (is_string($value))
+                    if (is_string($value))
                     {
                         $expanded = $this->contextIriExpansion($value, $context, $activectx);
 
@@ -884,8 +899,15 @@ class Processor
                             $context->{$key}->{'@type'} = $expanded;
                             $activectx[$key]['@type'] = $expanded;
                         }
-                        elseif (property_exists($value, '@language') && is_string($value->{'@language'}))
+                        elseif (property_exists($value, '@language'))
                         {
+                            if ((false == is_string($value->{'@language'})) && (false == is_null($value->{'@language'})))
+                            {
+                                throw new SyntaxException(
+                                    'The value of @language must be a string.',
+                                    $context);
+                            }
+
                             // Note the else. Language tagging applies just to untyped literals
                             $activectx[$key]['@language'] = $value->{'@language'};
                         }
