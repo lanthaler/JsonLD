@@ -470,7 +470,7 @@ class Processor
         }
         elseif (($numProps == 1) && property_exists($element, '@language'))
         {
-            $element == null;
+            $element = null;
         }
     }
 
