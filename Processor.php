@@ -217,10 +217,13 @@ class Processor
 
                 if (is_array($item))
                 {
-                    if (isset($activectx[$activeprty]['@container']) &&
-                        ('@list' == $activectx[$activeprty]['@container']))
+                    if ((isset($activectx[$activeprty]['@container']) &&
+                        ('@list' == $activectx[$activeprty]['@container'])) ||
+                        ('@list' == $activeprty))
                     {
-                        $result[] = $item;
+                        throw new SyntaxException(
+                            "List of lists detected in property \"$activeprty\".",
+                            $element);
                     }
                     else
                     {
@@ -342,24 +345,10 @@ class Processor
                     $value = array($value);
                 }
 
-                $result = array();
-                foreach ($value as &$item)
-                {
-                    $this->expand($item, $activectx, $activeprty);
-                    if(false === is_null($item))
-                    {
-                        $result[] = $item;
-                    }
-
-                    if (('@list' == $property) && is_object($item) && property_exists($item, '@list'))
-                    {
-                        throw new SyntaxException('List of lists are not allowed.',
-                                                  $value);
-                    }
-                }
+                $this->expand($value, $activectx, $property);
 
                 // @set is optimized away after the whole object has been processed
-                self::setProperty($element, $property, $result);
+                self::setProperty($element, $property, $value);
                 continue;
             }
             else
