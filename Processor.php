@@ -391,14 +391,7 @@ class Processor
 
         if (property_exists($element, '@value'))
         {
-            // @type MUST NOT be an array if @value is set
-            if (property_exists($element, '@type') && is_array($element->{'@type'}))
-            {
-                throw new SyntaxException(
-                    'Invalid value for @type detected (must be a string).',
-                    $element);
-            }
-            elseif (($numProps > 2) ||
+            if (($numProps > 2) ||
                 ((2 == $numProps) &&
                     (false == property_exists($element, '@language')) &&
                     (false == property_exists($element, '@type'))))
@@ -407,14 +400,22 @@ class Processor
                     'Detected an @value object that contains additional data.',
                     $element);
             }
-            elseif (1 == $numProps)
+            elseif (property_exists($element, '@type') && (false == is_string($element->{'@type'})))
             {
-                // object has just an @value property, can be replaced with that value
-                $element = $element->{'@value'};
+                throw new SyntaxException(
+                    'Invalid value for @type detected (must be a string).',
+                    $element);
             }
-            elseif (is_null($element->{'@value'}))
+            elseif (property_exists($element, '@language') && (false == is_string($element->{'@language'})))
             {
-                $element = null;
+                throw new SyntaxException(
+                    'Invalid value for @language detected (must be a string).',
+                    $element);
+            }
+            elseif ((1 == $numProps) || (is_null($element->{'@value'})))
+            {
+                // object has just an @value property or is null, can be replaced with that value
+                $element = $element->{'@value'};
             }
 
             return;
