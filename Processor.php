@@ -213,7 +213,7 @@ class Processor
             $result = array();
             foreach($element as &$item)
             {
-                $this->expand($item, $activectx);
+                $this->expand($item, $activectx, $activeprty);
 
                 // Check for lists of lists
                 if ((isset($activectx[$activeprty]['@container']) &&
