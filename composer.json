@@ -2,7 +2,7 @@
     "name": "ml/json-ld",
     "type": "library",
     "description": "JSON-LD Processor for PHP",
-    "keywords": [ "JSON-LD" ],
+    "keywords": [ "JSON-LD", "jsonld" ],
     "homepage": "http://www.markus-lanthaler.com",
     "license": "MIT",
     "authors": [
