@@ -124,6 +124,13 @@ class JsonLD
 
         $processor->expand($document, $activectx);
 
+        // optimize away default graph (@graph as the only property at the top-level object)
+        if (is_object($document) && property_exists($document, '@graph') &&
+            (1 == count(get_object_vars($document))))
+        {
+            $document = $document->{'@graph'};
+        }
+
         if (false === is_array($document))
         {
             $document = array($document);

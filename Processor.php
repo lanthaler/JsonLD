@@ -275,7 +275,7 @@ class Processor
                 ((false === strpos($property, ':')) &&
                  (false == in_array($property, self::$keywords))))
             {
-                // TODO Check if this (see ISSUE-84 and ISSUE-56)
+                // TODO Check if this is enough (see ISSUE-56)
                 continue;
             }
 
@@ -428,23 +428,16 @@ class Processor
             $element->{'@type'} = array($element->{'@type'});
         }
 
-        if (($numProps > 1) && (property_exists($element, '@list') ||
-                                property_exists($element, '@set') ||
-                                property_exists($element, '@graph')))
+        if (($numProps > 1) && (property_exists($element, '@list') || property_exists($element, '@set')))
         {
             new SyntaxException(
-                'An object with a @list, @set, or @graph property can\'t contain other properties.',
+                'An object with a @list or @set property can\'t contain other properties.',
                 $element);
         }
         elseif (property_exists($element, '@set'))
         {
             // @set objects can be optimized away as they are just syntactic sugar
             $element = $element->{'@set'};
-        }
-        elseif (property_exists($element, '@graph'))
-        {
-            // @graph objects can be optimized away as currently they are just syntactic sugar
-            $element = $element->{'@graph'};
         }
         elseif (($numProps == 1) && property_exists($element, '@language'))
         {
