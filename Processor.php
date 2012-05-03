@@ -52,7 +52,7 @@ class Processor
         {
             throw new SyntaxException(
                 "Colliding \"$property\" properties detected.",
-                $element);
+                $object);
         }
 
         $object->{$property} = $value;
@@ -294,10 +294,11 @@ class Processor
                         $element);
                 }
             }
-            elseif ('@type' == $property)
+            elseif ('@type' == $property)  // TODO Handle @graph here as well
             {
                 if (is_string($value))
                 {
+                    // TODO Check if this expands relative IRI to full absolute IRI if no context passed (in @value objects)
                     $value = $this->expandIri($value, $activectx);
                     self::setProperty($element, $property, $value);
                 }
@@ -574,7 +575,7 @@ class Processor
             }
             $element = $result;
 
-            // If there's just one entry and the has no @list or @set container,
+            // If there's just one entry and that has no @list or @set container,
             // optimize the array away
             if (is_array($element) && (1 == count($element)) &&
                 ((false == isset($activectx[$activeprty]['@container'])) ||
@@ -807,7 +808,7 @@ class Processor
         {
             if (is_null($context))
             {
-                // Reset to the initial context, i.e., an empty array (see ISSUE-80)
+                // Reset to the initial context, i.e., an empty array (TODO see ISSUE-80)
                 $activectx = array();
             }
             elseif (is_object($context))
@@ -871,12 +872,14 @@ class Processor
                             if (in_array($expanded, self::$keywords))
                             {
                                 // if it's an aliased keyword, we ignore all other properties
+                                // TODO Should we throw an exception if there are other properties?
                                 continue;
                             }
                         }
                         else
                         {
                             // term definitions can't be modified but just be replaced
+                            // TODO Check this if we allow IRI -> null mapping!
                             unset($activectx[$key]);
                         }
 
@@ -892,6 +895,8 @@ class Processor
 
                             $context->{$key}->{'@type'} = $expanded;
                             $activectx[$key]['@type'] = $expanded;
+
+                            // TODO Throw exception if language is set as well?
                         }
                         elseif (property_exists($value, '@language'))
                         {
@@ -912,6 +917,20 @@ class Processor
                             {
                                 $activectx[$key]['@container'] = $value->{'@container'};
                             }
+                        }
+
+                        // Try to set @id if it's not set, this is required for term definitions using compact IRIs
+                        if (false == isset($activectx[$key]['@id']))
+                        {
+                            $expanded = $this->contextIriExpansion($key, $context, $activectx);
+
+                            if (('@id' != $expanded) && (false === strpos($expanded, ':')))
+                            {
+                                throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
+                                                          $loclctx);
+                            }
+
+                            $activectx[$key]['@id'] = $expanded;
                         }
                     }
                 }
