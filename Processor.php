@@ -113,7 +113,7 @@ class Processor
      *             returned, if they are equal 0 will be returned, otherwise 1
      *             will be returned.
      */
-    public static function compare($a, $b)
+    private static function compare($a, $b)
     {
         $lenA = strlen($a);
         $lenB = strlen($b);
@@ -587,98 +587,127 @@ class Processor
         }
         elseif (is_object($element))
         {
-            // If it's an @value object...
-            if (property_exists($element, '@value'))
-            {
-                // ...  and the type matches or the language matches the term definition,
-                // replace the object with @value's value
-                if((property_exists($element, '@type') && isset($activectx[$activeprty]['@type']) &&
-                    (($element->{'@type'} == $activectx[$activeprty]['@type']))) ||
-                   (property_exists($element, '@language') && isset($activectx[$activeprty]['@language']) &&
-                    (($element->{'@language'} == $activectx[$activeprty]['@language']))))
-                {
-                    $element = $element->{'@value'};
-
-                    return;
-                }
-            }
-
-            // If it's a container object (@set or @list) and it matches the term definition,
-            // replace the object with the value of @set or @list and compact it recursively
-            if (isset($activectx[$activeprty]['@container']) &&
-                property_exists($element, $activectx[$activeprty]['@container']))
-            {
-                $element = $element->{$activectx[$activeprty]['@container']};
-                $this->compact($element, $activectx, $activeprty, $optimize);
-
-                if (0 == count($element))
-                {
-                    $element = null;
-                }
-
-                return;
-            }
-
-            // If it's an @id object and the term has an @id type coercion,
-            // replace the object with the compacted IRI
-            if (isset($activectx[$activeprty]['@type']) && property_exists($element, '@id') &&
-                ('@id' == $activectx[$activeprty]['@type']) &&
-                (1 == count(get_object_vars($element))))
-            {
-                $element = $this->compactIri($element->{'@id'}, $activectx, $optimize);
-
-                return;
-            }
-
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
             foreach ($properties as $property => &$value)
             {
-                // Remove property from object...
+                // Remove property from object it will be re-added later using the compacted IRI
                 unset($element->{$property});
 
-                // ... it will be re-added later using the compacted IRI
-                $activeprty = $this->compactIri($property, $activectx, $optimize);
-
-
-                if (('@id' == $property) || ('@type' == $property))
+                if (in_array($property, self::$keywords))
                 {
-                    if (is_string($value))
+                    // Keywords can just be aliased but no other settings apply so no need
+                    // to pass the value
+                    $activeprty = $this->compactIri($property, $activectx, null, $optimize);
+
+                    if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
                     {
-                        // TODO Transform @id to relative IRIs by default??
-                        $value = $this->compactIri($value, $activectx, $optimize);
+                        // TODO Should we really automatically compact the value of @id?
+                        if (is_string($value))
+                        {
+                            // TODO Transform @id to relative IRIs by default??
+                            $value = $this->compactIri($value, $activectx, null, $optimize);
+                        }
+                        else
+                        {
+                            // Must be @graph or @type, while @type requires all values to be strings,
+                            // @graph values can be (expanded) objects as well
+                            if ('@graph' == $property)
+                            {
+                                $def = $this->getTermDefinition('@graph', $activectx);
+
+                                foreach ($value as $key => &$item)
+                                {
+                                    // TODO Transform to relative IRIs by default??
+                                    $item = $this->compactValueWithDef($item, $def['@type'],
+                                                                       $def['@language'], $activectx);
+                                }
+
+                                $this->compact($value, $activectx, $activeprty, $optimize);
+                            }
+                            else
+                            {
+                                foreach ($value as $key => &$iri)
+                                {
+                                    // TODO Transform to relative IRIs by default??
+                                    $iri = $this->compactIri($iri, $activectx, null, $optimize);
+                                }
+                            }
+
+                            if (is_array($value) && (1 == count($value)))
+                            {
+                                $value = $value[0];
+                            }
+                        }
                     }
                     else
-                    {
-                        foreach ($value as $key => &$iri)
-                        {
-                            // TODO Transform to relative IRIs by default??
-                            $iri = $this->compactIri($iri, $activectx, $optimize);
-                        }
-
-                        if (1 == count($value))
-                        {
-                            $value = $value[0];
-                        }
-                    }
-
-                    self::setProperty($element, $activeprty, $value);
-                }
-                else
-                {
-                    if ((is_object($value)) || is_array($value))
                     {
                         $this->compact($value, $activectx, $activeprty, $optimize);
                     }
 
-                    if (in_array($property, self::$keywords))
+                    self::setProperty($element, $activeprty, $value);
+
+                    // ... continue with next property
+                    continue;
+                }
+
+                // After expansion, the value of all properties is in array form
+                // TODO Remove this, this should really never appear!
+                if (false == is_array($value))
+                {
+                    throw new SyntaxException('Detected a property whose value is not an array: ' . $property, $element);
+                }
+
+
+                // Make sure that empty arrays are preserved
+                if (0 == count($value))
+                {
+                    $activeprty = $this->compactIri($property, $activectx, null, $optimize);
+                    self::mergeIntoProperty($element, $activeprty, $value);
+
+                    // ... continue with next property
+                    continue;
+                }
+
+
+                // Compact every item in value separately as they could map to different terms
+                foreach ($value as &$val)
+                {
+                    $activeprty = $this->compactIri($property, $activectx, $val, $optimize);
+
+                    if (is_object($val))
                     {
-                        self::setProperty($element, $activeprty, $value);
+                        // TODO Handle @list here
+                        if (property_exists($val, '@list'))
+                        {
+                            $def = $this->getTermDefinition($activeprty, $activectx);
+
+                            foreach ($val->{'@list'} as &$listItem)
+                            {
+                                $listItem = $this->compactValueWithDef($listItem, $def['@type'], $def['@language'], $activectx);
+                            }
+
+                            if ('@list' == $def['@container'])
+                            {
+                                $val = $val->{'@list'};
+
+                                // a term can just hold one list if it has a @list container (we don't support lists of lists)
+                                self::setProperty($element, $activeprty, $val);
+
+                                continue; // ... continue with next value
+                            }
+                        }
+                        else
+                        {
+                            $val = $this->compactValue($activeprty, $val, $activectx);
+                        }
+
+                        $this->compact($val, $activectx, $activeprty, $optimize);
                     }
-                    else
-                    {
-                        self::mergeIntoProperty($element, $activeprty, $value);
-                    }
+
+                    // Merge value back into resulting object making sure that value is always an array if a container is set
+                    self::mergeIntoProperty($element, $activeprty, $val,
+                                            isset($activectx[$activeprty]['@container']));
                 }
             }
         }
@@ -687,44 +716,358 @@ class Processor
     /**
      * Compacts an absolute IRI to the shortest matching term or compact IRI.
      *
-     * Please note that this method requires the active context to be sorted already
-     * (with {@link compare()}).
-     *
-     * @param mixed  $value         The IRI to be compacted.
+     * @param mixed  $iri           The IRI to be compacted.
      * @param array  $activectx     The active context.
+     * @param mixed  $value         The value of the property to compact.
      * @param bool   $toRelativeIri Specifies whether $value should be
      *                              transformed to a relative IRI as fallback.
      *
      * @return string The compacted IRI.
      */
-    public function compactIri($value, $activectx, $toRelativeIri = false)
+    public function compactIri($iri, $activectx, $value = null, $toRelativeIri = false)
     {
         // TODO Handle $toRelativeIri or remove it
-        $compactIris = array();
+        $compactIris = array($iri);
+
+        // Calculate rank of full IRI
+        $highestRank = $this->calculateTermRank($iri, $value, $activectx);
 
         foreach ($activectx as $term => $definition)
         {
-            if (isset($definition['@id']))
+            if (isset($definition['@id']))  // TODO Will anything else ever be in the context??
             {
-                if ($value == $definition['@id'])
+                if ($iri == $definition['@id'])
                 {
-                    return $term;
+                    $rank = 1;  // a term is always preferred to (compact) IRIs
+
+                    if (false == is_null($value))
+                    {
+                        $rank = $this->calculateTermRank($term, $value, $activectx);
+                    }
+
+                    if ($rank > $highestRank)
+                    {
+                        $compactIris = array();
+                        $highestRank = $rank;
+                    }
+
+                    if ($rank == $highestRank)
+                    {
+                        $compactIris[] = $term;
+                    }
                 }
 
-                if (0 === substr_compare($value, $definition['@id'], 0, strlen($definition['@id'])))
+                // TODO Should we really prevent empty suffixes?
+                // If no matching terms have been found yet, store compact IRI if it doesn't exist as term at the same time
+                if ((strlen($iri) > strlen($definition['@id'])) &&
+                    (0 === substr_compare($iri, $definition['@id'], 0, strlen($definition['@id']))))
                 {
-                    $compactIris[] = $term . ':' . substr($value, strlen($definition['@id']));
+                    $compactIri = $term . ':' . substr($iri, strlen($definition['@id']));
+
+                    if (false == isset($activectx[$compactIri]))
+                    {
+                        $rank = $this->calculateTermRank($compactIri, $value, $activectx);
+                        if ($rank > $highestRank)
+                        {
+                            $compactIris = array();
+                            $highestRank = $rank;
+                        }
+
+                        if ($rank == $highestRank)
+                        {
+                            $compactIris[] = $compactIri;
+                        }
+                    }
                 }
             }
         }
 
-        if (count($compactIris) > 0)
+        // Sort matches
+        usort($compactIris, array($this, 'compare'));
+
+        return $compactIris[0];  // there is always at least one entry: the passed IRI
+    }
+
+    /**
+     * Compacts a value.
+     *
+     * @param string $term  The term to which the value belongs.
+     * @param mixed  $value The value to compact.
+     * @param array  $activectx     The active context.
+     *
+     * @return mixed The compacted value.
+     */
+    public function compactValue($term, $value, $activectx)
+    {
+        if (false == isset($activectx[$term]))
         {
-            usort($compactIris, array($this, 'compare'));
-            return $compactIris[0];
+            // TODO Throw exception
+        }
+
+        $def = $this->getTermDefinition($term, $activectx);
+
+        return $this->compactValueWithDef($value, $def['@type'], $def['@language'], $activectx);
+    }
+
+    /**
+     * Compacts a value according a passed type and language setting.
+     *
+     * This method is used as an internal, more efficient version of the
+     * {@link compactValue()} method since it doesn't look up the term
+     * defintion itself. This is useful for processing lists, e.g.
+     *
+     * @param mixed  $value    The value to compact.
+     * @param string $type     The type that applies (or null).
+     * @param string $language The language that applies (or null).
+     * @param array  $activectx     The active context.
+     *
+     * @return mixed The compacted value.
+     *
+     * @see compactValue()
+     */
+    private function compactValueWithDef($value, $type, $language, $activectx)
+    {
+        // Check if resulting value would be in expanded form
+        if (is_object($value))
+        {
+            // Check @value objects
+            if (property_exists($value, '@value'))
+            {
+                if (property_exists($value, '@type'))
+                {
+                    if ($value->{'@type'} !== $type)
+                    {
+                        // expanded form since types don't match, leave as is
+                        return $value;
+                    }
+                    elseif (is_null($type) && is_string($value->{'@value'}) &&
+                            (false == is_null($language)))
+                    {
+                        // expanded form since languages don't match (@type = null)
+                        $result = clone $value;
+                        unset($result->{'@type'});
+                        $result->{'@language'} = $language;
+
+                        return $result;
+                    }
+                    else
+                    {
+                        // not in expanded form: types match && (lang = null || not string)
+                        return $value->{'@value'};
+                    }
+                }
+                elseif (property_exists($value, '@language'))
+                {
+                    if ($value->{'@language'} !== $language)
+                    {
+                        // expanded form since languages don't match, return as is
+                        return $value;
+                    }
+                    elseif (isset($type))
+                    {
+                        // expanded form since term has type mapping, plain literal
+                        $result = clone $value;
+                        unset($result->{'@language'});
+
+                        return $result;
+                    }
+                    else
+                    {
+                        // not in expanded form: languages match && no type mapping
+                        return $value->{'@value'};
+                    }
+                }
+            }
+
+            // Check @id objects (@id is only property)
+            if (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
+            {
+                if ('@id' == $type)
+                {
+                    return $this->compactIri($value->{'@id'}, $activectx);
+                }
+                else
+                {
+                    return $value;
+                }
+            }
+
+            return $value;
+        }
+
+        if (is_array($value))
+        {
+            throw new SyntaxException('Array of arrays detected.');
+        }
+
+
+        // It is a scalar with no type and language mapping
+        if (false == is_null($type))
+        {
+            // expanded form since term has type mapping
+            $result = new \stdClass();
+            // TODO Compact @value -> support aliases??
+            $result->{'@value'} = $value;
+
+            return $result;
+        }
+        elseif (is_string($value) && (false == is_null($language)))
+        {
+            // expanded form since there's a language mapping (either in term or context)
+            $result = new \stdClass();
+            // TODO Compact @value -> support aliases??
+            $result->{'@value'} = $value;
+
+            return $result;
         }
 
         return $value;
+    }
+
+    /**
+     * Calculate term rank
+     *
+     * When selecting among multiple possible terms for a given property it
+     * is possible that multiple terms match but differ in their @type,
+     * @container, or @language settings. The purpose of this method is to
+     * take a term (or IRI) and a value and calculate a rank to find the
+     * best matching term, i.e., the one that minimizes the need for the
+     * expanded object form.
+     *
+     * @param string $term       The term whose rank should be calculated.
+     * @param mixed  $value      The value of the property to rank the term for.
+     * @param array  $activectx  The active context.
+     *
+     * @return int Returns the term rank.
+     */
+    private function calculateTermRank($term, $value, $activectx)
+    {
+        $rank = 0;
+
+        $type = null;
+        $language = null;
+        $container = null;
+
+        if (isset($activectx['@language']))
+        {
+            $language = $activectx['@language'];
+        }
+
+        if (array_key_exists($term, $activectx))
+        {
+            $rank++;   // a term is preferred to (compact) IRIs
+
+            $def = $this->getTermDefinition($term, $activectx);
+            $type = $def['@type'];
+            $language = $def['@language'];
+            $container = $def['@container'];
+        }
+
+
+        // Check if resulting value would be in expanded form
+        if (is_object($value) && property_exists($value, '@list'))
+        {
+            if ('@list' == $container)
+            {
+                $rank++;
+            }
+
+            foreach ($value->{'@list'} as $item)
+            {
+                if (is_object($this->compactValueWithDef($item, $type, $language, $activectx)))
+                {
+                    $rank--;
+                }
+                else
+                {
+                    $rank++;
+                }
+            }
+        }
+        else
+        {
+            if ('@list' == $container)
+            {
+                $rank -= 3;
+            }
+            elseif ('@set' == $container)
+            {
+                $rank++;
+            }
+
+            if (false == is_null($value))
+            {
+                if (is_object($this->compactValueWithDef($value, $type, $language, $activectx)))
+                {
+                    $rank--;
+                }
+                else
+                {
+                    $rank++;
+                }
+            }
+        }
+
+        return $rank;
+    }
+
+    /**
+     * Returns the type and language mapping as well as the container of the
+     * specified term.
+     *
+     * The result will be in the form
+     * <pre>
+     *   array('@type'      => type or null,
+     *         '@language'  => language or null,
+     *         '@container' => container or null)
+     * </pre>
+     *
+     * @param string $term       The term whose information should be retrieved.
+     * @param array  $activectx  The active context.
+     * 
+     * @return array Returns an associative array containing the term definition.
+     */
+    private function getTermDefinition($term, $activectx)
+    {
+        $def = array('@type'      => null,
+                     '@language'  => $language = (isset($activectx['@language']))
+                        ? $activectx['@language']
+                        : null,
+                     '@container' => null);
+
+
+        if (in_array($term, self::$keywords))
+        {
+            $def['@language'] = null;
+            if (('@id' == $term) || ('@type' == $term) || ('@graph' == $term))
+            {
+                $def['@type'] = '@id';
+            }
+
+            return $def;
+        }
+        elseif (false == isset($activectx[$term]))
+        {
+            return $def;
+        }
+
+
+        if (isset($activectx[$term]['@type']))
+        {
+            $def['@type'] = $activectx[$term]['@type'];
+            $def['@language'] = null;
+        }
+        elseif (array_key_exists('@language', $activectx[$term]))  // could be null
+        {
+            $def['@language'] = $activectx[$term]['@language'];
+        }
+
+        if (isset($activectx[$term]['@container']))
+        {
+            $def['@container'] = $activectx[$term]['@container'];
+        }
+
+        return $def;
     }
 
     /**

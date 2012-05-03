@@ -188,26 +188,22 @@ class JsonLD
             return (1 === count($document)) ? $document[0] : $document;
         }
 
-        // Sort active context as compact() requires this
-        uksort($activectx, array('ML\JsonLD\Processor', 'compare'));
-
         $processor->compact($document, $activectx, null, $optimize);
+
+        $compactedDocument = new \stdClass();
+        $compactedDocument->{'@context'} = $context->{'@context'};
 
         if (is_array($document))
         {
-            $compactedDocument = new \stdClass();
-            $compactedDocument->{'@context'} = $context->{'@context'};
             $graphKeyword = $processor->compactIri('@graph', $activectx);
             $compactedDocument->{$graphKeyword} = $document;
-
-            return $compactedDocument;
         }
         else
         {
-            $document->{'@context'} = $context->{'@context'};
+            $compactedDocument = (object) ((array)$compactedDocument + (array)$document);
         }
 
-        return $document;
+        return $compactedDocument;
     }
 
     /**
