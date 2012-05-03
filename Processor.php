@@ -1024,7 +1024,7 @@ class Processor
      *
      * @param string $term       The term whose information should be retrieved.
      * @param array  $activectx  The active context.
-     * 
+     *
      * @return array Returns an associative array containing the term definition.
      */
     private function getTermDefinition($term, $activectx)
@@ -1073,7 +1073,7 @@ class Processor
     /**
      * Expands compact IRIs in the context
      *
-     * @param string $value      The IRI that should be expanded.
+     * @param string $iri        The IRI that should be expanded.
      * @param array  $loclctx    The local context.
      * @param array  $activectx  The active context.
      * @param array  $path       A path of already processed terms.
@@ -1082,17 +1082,9 @@ class Processor
      *
      * @throws ProcessException If a cycle is detected while expanding the IRI.
      */
-    private function contextIriExpansion($value, $loclctx, $activectx, $path = array())
+    private function contextIriExpansion($iri, $loclctx, $activectx, $path = array())
     {
-        $prefix = $value;
-        $suffix = '';
-
-        if (false !== strpos($value, ':'))
-        {
-            list($prefix, $suffix) = explode(':', $value, 2);
-        }
-
-        if (in_array($prefix, $path))
+        if (in_array($iri, $path))
         {
             throw new ProcessException(
                 'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
@@ -1100,7 +1092,7 @@ class Processor
         }
         else
         {
-            $path[] = $prefix;
+            $path[] = $iri;
 
             if (count($path) >= self::CONTEXT_MAX_IRI_RECURSIONS)
             {
@@ -1110,20 +1102,40 @@ class Processor
             }
         }
 
-        if (property_exists($loclctx, $prefix))
+        if (isset($loclctx->{$iri}))
         {
-            return $this->contextIriExpansion($loclctx->{$prefix}, $loclctx, $activectx, $path) . $suffix;
+            if (is_string($loclctx->{$iri}))
+            {
+                return $this->contextIriExpansion($loclctx->{$iri}, $loclctx, $activectx, $path);
+            }
+            elseif (property_exists($loclctx->{$iri}, '@id'))
+            {
+                return $this->contextIriExpansion($loclctx->{$iri}->{'@id'}, $loclctx, $activectx, $path);
+            }
         }
 
-        if (array_key_exists($prefix, $activectx))
+        if (array_key_exists($iri, $activectx) && array_key_exists('@id', $activectx[$iri]))
         {
             // all values in the active context have already been expanded
-            return $activectx[$prefix]['@id'] . $suffix;
+            return $activectx[$iri]['@id'];
+        }
+
+        if (false !== strpos($iri, ':'))
+        {
+            list($prefix, $suffix) = explode(':', $iri, 2);
+
+            $prefix = $this->contextIriExpansion($prefix, $loclctx, $activectx, $path);
+
+            // If prefix contains a colon, we have successfully expanded it
+            if (false !== strpos($prefix, ':'))
+            {
+                return $prefix . $suffix;
+            }
         }
 
 
         // Couldn't expand it, return as is
-        return $value;
+        return $iri;
     }
 
     /**
