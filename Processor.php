@@ -479,11 +479,15 @@ class Processor
 
         if (is_string($value))
         {
-            $language = @$activectx['@language'];
-            if (isset($activectx[$activeprty]) && is_array($activectx[$activeprty]) &&
-                array_key_exists('@language', $activectx[$activeprty]))
+            $language = null;
+
+            if (isset($activectx[$activeprty]) && array_key_exists('@language', $activectx[$activeprty]))
             {
                 $language = $activectx[$activeprty]['@language'];
+            }
+            elseif (isset($activectx['@language']))
+            {
+                $language = $activectx['@language'];
             }
 
             if(isset($language))
@@ -944,37 +948,24 @@ class Processor
     {
         $rank = 0;
 
-        $type = null;
-        $language = null;
-        $container = null;
-
-        if (isset($activectx['@language']))
-        {
-            $language = $activectx['@language'];
-        }
+        $def = $this->getTermDefinition($term, $activectx);
 
         if (array_key_exists($term, $activectx))
         {
             $rank++;   // a term is preferred to (compact) IRIs
-
-            $def = $this->getTermDefinition($term, $activectx);
-            $type = $def['@type'];
-            $language = $def['@language'];
-            $container = $def['@container'];
         }
-
 
         // Check if resulting value would be in expanded form
         if (is_object($value) && property_exists($value, '@list'))
         {
-            if ('@list' == $container)
+            if ('@list' == $def['@container'])
             {
                 $rank++;
             }
 
             foreach ($value->{'@list'} as $item)
             {
-                if (is_object($this->compactValueWithDef($item, $type, $language, $activectx)))
+                if (is_object($this->compactValueWithDef($item, $def['@type'], $def['@language'], $activectx)))
                 {
                     $rank--;
                 }
@@ -986,18 +977,18 @@ class Processor
         }
         else
         {
-            if ('@list' == $container)
+            if ('@list' == $def['@container'])
             {
                 $rank -= 3;
             }
-            elseif ('@set' == $container)
+            elseif ('@set' == $def['@container'])
             {
                 $rank++;
             }
 
             if (false == is_null($value))
             {
-                if (is_object($this->compactValueWithDef($value, $type, $language, $activectx)))
+                if (is_object($this->compactValueWithDef($value, $def['@type'], $def['@language'], $activectx)))
                 {
                     $rank--;
                 }
@@ -1030,7 +1021,7 @@ class Processor
     private function getTermDefinition($term, $activectx)
     {
         $def = array('@type'      => null,
-                     '@language'  => $language = (isset($activectx['@language']))
+                     '@language'  => (isset($activectx['@language']))
                         ? $activectx['@language']
                         : null,
                      '@container' => null);
@@ -1281,11 +1272,14 @@ class Processor
 
                             if (('@id' != $expanded) && (false === strpos($expanded, ':')))
                             {
-                                throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
-                                                          $loclctx);
+                                // the term is not mapped to an IRI and can't be interpreted as an IRI itself,
+                                // drop the whole definition
+                                unset($activectx[$key]);
                             }
-
-                            $activectx[$key]['@id'] = $expanded;
+                            else
+                            {
+                                $activectx[$key]['@id'] = $expanded;
+                            }
                         }
                     }
                 }
