@@ -579,8 +579,8 @@ class Processor
             }
             $element = $result;
 
-            // If there's just one entry and that has no @list or @set container,
-            // optimize the array away
+            // If there's just one entry and the active property has no
+            // @list or @set container, optimize the array away
             if (is_array($element) && (1 == count($element)) &&
                 ((false == isset($activectx[$activeprty]['@container'])) ||
                  (('@set' != $activectx[$activeprty]['@container']) &&
@@ -678,14 +678,12 @@ class Processor
                 foreach ($value as &$val)
                 {
                     $activeprty = $this->compactIri($property, $activectx, $val, $optimize);
+                    $def = $this->getTermDefinition($activeprty, $activectx);
 
                     if (is_object($val))
                     {
-                        // TODO Handle @list here
                         if (property_exists($val, '@list'))
                         {
-                            $def = $this->getTermDefinition($activeprty, $activectx);
-
                             foreach ($val->{'@list'} as &$listItem)
                             {
                                 $listItem = $this->compactValueWithDef($listItem, $def['@type'], $def['@language'], $activectx);
@@ -703,7 +701,7 @@ class Processor
                         }
                         else
                         {
-                            $val = $this->compactValue($activeprty, $val, $activectx);
+                            $val = $this->compactValueWithDef($val, $def['@type'], $def['@language'], $activectx);
                         }
 
                         $this->compact($val, $activectx, $activeprty, $optimize);
@@ -794,31 +792,6 @@ class Processor
 
     /**
      * Compacts a value.
-     *
-     * @param string $term  The term to which the value belongs.
-     * @param mixed  $value The value to compact.
-     * @param array  $activectx     The active context.
-     *
-     * @return mixed The compacted value.
-     */
-    public function compactValue($term, $value, $activectx)
-    {
-        if (false == isset($activectx[$term]))
-        {
-            // TODO Throw exception
-        }
-
-        $def = $this->getTermDefinition($term, $activectx);
-
-        return $this->compactValueWithDef($value, $def['@type'], $def['@language'], $activectx);
-    }
-
-    /**
-     * Compacts a value according a passed type and language setting.
-     *
-     * This method is used as an internal, more efficient version of the
-     * {@link compactValue()} method since it doesn't look up the term
-     * defintion itself. This is useful for processing lists, e.g.
      *
      * @param mixed  $value    The value to compact.
      * @param string $type     The type that applies (or null).
