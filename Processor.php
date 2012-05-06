@@ -622,11 +622,16 @@ class Processor
 
                                 foreach ($value as $key => &$item)
                                 {
-                                    // TODO Transform to relative IRIs by default??
-                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx);
+                                    if (is_string($item))
+                                    {
+                                        // TODO Transform to relative IRIs by default??
+                                        $item = $this->compactIri($item, $activectx, $optimize);
+                                    }
+                                    else
+                                    {
+                                        $this->compact($item, $activectx, null, $optimize);
+                                    }
                                 }
-
-                                $this->compact($value, $activectx, $activeprty, $optimize);
                             }
                             else
                             {
