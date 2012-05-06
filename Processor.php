@@ -623,8 +623,7 @@ class Processor
                                 foreach ($value as $key => &$item)
                                 {
                                     // TODO Transform to relative IRIs by default??
-                                    $item = $this->compactValueWithDef($item, $def['@type'],
-                                                                       $def['@language'], $activectx);
+                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx);
                                 }
 
                                 $this->compact($value, $activectx, $activeprty, $optimize);
@@ -686,7 +685,7 @@ class Processor
                         {
                             foreach ($val->{'@list'} as &$listItem)
                             {
-                                $listItem = $this->compactValueWithDef($listItem, $def['@type'], $def['@language'], $activectx);
+                                $listItem = $this->compactValue($listItem, $def['@type'], $def['@language'], $activectx);
                             }
 
                             if ('@list' == $def['@container'])
@@ -701,7 +700,7 @@ class Processor
                         }
                         else
                         {
-                            $val = $this->compactValueWithDef($val, $def['@type'], $def['@language'], $activectx);
+                            $val = $this->compactValue($val, $def['@type'], $def['@language'], $activectx);
                         }
 
                         $this->compact($val, $activectx, $activeprty, $optimize);
@@ -791,9 +790,74 @@ class Processor
     }
 
     /**
+     * Checks whether the value matches the passed type and language.
+     *
+     * @param mixed  $value    The value to check (arrays are not allowed!).
+     * @param string $type     The type it should match or null for no type.
+     * @param string $language The language it should match or null for no language.
+     *
+     * @return bool Returns true if the tpye and language match the value, otherwise false.
+     */
+    private function checkValueTypeLanguageMatch($value, $type, $language)
+    {
+        if (is_object($value))
+        {
+            // Check @value objects
+            if (property_exists($value, '@value'))
+            {
+                if (isset($value->{'@type'}))
+                {
+                    return ($value->{'@type'} === $type);
+                }
+                elseif (isset($value->{'@language'}))
+                {
+                    return ($value->{'@language'} === $language);
+                }
+                else
+                {
+                    // the object has just a @value property (or @type/@language equal null)
+                    if (isset($type))
+                    {
+                        return false;
+                    }
+                    elseif (isset($language))
+                    {
+                        // language tagging just applies to strings
+                        return (false == is_string($value->{'@value'}));
+                    }
+                }
+            }
+
+            // Check @id objects
+            if (property_exists($value, '@id'))
+            {
+                return ('@id' == $type);
+            }
+
+            // an arbitrary object, doesn't match any type or language (TODO Check this!)
+            return ((false == isset($type)) && (false == isset($language)));
+        }
+
+        // It is a scalar with no type and language mapping
+        if (isset($type))
+        {
+            return false;
+        }
+        elseif (is_string($value) && isset($language))
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+
+    }
+
+    /**
      * Compacts a value.
      *
-     * @param mixed  $value    The value to compact.
+     * @param mixed  $value    The value to compact (arrays are not allowed!).
      * @param string $type     The type that applies (or null).
      * @param string $language The language that applies (or null).
      * @param array  $activectx     The active context.
@@ -802,103 +866,39 @@ class Processor
      *
      * @see compactValue()
      */
-    private function compactValueWithDef($value, $type, $language, $activectx)
+    private function compactValue($value, $type, $language, $activectx)
     {
-        // Check if resulting value would be in expanded form
-        if (is_object($value))
+        if ($this->checkValueTypeLanguageMatch($value, $type, $language))
         {
-            // Check @value objects
-            if (property_exists($value, '@value'))
+            if (is_object($value))
             {
-                if (property_exists($value, '@type'))
+                if (property_exists($value, '@value'))
                 {
-                    if ($value->{'@type'} !== $type)
-                    {
-                        // expanded form since types don't match, leave as is
-                        return $value;
-                    }
-                    elseif (is_null($type) && is_string($value->{'@value'}) &&
-                            (false == is_null($language)))
-                    {
-                        // expanded form since languages don't match (@type = null)
-                        $result = clone $value;
-                        unset($result->{'@type'});
-                        $result->{'@language'} = $language;
-
-                        return $result;
-                    }
-                    else
-                    {
-                        // not in expanded form: types match && (lang = null || not string)
-                        return $value->{'@value'};
-                    }
+                    // TODO If type == @id, do IRI compaction
+                    return $value->{'@value'};
                 }
-                elseif (property_exists($value, '@language'))
-                {
-                    if ($value->{'@language'} !== $language)
-                    {
-                        // expanded form since languages don't match, return as is
-                        return $value;
-                    }
-                    elseif (isset($type))
-                    {
-                        // expanded form since term has type mapping, plain literal
-                        $result = clone $value;
-                        unset($result->{'@language'});
-
-                        return $result;
-                    }
-                    else
-                    {
-                        // not in expanded form: languages match && no type mapping
-                        return $value->{'@value'};
-                    }
-                }
-            }
-
-            // Check @id objects (@id is only property)
-            if (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
-            {
-                if ('@id' == $type)
+                elseif (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
                 {
                     return $this->compactIri($value->{'@id'}, $activectx);
-                }
-                else
-                {
-                    return $value;
                 }
             }
 
             return $value;
         }
-
-        if (is_array($value))
+        else
         {
-            throw new SyntaxException('Array of arrays detected.');
+            if (is_object($value))
+            {
+                return $value;
+            }
+            else
+            {
+                $result = new \stdClass();
+                $result->{'@value'} = $value;
+
+                return $result;
+            }
         }
-
-
-        // It is a scalar with no type and language mapping
-        if (false == is_null($type))
-        {
-            // expanded form since term has type mapping
-            $result = new \stdClass();
-            // TODO Compact @value -> support aliases??
-            $result->{'@value'} = $value;
-
-            return $result;
-        }
-        elseif (is_string($value) && (false == is_null($language)))
-        {
-            // expanded form since there's a language mapping (either in term or context)
-            $result = new \stdClass();
-            // TODO Compact @value -> support aliases??
-            $result->{'@value'} = $value;
-
-            return $result;
-        }
-
-        return $value;
     }
 
     /**
@@ -928,7 +928,9 @@ class Processor
             $rank++;   // a term is preferred to (compact) IRIs
         }
 
-        // Check if resulting value would be in expanded form
+        // If it's a @list object, calculate the rank by first checking if the
+        // term has a list-container and then checking the number of type/language
+        // matches
         if (is_object($value) && property_exists($value, '@list'))
         {
             if ('@list' == $def['@container'])
@@ -938,13 +940,13 @@ class Processor
 
             foreach ($value->{'@list'} as $item)
             {
-                if (is_object($this->compactValueWithDef($item, $def['@type'], $def['@language'], $activectx)))
+                if ($this->checkValueTypeLanguageMatch($item, $def['@type'], $def['@language']))
                 {
-                    $rank--;
+                    $rank++;
                 }
                 else
                 {
-                    $rank++;
+                    $rank--;
                 }
             }
         }
@@ -952,22 +954,33 @@ class Processor
         {
             if ('@list' == $def['@container'])
             {
+                // For non-list values, a term with a list-container should never be choosen!
                 $rank -= 3;
+                return $rank;
             }
             elseif ('@set' == $def['@container'])
             {
+                // ... but we prefer terms with a set-container
                 $rank++;
             }
 
+            // If a non-null value was passed, check if the type/language matches
             if (false == is_null($value))
             {
-                if (is_object($this->compactValueWithDef($value, $def['@type'], $def['@language'], $activectx)))
+                if ($this->checkValueTypeLanguageMatch($value, $def['@type'], $def['@language']))
                 {
-                    $rank--;
+                    $rank++;
                 }
                 else
                 {
-                    $rank++;
+                    $rank--;
+
+                    // .. a term with a mismatching type/language definition should not be chosen
+                    if (array_key_exists($term, $activectx) &&
+                        (isset($activectx[$term]['@type']) || isset($activectx[$term]['@language'])))
+                    {
+                        $rank -= 2;  // (-2 since the term was preferred initially)
+                    }
                 }
             }
         }
@@ -1202,7 +1215,7 @@ class Processor
                             unset($activectx[$key]);
                         }
 
-                        if (property_exists($value, '@type'))
+                        if (isset($value->{'@type'}))
                         {
                             $expanded = $this->contextIriExpansion($value->{'@type'}, $context, $activectx);
 
@@ -1230,7 +1243,7 @@ class Processor
                             $activectx[$key]['@language'] = $value->{'@language'};
                         }
 
-                        if (property_exists($value, '@container'))
+                        if (isset($value->{'@container'}))
                         {
                             if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
                             {
