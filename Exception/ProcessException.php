@@ -57,7 +57,7 @@ class ProcessException extends \RuntimeException
     /**
      * Sets the snippet of code near the error.
      *
-     * @param string $snippet The code snippet
+     * @param mixed $snippet The code snippet
      */
     public function setSnippet($snippet)
     {
