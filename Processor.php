@@ -227,7 +227,7 @@ class Processor
                             $element);
                     }
                 }
-                if (false === is_null($item))
+                if (false == is_null($item))
                 {
                     if (is_array($item))
                     {
@@ -244,147 +244,176 @@ class Processor
             return;
         }
 
-        if (false == is_object($element))
+        if (is_object($element))
         {
-            $element = $this->expandValue($element, $activeprty, $activectx);
-            return;
-        }
-
-        // $element is an object, try to process local context
-        if (property_exists($element, '@context'))
-        {
-            $this->processContext($element->{'@context'}, $activectx);
-            unset($element->{'@context'});
-        }
-
-        // Process properties
-        $properties = get_object_vars($element);
-        foreach ($properties as $property => &$value)
-        {   // Remove property from object..
-            unset($element->{$property});
-
-            // It will be re-added later using the expanded IRI
-            $activeprty = $property;
-            $property = $this->expandIri($property, $activectx, false);
-
-            // Remove properties with null values (except @value as we need
-            // it to determine what @type means) and all properties that are
-            // neither keywords nor valid IRIs (i.e., they don't contain a
-            // colon) since we drop unmapped JSON
-            if ((is_null($value) && ('@value' != $property)) ||
-                ((false === strpos($property, ':')) &&
-                 (false == in_array($property, self::$keywords))))
+            // Try to process local context
+            if (property_exists($element, '@context'))
             {
-                // TODO Check if this is enough (see ISSUE-56)
-                continue;
+                $this->processContext($element->{'@context'}, $activectx);
+                unset($element->{'@context'});
             }
 
-            if ('@id' == $property)
+
+            // otherwise it is an object, process its properties
+            $properties = get_object_vars($element);
+            foreach ($properties as $property => &$value)
             {
-                if (is_string($value))
+                // Remove property from object...
+                unset($element->{$property});
+
+                // ... it will be re-added later using the expanded IRI
+                $expProperty = $this->expandIri($property, $activectx, false);
+
+                if (in_array($expProperty, self::$keywords))
                 {
-                    $value = $this->expandIri($value, $activectx, true);
-                    self::setProperty($element, $property, $value);
+                    // we don't allow overwritting the behavior of keywords,
+                    // so if the property expands to one, we treat it as the
+                    // keyword itself
+                    $property = $expProperty;
+                }
+
+                // Remove properties with null values (except @value as we need
+                // it to determine what @type means) and all properties that are
+                // neither keywords nor valid IRIs (i.e., they don't contain a
+                // colon) since we drop unmapped JSON
+                if ((is_null($value) && ('@value' != $expProperty)) ||
+                    ((false === strpos($expProperty, ':')) &&
+                     (false == in_array($expProperty, self::$keywords))))
+                {
+                    // TODO Check if this is enough or if we need to do some regex check, is 0:1 valid? (see ISSUE-56)
+                    continue;
+                }
+
+                if ('@id' == $expProperty)
+                {
+                    if (is_string($value))
+                    {
+                        $value = $this->expandIri($value, $activectx, true);
+                        self::setProperty($element, $expProperty, $value);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new SyntaxException(
+                            'Invalid value for @id detected (must be a string).',
+                            $element);
+                    }
+                }
+                elseif (('@type' == $expProperty) || ('@graph' == $expProperty))
+                {
+                    // TODO Check value space once agreed (see ISSUE-114)
+
+                    if (is_string($value))
+                    {
+                        $value = $this->expandIri($value, $activectx, true);
+                        self::setProperty($element, $expProperty, $value);
+                    }
+                    elseif (is_array($value))
+                    {
+                        $result = array();
+
+                        foreach ($value as $item)
+                        {
+                            if (is_string($item))
+                            {
+                                $result[] = $this->expandIri($item, $activectx);
+                            }
+                            elseif (is_object($item) &&
+                                    (false == property_exists($item, '@value')) &&
+                                    (false == property_exists($item, '@set')) &&
+                                    (false == property_exists($item, '@list')))
+                            {
+                                $this->expand($item, $activectx, $expProperty);
+                                $result[] = $item;
+                            }
+                            else
+                            {
+                                throw new SyntaxException("Invalid value in $property detected.", $value);
+                            }
+
+                        }
+
+                        // Don't keep empty arrays
+                        if (count($result) >= 1)
+                        {
+                            self::mergeIntoProperty($element, $expProperty, $result, true);
+                        }
+                    }
+                    else
+                    {
+                        if (is_object($value) &&
+                            (false == property_exists($value, '@value')) &&
+                            (false == property_exists($value, '@set')) &&
+                            (false == property_exists($value, '@list')))
+                        {
+                            $this->expand($value, $activectx, $expProperty);
+                            self::setProperty($element, $expProperty, $value);
+                        }
+                        else
+                        {
+                            throw new SyntaxException("Invalid value for $property detected.", $value);
+                        }
+                    }
+
+                    continue;
+                }
+                elseif (('@value' == $expProperty) || ('@language' == $expProperty))
+                {
+                    if (is_object($value) || is_array($value))
+                    {
+                        throw new SyntaxException(
+                            "Invalid value for $property detected (must be a scalar).",
+                            $value);
+                    }
+
+                    self::setProperty($element, $expProperty, $value);
                     continue;
                 }
                 else
                 {
-                    throw new SyntaxException(
-                        'Invalid value for @id detected (must be a string).',
-                        $element);
-                }
-            }
-            elseif ('@type' == $property)  // TODO Handle @graph here as well
-            {
-                if (is_string($value))
-                {
-                    // TODO Check if this expands relative IRI to full absolute IRI if no context passed (in @value objects)
-                    $value = $this->expandIri($value, $activectx);
-                    self::setProperty($element, $property, $value);
-                }
-                elseif (is_array($value))
-                {
-                    $result = array();
-                    foreach ($value as $item)
+                    // Expand value
+                    if (('@set' == $expProperty) || ('@list' == $expProperty))
                     {
-                        if (false === is_string($item))
-                        {
-                            throw new SyntaxException(
-                                'Invalid value in @type array detected (must be a string).',
-                                $value);
-                        }
-                        $result[] = $this->expandIri($item, $activectx);
+                        $this->expand($value, $activectx, $activeprty);
+                    }
+                    else
+                    {
+                        $this->expand($value, $activectx, $property);
                     }
 
-                    // Don't keep empty arrays
-                    if (count($result) >= 1)
+                    // ... and re-add it to the object if the expanded value is not null
+                    if (false == is_null($value))
                     {
-                        self::mergeIntoProperty($element, $property, $result, true);
-                    }
-                }
-                else
-                {
-                    throw new SyntaxException(
-                        'Invalid value for @type detected (must be a string or array).',
-                        $value);
-                }
-
-                continue;
-            }
-            elseif (('@value' == $property) || ('@language' == $property))
-            {
-                if (is_object($value) || is_array($value))
-                {
-                    throw new SyntaxException(
-                        "Invalid value for $property detected (must be a scalar).",
-                        $value);
-                }
-
-                self::setProperty($element, $property, $value);
-                continue;
-            }
-            elseif (('@list' == $property) || ('@set' == $property) || ('@graph' == $property))
-            {
-                $this->expand($value, $activectx, $property);
-
-                if (false == is_array($value))
-                {
-                    $value = array($value);
-                }
-
-                // @set is optimized away after the whole object has been processed
-                self::setProperty($element, $property, $value);
-                continue;
-            }
-            else
-            {
-                // Expand value
-                $this->expand($value, $activectx, $activeprty);
-
-                // ... and re-add it to the object if the expanded value is not null
-                if (false == is_null($value))
-                {
-                    // If property has an @list container, and value is not yet an
-                    // expanded @list-object, transform it to one
-                    if (isset($activectx[$activeprty]['@container']) &&
-                        ('@list' == $activectx[$activeprty]['@container']) &&
-                        ((false == is_object($value) || (false == property_exists($value, '@list')))))
-                    {
-                        if (false == is_array($value))
+                        // If property has an @list container, and value is not yet an
+                        // expanded @list-object, transform it to one
+                        if (isset($activectx[$property]['@container']) &&
+                            ('@list' == $activectx[$property]['@container']) &&
+                            ((false == is_object($value) || (false == property_exists($value, '@list')))))
                         {
-                            $value = array($value);
+                            if (false == is_array($value))
+                            {
+                                $value = array($value);
+                            }
+
+                            $obj = new \stdClass();
+                            $obj->{'@list'} = $value;
+                            $value = $obj;
                         }
 
-                        $obj = new \stdClass();
-                        $obj->{'@list'} = $value;
-                        $value = $obj;
+                        self::mergeIntoProperty($element, $expProperty, $value, true);
                     }
-
-                    self::mergeIntoProperty($element, $property, $value, true);
                 }
             }
         }
 
+        // Try to expand @value and @id objects as well as scalars
+        $element = $this->expandValue($element, $activeprty, $activectx);
+
+        if (false == is_object($element))
+        {
+            // there's nothing else we could do
+            return;
+        }
 
         // All properties have been processed. Make sure the result is valid
         // and optimize object where possible
@@ -425,7 +454,6 @@ class Processor
         // Not an @value object, make sure @type is an array
         if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
         {
-
             $element->{'@type'} = array($element->{'@type'});
         }
 
@@ -450,7 +478,7 @@ class Processor
     /**
      * Expands a JSON-LD value
      *
-     * The value can be of any scalar type (i.e., not an object or array).
+     * The value can be of any scalar type or an object.
      *
      * @param mixed $value      The value to be expanded.
      * @param mixed $activeprty The active property.
@@ -460,43 +488,74 @@ class Processor
      */
     private function expandValue($value, $activeprty, $activectx)
     {
-        if (isset($activectx[$activeprty]['@type']))
+        // Remove redundancy first
+        $def = $this->getTermDefinition($activeprty, $activectx);
+        $compactable = false;
+
+        if ($def['isKeyword'])
         {
-            if ('@id' == $activectx[$activeprty]['@type'])
+            $compactable = $this->checkValueTypeLanguageMatch($value, $def['@type'], $def['@language']);
+        }
+        else
+        {
+            // non-keywords will loose their type/language during expansion
+            $compactable = $this->checkValueTypeLanguageMatch($value, null, null);
+        }
+
+        if ((true == $compactable) && is_object($value))
+        {
+            if (property_exists($value, '@value'))
             {
-                $obj = new \stdClass();
-                $obj->{'@id'} = $this->expandIri($value, $activectx, true);
-                return $obj;
+                // TODO If type == @id, do IRI expansion
+                return $value->{'@value'};
+            }
+            elseif (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
+            {
+                return $this->expandIri($value->{'@id'}, $activectx, true);
+            }
+        }
+
+        // If value is still an object, it is already in expanded form
+        if (is_object($value))
+        {
+            return $value;
+        }
+
+        if (isset($def['@type']))
+        {
+            if (('@id' == $def['@type']))  // TODO Need to check if value is string??
+            {
+                $value = $this->expandIri($value, $activectx, true);
+
+                if ($def['isKeyword'] == true)
+                {
+                    return $value;
+                }
+                else
+                {
+                    $obj = new \stdClass();
+                    $obj->{'@id'} = $value;
+
+                    return $obj;
+                }
             }
             else
             {
                 $obj = new \stdClass();
                 $obj->{'@value'} = $value;
-                $obj->{'@type'} = $activectx[$activeprty]['@type'];
+                $obj->{'@type'} = $def['@type'];
+
                 return $obj;
             }
         }
 
-        if (is_string($value))
+        if (isset($def['@language']))
         {
-            $language = null;
+            $obj = new \stdClass();
+            $obj->{'@value'} = $value;
+            $obj->{'@language'} = $def['@language'];
 
-            if (isset($activectx[$activeprty]) && array_key_exists('@language', $activectx[$activeprty]))
-            {
-                $language = $activectx[$activeprty]['@language'];
-            }
-            elseif (isset($activectx['@language']))
-            {
-                $language = $activectx['@language'];
-            }
-
-            if(isset($language))
-            {
-                $obj = new \stdClass();
-                $obj->{'@value'} = $value;
-                $obj->{'@language'} = $language;
-                return $obj;
-            }
+            return $obj;
         }
 
         return $value;
@@ -862,10 +921,10 @@ class Processor
     /**
      * Compacts a value.
      *
-     * @param mixed  $value    The value to compact (arrays are not allowed!).
-     * @param string $type     The type that applies (or null).
-     * @param string $language The language that applies (or null).
-     * @param array  $activectx     The active context.
+     * @param mixed  $value     The value to compact (arrays are not allowed!).
+     * @param string $type      The type that applies (or null).
+     * @param string $language  The language that applies (or null).
+     * @param array  $activectx The active context.
      *
      * @return mixed The compacted value.
      *
@@ -1001,7 +1060,8 @@ class Processor
      * <pre>
      *   array('@type'      => type or null,
      *         '@language'  => language or null,
-     *         '@container' => container or null)
+     *         '@container' => container or null,
+     *         'isKeyword'  => true or false)
      * </pre>
      *
      * @param string $term       The term whose information should be retrieved.
@@ -1015,12 +1075,15 @@ class Processor
                      '@language'  => (isset($activectx['@language']))
                         ? $activectx['@language']
                         : null,
-                     '@container' => null);
+                     '@container' => null,
+                     'isKeyword'  => false);
 
 
         if (in_array($term, self::$keywords))
         {
             $def['@language'] = null;
+            $def['isKeyword'] = true;
+
             if (('@id' == $term) || ('@type' == $term) || ('@graph' == $term))
             {
                 $def['@type'] = '@id';
