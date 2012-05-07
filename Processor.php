@@ -1387,6 +1387,8 @@ class Processor
      */
     private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false)
     {
+        // TODO Make sure all objects are cloned!
+
         if (is_array($element))
         {
             foreach ($element as $item)
@@ -1528,5 +1530,23 @@ class Processor
         $this->blankNodeMap[$id] = $bnode;
 
         return $bnode;
+    }
+
+    /**
+     * Flattens a JSON-LD document
+     */
+    public function flatten($element)
+    {
+        $subjectMap = new \stdClass();
+        $this->createSubjectMap($subjectMap, $element);
+
+        $flattened = array();
+
+        foreach ($subjectMap as $value)
+        {
+            $flattened[] = $value;
+        }
+
+        return $flattened;
     }
 }

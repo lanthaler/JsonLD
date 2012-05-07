@@ -106,7 +106,7 @@ class JsonLD
      * @param string $document The JSON-LD document to expand.
      * @param string $baseiri  The base IRI.
      *
-     * @return array The expanded JSON-LD document
+     * @return array The expanded JSON-LD document.
      *
      * @throws ParseException   If the JSON-LD document or a remote context couldn't be parsed.
      * @throws SyntaxException  If the JSON-LD document contains syntax errors.
@@ -168,7 +168,7 @@ class JsonLD
     static public function compact($document, $context, $baseiri = null, $optimize = false)
     {
         // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
-        $document = self::expand($document);
+        $document = self::expand($document, $baseiri);
         $context = self::parse($context);
 
         if (false == is_object($context) || (false == property_exists($context, '@context')))
@@ -204,6 +204,38 @@ class JsonLD
         }
 
         return $compactedDocument;
+    }
+
+    /**
+     * Flattens a JSON-LD document
+     *
+     * The document can be supplied directly as a string or by passing a
+     * file path or an IRI.
+     *
+     *  Usage:
+     *  <code>
+     *    $flattened = JsonLD::flatten('document.jsonld');
+     *    print_r($flattened);
+     *  </code>
+     *
+     * @param string $document The JSON-LD document to expand.
+     * @param string $baseiri  The base IRI.
+     *
+     * @return array The flattened JSON-LD document.
+     *
+     * @throws ParseException   If the JSON-LD document or a remote context couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
+     * @throws ProcessException If processing of the JSON-LD document failed.
+     *
+     * @api
+     */
+    static public function flatten($document, $baseiri = null)
+    {
+        $document = self::expand($document, $baseiri);
+
+        $processor = new Processor($baseiri);
+
+        return $processor->flatten($document);
     }
 
     /**
