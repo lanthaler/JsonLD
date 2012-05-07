@@ -34,6 +34,13 @@ class Processor
     /** The base IRI */
     private $baseiri = null;
 
+    /** Blank node map */
+    private $blankNodeMap = array();
+
+    /** Blank node counter */
+    private $blankNodeCounter = 0;
+
+
     /**
      * Adds a property to an object if it doesn't exist yet
      *
@@ -65,14 +72,27 @@ class Processor
      * @param string $property    The name of the property to which the value should be merged into.
      * @param mixed  $value       The value to merge into the property.
      * @param bool   $alwaysArray If set to true, the resulting property will always be an array.
+     * @param bool   $unique      If set to true, the value is only added if it doesn't exist yet.
      */
-    private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false)
+    private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false, $unique = false)
     {
         if (property_exists($object, $property))
         {
             if (false === is_array($object->{$property}))
             {
                 $object->{$property} = array($object->{$property});
+            }
+
+            if ($unique)
+            {
+                foreach ($object->{$property} as $item)
+                {
+                    // TODO Check if this check is enough to check equivalence
+                    if ($value == $item)
+                    {
+                        return;
+                    }
+                }
             }
 
             if (false == is_array($value))
@@ -208,6 +228,8 @@ class Processor
      */
     public function expand(&$element, $activectx = array(), $activeprty = null)
     {
+        // TODO Should duplicate values be eliminated during expansion?
+
         if (is_array($element))
         {
             $result = array();
@@ -1352,5 +1374,159 @@ class Processor
                 }
             }
         }
+    }
+
+    /**
+     * Flattens a JSON-LD document and creates a subject map
+     *
+     * @param object  $subjectMap The object holding the subject map.
+     * @param mixed   $element    A JSON-LD element to be flattened.
+     * @param string  $parent     The property referencing the passed element.
+     * @param boolean $list       Is a list being processed?
+     * @param boolean $iriKeyword If set to true, strings are interpreted as IRI
+     */
+    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false)
+    {
+        if (is_array($element))
+        {
+            foreach ($element as $item)
+            {
+                $this->createSubjectMap($subjectMap, $item, $parent, $list, $iriKeyword);
+            }
+
+            return;
+        }
+
+        if (is_object($element) && (false === property_exists($element, '@value')))
+        {
+            // Handle lists
+            if (property_exists($element, '@list'))
+            {
+                $flattenedList = new \stdClass();
+                $flattenedList->{'@list'} = array();
+
+                $this->createSubjectMap($subjectMap, $element->{'@list'}, $flattenedList->{'@list'}, true);
+
+                $parent[] = $flattenedList;
+
+                return;
+            }
+
+            // TODO: Really create bnode for empty objects??
+
+            $id = null;
+            if (property_exists($element, '@id'))
+            {
+                $id = $element->{'@id'};
+            }
+
+            // if no @id was found or it was a blank node, assign a new identifier
+            if ((null === $id) || (0 === strncmp($id, '_:', 2)))
+            {
+                $id = $this->getBlankNodeId($id);
+            }
+
+            if (null !== $parent)
+            {
+                $subject = new \stdClass();
+                $subject->{'@id'} = $id;
+
+                $parent[] = $subject;
+            }
+
+            $subject = null;
+            if (property_exists($subjectMap, $id))
+            {
+                $subject = $subjectMap->{$id};
+            }
+            else
+            {
+                $subject = new \stdClass();
+                $subject->{'@id'} = $id;
+
+                $subjectMap->{$id} = $subject;
+            }
+
+            foreach ($element as $property => $value)
+            {
+                if ('@id' === $property)
+                {
+                    continue;  // we handled @id already
+                }
+
+                if (('@type' === $property) || ('@graph' === $property))
+                {
+                    $subject->{$property} = array();
+                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, true);
+
+                    continue;
+                }
+
+                if (in_array($property, self::$keywords))
+                {
+                    // Check this! Blank nodes in keywords handled wrong!?
+                    self::mergeIntoProperty($subject, $property, $value, true, true);
+                }
+                else
+                {
+                    if (false === isset($subject->{$property}))
+                    {
+                        $subject->{$property} = array();
+                    }
+
+                    $this->createSubjectMap($subjectMap, $value, $subject->{$property});
+                }
+            }
+        }
+        else
+        {
+            // If it's the value is for a keyword which is interpreted as an IRI and the value
+            // is a string representing a blank node, re-map it to prevent collissions
+            if ((true === $iriKeyword) && is_string($element) && (0 === strncmp($element, '_:', 2)))
+            {
+                $element = $this->getBlankNodeId($element);
+            }
+
+            // If it's not a list, make sure that the value is unique
+            if (false === $list)
+            {
+                foreach ($parent as $item)
+                {
+                    // TODO Check if this check is enough to check equivalence
+                    if ($element == $item)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // Element wasn't found, add it
+            $parent[] = $element;
+        }
+    }
+
+    /**
+     * Generate a new blank node identifier
+     *
+     * If an identifier is passed, a new blank node identifier is generated
+     * for it and stored for subsequent use. Calling the method with the same
+     * identifier (except null) will thus always return the same blank node
+     * identifier.
+     *
+     * @param string $id If available, existing blank node identifier.
+     *
+     * @return Returns a blank node identifier.
+     */
+    private function getBlankNodeId($id = null)
+    {
+        if ((null !== $id) && isset($this->blankNodeMap[$id]))
+        {
+            return $this->blankNodeMap[$id];
+        }
+
+        $bnode = '_:t' . $this->blankNodeCounter++;
+        $this->blankNodeMap[$id] = $bnode;
+
+        return $bnode;
     }
 }
