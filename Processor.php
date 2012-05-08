@@ -911,6 +911,8 @@ class Processor
                         // language tagging just applies to strings
                         return (false == is_string($value->{'@value'}));
                     }
+
+                    return true;
                 }
             }
 
