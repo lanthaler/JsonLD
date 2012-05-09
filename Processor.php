@@ -321,7 +321,7 @@ class Processor
                             $element);
                     }
                 }
-                elseif (('@type' == $expProperty) || ('@graph' == $expProperty))
+                elseif ('@type' == $expProperty)
                 {
                     // TODO Check value space once agreed (see ISSUE-114)
 
@@ -336,17 +336,15 @@ class Processor
 
                         foreach ($value as $item)
                         {
+                            if (is_object($item))
+                            {
+
+                                $item = $this->compactValue($item, '@id', null, $activectx);
+                            }
+
                             if (is_string($item))
                             {
                                 $result[] = $this->expandIri($item, $activectx);
-                            }
-                            elseif (is_object($item) &&
-                                    (false == property_exists($item, '@value')) &&
-                                    (false == property_exists($item, '@set')) &&
-                                    (false == property_exists($item, '@list')))
-                            {
-                                $this->expand($item, $activectx, $expProperty);
-                                $result[] = $item;
                             }
                             else
                             {
@@ -363,18 +361,19 @@ class Processor
                     }
                     else
                     {
-                        if (is_object($value) &&
-                            (false == property_exists($value, '@value')) &&
-                            (false == property_exists($value, '@set')) &&
-                            (false == property_exists($value, '@list')))
+                        if (is_object($value))
                         {
-                            $this->expand($value, $activectx, $expProperty);
-                            self::setProperty($element, $expProperty, $value);
+
+                            $value = $this->compactValue($value, '@id', null, $activectx);
                         }
-                        else
+
+                        if (false == is_string($value))
                         {
                             throw new SyntaxException("Invalid value for $property detected.", $value);
                         }
+
+                        $value = $this->expandIri($value, $activectx);
+                        self::setProperty($element, $expProperty, $value);
                     }
 
                     continue;
@@ -389,6 +388,7 @@ class Processor
                     }
 
                     self::setProperty($element, $expProperty, $value);
+
                     continue;
                 }
                 else
@@ -428,12 +428,37 @@ class Processor
             }
         }
 
-        // Try to expand @value and @id objects as well as scalars
-        $element = $this->expandValue($element, $activeprty, $activectx);
 
-        if (false == is_object($element))
+        // Expand scalars (scalars != null) to @value objects
+        if (is_scalar($element))
         {
-            // there's nothing else we could do
+            $def = $this->getTermDefinition($activeprty, $activectx);
+            $obj = new \stdClass();
+
+            if ('@id' === $def['@type'])
+            {
+                $obj->{'@id'} = $this->expandIri($element, $activectx, true);
+            }
+            else
+            {
+                $obj->{'@value'} = $element;
+
+                if (isset($def['@type']))
+                {
+                    $obj->{'@type'} = $def['@type'];
+                }
+                elseif (isset($def['@language']))
+                {
+                    $obj->{'@language'} = $def['@language'];
+                }
+            }
+
+            $element = $obj;
+
+            return;  // nothing more to do.. completely expanded
+        }
+        elseif (is_null($element))
+        {
             return;
         }
 
@@ -464,7 +489,7 @@ class Processor
                     'Invalid value for @language detected (must be a string).',
                     $element);
             }
-            elseif ((1 == $numProps) || (is_null($element->{'@value'})))
+            elseif (is_null($element->{'@value'}))
             {
                 // object has just an @value property or is null, can be replaced with that value
                 $element = $element->{'@value'};
@@ -495,92 +520,6 @@ class Processor
             // if there's just @language and nothing else, drop whole object
             $element = null;
         }
-    }
-
-    /**
-     * Expands a JSON-LD value
-     *
-     * The value can be of any scalar type or an object.
-     *
-     * @param mixed $value      The value to be expanded.
-     * @param mixed $activeprty The active property.
-     * @param array $activectx  The active context.
-     *
-     * @return object The expanded value in object form.
-     */
-    private function expandValue($value, $activeprty, $activectx)
-    {
-        // Remove redundancy first
-        $def = $this->getTermDefinition($activeprty, $activectx);
-        $compactable = false;
-
-        if ($def['isKeyword'])
-        {
-            $compactable = $this->checkValueTypeLanguageMatch($value, $def['@type'], $def['@language']);
-        }
-        else
-        {
-            // non-keywords will loose their type/language during expansion
-            $compactable = $this->checkValueTypeLanguageMatch($value, null, null);
-        }
-
-        if ((true == $compactable) && is_object($value))
-        {
-            if (property_exists($value, '@value'))
-            {
-                // TODO If type == @id, do IRI expansion
-                return $value->{'@value'};
-            }
-            elseif (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
-            {
-                return $this->expandIri($value->{'@id'}, $activectx, true);
-            }
-        }
-
-        // If value is still an object, it is already in expanded form
-        if (is_object($value))
-        {
-            return $value;
-        }
-
-        if (isset($def['@type']))
-        {
-            if (('@id' == $def['@type']))  // TODO Need to check if value is string??
-            {
-                $value = $this->expandIri($value, $activectx, true);
-
-                if ($def['isKeyword'] == true)
-                {
-                    return $value;
-                }
-                else
-                {
-                    $obj = new \stdClass();
-                    $obj->{'@id'} = $value;
-
-                    return $obj;
-                }
-            }
-            else
-            {
-                $obj = new \stdClass();
-                $obj->{'@value'} = $value;
-                $obj->{'@type'} = $def['@type'];
-
-                return $obj;
-            }
-        }
-
-        if (isset($def['@language']))
-        {
-            $obj = new \stdClass();
-            $obj->{'@value'} = $value;
-            $obj->{'@language'} = $def['@language'];
-
-            return $obj;
-        }
-
-        return $value;
     }
 
     /**
@@ -661,11 +600,10 @@ class Processor
             $element = $result;
 
             // If there's just one entry and the active property has no
-            // @list or @set container, optimize the array away
+            // @list container, optimize the array away
             if (is_array($element) && (1 == count($element)) &&
                 ((false == isset($activectx[$activeprty]['@container'])) ||
-                 (('@set' != $activectx[$activeprty]['@container']) &&
-                  ('@list' != $activectx[$activeprty]['@container']))))
+                 ('@list' != $activectx[$activeprty]['@container'])))
             {
                 $element = $element[0];
             }
@@ -703,12 +641,9 @@ class Processor
 
                                 foreach ($value as $key => &$item)
                                 {
-                                    if (is_string($item))
-                                    {
-                                        // TODO Transform to relative IRIs by default??
-                                        $item = $this->compactIri($item, $activectx, $optimize);
-                                    }
-                                    else
+                                    $item = $this->compactValue($item, '@id', null, $activectx);
+
+                                    if (is_object($item))
                                     {
                                         $this->compact($item, $activectx, null, $optimize);
                                     }
