@@ -1314,15 +1314,16 @@ class Processor
     }
 
     /**
-     * Flattens a JSON-LD document and creates a subject map
+     * Creates a subject map of an expanded JSON-LD document
      *
      * @param object  $subjectMap The object holding the subject map.
      * @param mixed   $element    A JSON-LD element to be flattened.
      * @param string  $parent     The property referencing the passed element.
      * @param boolean $list       Is a list being processed?
-     * @param boolean $iriKeyword If set to true, strings are interpreted as IRI
+     * @param boolean $iriKeyword If set to true, strings are interpreted as IRI.
+     * @param string  $graph      The current graph; @graph for the default graph.
      */
-    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false)
+    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false, $graph = '@graph')
     {
         // TODO Make sure all objects are cloned!
 
@@ -1330,7 +1331,7 @@ class Processor
         {
             foreach ($element as $item)
             {
-                $this->createSubjectMap($subjectMap, $item, $parent, $list, $iriKeyword);
+                $this->createSubjectMap($subjectMap, $item, $parent, $list, $iriKeyword, $graph);
             }
 
             return;
@@ -1344,7 +1345,7 @@ class Processor
                 $flattenedList = new \stdClass();
                 $flattenedList->{'@list'} = array();
 
-                $this->createSubjectMap($subjectMap, $element->{'@list'}, $flattenedList->{'@list'}, true);
+                $this->createSubjectMap($subjectMap, $element->{'@list'}, $flattenedList->{'@list'}, true, false, $graph);
 
                 $parent[] = $flattenedList;
 
@@ -1359,8 +1360,9 @@ class Processor
                 $id = $element->{'@id'};
             }
 
-            // if no @id was found or it was a blank node, assign a new identifier
-            if ((null === $id) || (0 === strncmp($id, '_:', 2)))
+            // if no @id was found or it was a blank node and we are not currently
+            // merging graphs, assign a new identifier to avoid collissions
+            if ((null === $id) || (('@merged' != $graph) && (0 === strncmp($id, '_:', 2))))
             {
                 $id = $this->getBlankNodeId($id);
             }
@@ -1374,16 +1376,21 @@ class Processor
             }
 
             $subject = null;
-            if (property_exists($subjectMap, $id))
+            if (isset($subjectMap->{$graph}->{$id}))
             {
-                $subject = $subjectMap->{$id};
+                $subject = $subjectMap->{$graph}->{$id};
             }
             else
             {
+                if (false == isset($subjectMap->{$graph}))
+                {
+                    $subjectMap->{$graph} = new \stdClass();
+                }
+
                 $subject = new \stdClass();
                 $subject->{'@id'} = $id;
 
-                $subjectMap->{$id} = $subject;
+                $subjectMap->{$graph}->{$id} = $subject;
             }
 
             foreach ($element as $property => $value)
@@ -1393,10 +1400,20 @@ class Processor
                     continue;  // we handled @id already
                 }
 
-                if (('@type' === $property) || ('@graph' === $property))
+                if ('@type' === $property)
                 {
                     $subject->{$property} = array();
-                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, true);
+                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, true, $graph);
+
+                    continue;
+                }
+
+                if ('@graph' === $property)
+                {
+                    $subject->{$property} = array();
+                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, false, $id);
+
+                    unset($subject->{$property});  // TODO We don't need a list of nodes in that graph, do we?
 
                     continue;
                 }
@@ -1413,7 +1430,7 @@ class Processor
                         $subject->{$property} = array();
                     }
 
-                    $this->createSubjectMap($subjectMap, $value, $subject->{$property});
+                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, false, $graph);
                 }
             }
         }
@@ -1445,6 +1462,27 @@ class Processor
     }
 
     /**
+     * Merges the subject maps of all graphs in the passed subject map into
+     * a new <code>@merged</code> subject map.
+     *
+     * @param object  $subjectMap The subject map whose different graphs
+     *                            should be merged into one.
+     */
+    private function mergeSubjectMapGraphs(&$subjectMap)
+    {
+        $graphs = array_keys((array) $subjectMap);
+        foreach ($graphs as $graph)
+        {
+            $subjects = array_keys((array) $subjectMap->{$graph});
+            foreach ($subjects as $subject)
+            {
+                $parent = null;
+                $this->createSubjectMap($subjectMap, $subjectMap->{$graph}->{$subject}, $parent, false, false, '@merged');
+            }
+        }
+    }
+
+    /**
      * Generate a new blank node identifier
      *
      * If an identifier is passed, a new blank node identifier is generated
@@ -1471,15 +1509,22 @@ class Processor
 
     /**
      * Flattens a JSON-LD document
+     *
+     * Please note that this currently merges everything into one graph and
+     * discards the graph information. It would be rather trivial to change
+     * this behavior but I didn't decide yet what should happen.
+     *
+     * @param mixed $element A JSON-LD element to be flattened.
      */
     public function flatten($element)
     {
         $subjectMap = new \stdClass();
         $this->createSubjectMap($subjectMap, $element);
+        $this->mergeSubjectMapGraphs($subjectMap);
 
         $flattened = array();
 
-        foreach ($subjectMap as $value)
+        foreach ($subjectMap->{'@merged'} as $value)
         {
             $flattened[] = $value;
         }
