@@ -9,7 +9,8 @@
         {
             "name": "Markus Lanthaler",
             "email": "mail@markus-lanthaler.com",
-            "homepage": "http://www.markus-lanthaler.com"
+            "homepage": "http://www.markus-lanthaler.com",
+            "role": "Developer"
         }
     ],
     "require": {
