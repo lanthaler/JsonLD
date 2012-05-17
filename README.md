@@ -30,7 +30,7 @@ The easiest way to use JsonLD is to integrate it as a dependency in your project
 
 Installing is then a matter of running composer
 
-    $ php composer.phar install
+    php composer.phar install
 
 ... and including Composer's autoloader to your project
 
