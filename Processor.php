@@ -1321,9 +1321,9 @@ class Processor
      * @param string  $parent     The property referencing the passed element.
      * @param boolean $list       Is a list being processed?
      * @param boolean $iriKeyword If set to true, strings are interpreted as IRI.
-     * @param string  $graph      The current graph; @graph for the default graph.
+     * @param string  $graph      The current graph; @default for the default graph.
      */
-    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false, $graph = '@graph')
+    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false, $graph = '@default')
     {
         // TODO Make sure all objects are cloned!
 
@@ -1372,7 +1372,13 @@ class Processor
                 $subject = new \stdClass();
                 $subject->{'@id'} = $id;
 
-                $parent[] = $subject;
+                // Just add the subject reference if it isn't there yet or it is a list
+                if ((true === $list) || (false == in_array($subject, $parent)))
+                {
+                    // TODO In array is not enough as the comparison is not strict enough
+                    // "1" and 1 are considered to be the same.
+                    $parent[] = $subject;
+                }
             }
 
             $subject = null;
@@ -1393,13 +1399,18 @@ class Processor
                 $subjectMap->{$graph}->{$id} = $subject;
             }
 
-            foreach ($element as $property => $value)
+
+            $properties = get_object_vars($element);
+            ksort($properties);
+
+            foreach ($properties as $property => $value)
             {
                 if ('@id' === $property)
                 {
                     continue;  // we handled @id already
                 }
 
+                // TODO Remove $iriKeyword if type gets expanded into @id objects - see ISSUE-120
                 if ('@type' === $property)
                 {
                     $subject->{$property} = array();
@@ -1410,10 +1421,9 @@ class Processor
 
                 if ('@graph' === $property)
                 {
-                    $subject->{$property} = array();
-                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, false, $id);
-
-                    unset($subject->{$property});  // TODO We don't need a list of nodes in that graph, do we?
+                    // TODO We don't need a list of nodes in that graph, do we?
+                    $null = null;
+                    $this->createSubjectMap($subjectMap, $value, $null, false, false, $id);
 
                     continue;
                 }
@@ -1444,16 +1454,11 @@ class Processor
             }
 
             // If it's not a list, make sure that the value is unique
-            if (false === $list)
+            if ((false === $list) && (true == in_array($element, $parent)))
             {
-                foreach ($parent as $item)
-                {
-                    // TODO Check if this check is enough to check equivalence
-                    if ($element == $item)
-                    {
-                        return;
-                    }
-                }
+                // TODO In array is not enough as the comparison is not strict enough
+                // "1" and 1 are considered to be the same.
+                return;
             }
 
             // Element wasn't found, add it
