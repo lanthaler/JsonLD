@@ -1515,23 +1515,32 @@ class Processor
     /**
      * Flattens a JSON-LD document
      *
-     * Please note that this currently merges everything into one graph and
-     * discards the graph information. It would be rather trivial to change
-     * this behavior but I didn't decide yet what should happen.
+     * @param mixed  $element A JSON-LD element to be flattened.
+     * @param string $graph   The graph whose flattened node definitions should
+     *                        be returned. The default graph is identified by
+     *                        <code>@default</code> and the merged graph by
+     *                        <code>@merged</code>.
      *
-     * @param mixed $element A JSON-LD element to be flattened.
+     * @return array An array of the flattened node definitions of the specified graph.
      */
-    public function flatten($element)
+    public function flatten($element, $graph = '@merged')
     {
         $subjectMap = new \stdClass();
         $this->createSubjectMap($subjectMap, $element);
-        $this->mergeSubjectMapGraphs($subjectMap);
+
+        if ('@merged' === $graph)
+        {
+            $this->mergeSubjectMapGraphs($subjectMap);
+        }
 
         $flattened = array();
 
-        foreach ($subjectMap->{'@merged'} as $value)
+        if (property_exists($subjectMap, $graph))
         {
-            $flattened[] = $value;
+            foreach ($subjectMap->{$graph} as $value)
+            {
+                $flattened[] = $value;
+            }
         }
 
         return $flattened;

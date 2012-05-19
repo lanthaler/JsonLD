@@ -219,6 +219,10 @@ class JsonLD
      *  </code>
      *
      * @param string $document The JSON-LD document to expand.
+     * @param string $graph    The graph whose flattened node definitions should
+     *                         be returned. The default graph is identified by
+     *                         <code>@default</code> and the merged graph by
+     *                         <code>@merged</code>.
      * @param string $baseiri  The base IRI.
      *
      * @return array The flattened JSON-LD document.
@@ -229,13 +233,13 @@ class JsonLD
      *
      * @api
      */
-    static public function flatten($document, $baseiri = null)
+    static public function flatten($document, $graph = '@merged', $baseiri = null)
     {
         $document = self::expand($document, $baseiri);
 
         $processor = new Processor($baseiri);
 
-        return $processor->flatten($document);
+        return $processor->flatten($document, $graph);
     }
 
     /**
