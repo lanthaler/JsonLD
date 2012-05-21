@@ -173,25 +173,24 @@ class JsonLD
 
         if (false == is_object($context) || (false == property_exists($context, '@context')))
         {
-            // no context passed, just return expanded document
-            return (1 === count($document)) ? $document[0] : $document;
+            $context = null;
+        }
+        else
+        {
+            $context = $context->{'@context'};
         }
 
         $activectx = array();
         $processor = new Processor($baseiri);
 
-        $processor->processContext($context->{'@context'}, $activectx);
-
-        if (0 == count($activectx))
-        {
-            // passed context was empty, just return expanded document
-            return (1 === count($document)) ? $document[0] : $document;
-        }
-
+        $processor->processContext($context, $activectx);
         $processor->compact($document, $activectx, null, $optimize);
 
         $compactedDocument = new \stdClass();
-        $compactedDocument->{'@context'} = $context->{'@context'};
+        if (null !== $context)
+        {
+            $compactedDocument->{'@context'} = $context;
+        }
 
         if (is_array($document))
         {
