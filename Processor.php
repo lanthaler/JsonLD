@@ -78,6 +78,12 @@ class Processor
     {
         if (property_exists($object, $property))
         {
+            // No need to add a null value
+            if (is_null($value))
+            {
+                return;
+            }
+
             if (false === is_array($object->{$property}))
             {
                 $object->{$property} = array($object->{$property});
@@ -108,7 +114,12 @@ class Processor
         {
             if ((true == $alwaysArray) && (false == is_array($value)))
             {
-                $object->{$property} = array($value);
+                $object->{$property} = array();
+
+                if (false == is_null($value))
+                {
+                    $object->{$property}[] = $value;
+                }
             }
             else
             {
@@ -275,8 +286,6 @@ class Processor
                 unset($element->{'@context'});
             }
 
-
-            // otherwise it is an object, process its properties
             $properties = get_object_vars($element);
             foreach ($properties as $property => &$value)
             {
@@ -363,7 +372,6 @@ class Processor
                     {
                         if (is_object($value))
                         {
-
                             $value = $this->compactValue($value, '@id', null, $activectx);
                         }
 
@@ -575,6 +583,9 @@ class Processor
 
     /**
      * Compacts a JSON-LD document
+     *
+     * Attention: This method must be called with an expanded element,
+     * otherwise it might not work.
      *
      * @param mixed  $element    A JSON-LD element to be compacted.
      * @param array  $activectx  The active context.
@@ -1448,7 +1459,7 @@ class Processor
         {
             // If it's the value is for a keyword which is interpreted as an IRI and the value
             // is a string representing a blank node, re-map it to prevent collissions
-            if ((true === $iriKeyword) && is_string($element) && (0 === strncmp($element, '_:', 2)))
+            if ((true === $iriKeyword) && is_string($element) && ('@merged' != $graph) && (0 === strncmp($element, '_:', 2)))
             {
                 $element = $this->getBlankNodeId($element);
             }
