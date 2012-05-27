@@ -29,7 +29,14 @@ class Processor
 
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
-                                     '@container', '@list', '@set', '@graph');
+                                     '@container', '@list', '@set', '@graph',
+                                     '@null');  // TODO Introduce this! Should this just be supported during framing!?
+
+    /** Framing options keywords */
+    private static $framingKeywords = array('@explicit', '@default', '@embed',
+                                            //'@omitDefault',     // TODO Is this really needed?
+                                            '@embedChildren');  // TODO How should this be called?
+                                            // TODO Add @preserve, @null?? Update spec keyword list
 
     /** The base IRI */
     private $baseiri = null;
@@ -227,9 +234,10 @@ class Processor
     /**
      * Expands a JSON-LD document
      *
-     * @param mixed  $element    A JSON-LD element to be expanded.
-     * @param array  $activectx  The active context.
-     * @param string $activeprty The active property.
+     * @param mixed   $element    A JSON-LD element to be expanded.
+     * @param array   $activectx  The active context.
+     * @param string  $activeprty The active property.
+     * @param boolean $frame      True if a frame is being expanded, otherwise false.
      *
      * @return mixed The expanded document.
      *
@@ -237,16 +245,15 @@ class Processor
      * @throws ProcessException If the expansion failed.
      * @throws ParseException   If a remote context couldn't be processed.
      */
-    public function expand(&$element, $activectx = array(), $activeprty = null)
+    public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
     {
         // TODO Should duplicate values be eliminated during expansion?
-
         if (is_array($element))
         {
             $result = array();
             foreach($element as &$item)
             {
-                $this->expand($item, $activectx, $activeprty);
+                $this->expand($item, $activectx, $activeprty, $frame);
 
                 // Check for lists of lists
                 if ((isset($activectx[$activeprty]['@container']) &&
@@ -294,6 +301,13 @@ class Processor
 
                 // ... it will be re-added later using the expanded IRI
                 $expProperty = $this->expandIri($property, $activectx, false);
+
+                // Make sure to keep framing keywords if a frame is being expanded
+                if ((true == $frame) && in_array($expProperty, self::$framingKeywords))
+                {
+                    self::setProperty($element, $expProperty, $value);
+                    continue;
+                }
 
                 if (in_array($expProperty, self::$keywords))
                 {
@@ -377,6 +391,18 @@ class Processor
 
                         if (false == is_string($value))
                         {
+                            // TODO Check if this is enough!!
+                            if (true == $frame)
+                            {
+                                if (property_exists($value, '@id'))
+                                {
+                                    $value->{'@id'} = $this->expandIri($value->{'@id'}, $activectx);
+                                }
+
+                                self::setProperty($element, $expProperty, $value);
+                                continue;
+                            }
+
                             throw new SyntaxException("Invalid value for $property detected.", $value);
                         }
 
@@ -388,11 +414,23 @@ class Processor
                 }
                 elseif (('@value' == $expProperty) || ('@language' == $expProperty))
                 {
-                    if (is_object($value) || is_array($value))
+                    if (false == $frame)
                     {
-                        throw new SyntaxException(
-                            "Invalid value for $property detected (must be a scalar).",
-                            $value);
+                        if (is_array($value) && (1 == count($value)))
+                        {
+                            $value = $value[0];
+                        }
+
+                        if ((is_object($value) || is_array($value)))
+                        {
+                            throw new SyntaxException(
+                                "Invalid value for $property detected (must be a scalar).",
+                                $value);
+                        }
+                    }
+                    elseif (false == is_array($value))
+                    {
+                        $value = array($value);
                     }
 
                     self::setProperty($element, $expProperty, $value);
@@ -404,11 +442,11 @@ class Processor
                     // Expand value
                     if (('@set' == $expProperty) || ('@list' == $expProperty))
                     {
-                        $this->expand($value, $activectx, $activeprty);
+                        $this->expand($value, $activectx, $activeprty, $frame);
                     }
                     else
                     {
-                        $this->expand($value, $activectx, $property);
+                        $this->expand($value, $activectx, $property, $frame);
                     }
 
                     // ... and re-add it to the object if the expanded value is not null
@@ -485,13 +523,13 @@ class Processor
                     'Detected an @value object that contains additional data.',
                     $element);
             }
-            elseif (property_exists($element, '@type') && (false == is_string($element->{'@type'})))
+            elseif (property_exists($element, '@type') && (false == $frame) && (false == is_string($element->{'@type'})))
             {
                 throw new SyntaxException(
                     'Invalid value for @type detected (must be a string).',
                     $element);
             }
-            elseif (property_exists($element, '@language') && (false == is_string($element->{'@language'})))
+            elseif (property_exists($element, '@language') && (false == $frame) && (false == is_string($element->{'@language'})))
             {
                 throw new SyntaxException(
                     'Invalid value for @language detected (must be a string).',
@@ -499,7 +537,8 @@ class Processor
             }
             elseif (is_null($element->{'@value'}))
             {
-                // object has just an @value property or is null, can be replaced with that value
+                // TODO Check what to do if there's no @type and no @language
+                // object has just an @value property that is null, can be replaced with that value
                 $element = $element->{'@value'};
             }
 
@@ -523,9 +562,9 @@ class Processor
             // @set objects can be optimized away as they are just syntactic sugar
             $element = $element->{'@set'};
         }
-        elseif (($numProps == 1) && property_exists($element, '@language'))
+        elseif (($numProps == 1) && (false == $frame) && property_exists($element, '@language'))
         {
-            // if there's just @language and nothing else, drop whole object
+            // if there's just @language and nothing else and we are not expanding a frame, drop whole object
             $element = null;
         }
     }
@@ -621,6 +660,13 @@ class Processor
         }
         elseif (is_object($element))
         {
+            // Handle @null objects as used in framing
+            if (property_exists($element, '@null'))
+            {
+                $element = null;
+                return;
+            }
+
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
             foreach ($properties as $property => &$value)
@@ -1555,5 +1601,375 @@ class Processor
         }
 
         return $flattened;
+    }
+
+    /**
+     * Frames a JSON-LD document according a supplied frame
+     *
+     * @param mixed  $state      The current state.
+     * @param object $subjectMap The subject map generated from the input document.
+     * @param mixed  $frame      The frame.
+     * @param mixed  $result     .
+     * @param string $activeprty The active property.
+     * @param string $graph      The active graph.
+     * @param array  $relevantSubjects The list of subjects relevant to the passed frame.
+     *
+     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
+     * @throws ProcessException If framing failed.
+     */
+    public function frame($state, $element, $frame, &$parent, $activeprty)
+    {
+        if ((false == is_array($frame)) || (1 != count($frame)) || (false == is_object($frame[0])))
+        {
+            throw new SyntaxException('The frame is invalid. It must be a single object.',
+                                      $frame);
+        }
+
+        $frame = $frame[0];
+
+        $options = new \stdClass();
+        $options->{'@embed'} = true;
+        $options->{'@embedChildren'} = true;   // TODO Change this as soon as the tests haven been updated
+
+        foreach (self::$framingKeywords as $keyword)
+        {
+            if (property_exists($frame, $keyword))
+            {
+                $options->{$keyword} = $frame->{$keyword};
+                unset($frame->{$keyword});
+            }
+            elseif(false == property_exists($options, $keyword))
+            {
+                $options->{$keyword} = false;
+            }
+        }
+
+        $subjectMap = new \stdClass();
+        $processor = new Processor();
+        $processor->createSubjectMap($subjectMap, $element);
+
+        $graph = '@merged';
+        if (property_exists($frame, '@graph'))
+        {
+            $graph = '@default';
+        }
+        else
+        {
+            // We need the merged graph, create it
+            $processor->mergeSubjectMapGraphs($subjectMap);
+        }
+
+        unset($processor);
+
+        foreach ($subjectMap->{$graph} as $subject)
+        {
+            $this->subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, $parent);
+        }
+    }
+
+    /**
+     * Checks whether a subject matches a frame or not.
+     *
+     * @param object $subject    The subject.
+     * @param object $frame      The frame.
+     * @param object $options    The current framing options.
+     * @param object $subjectMap The subject map.
+     * @param string $graph      The currently used graph.
+     * @param array  $parent     The parent to which matching results should be added.
+     * @param array  $path       The path of already processed nodes.
+     *
+     * @return bool Returns true if the subject matches the frame, otherwise false.
+     */
+    private function subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, &$parent, $path = array())
+    {
+        // TODO How should lists be handled? Is the @list required in the frame (current behavior) or not?
+        // https://github.com/json-ld/json-ld.org/issues/110
+        // TODO Add support for '@omitDefault'?
+        $filter = null;
+        if (false == is_null($frame))
+        {
+            $filter = get_object_vars($frame);
+        }
+
+        $result = new \stdClass();
+
+        // Make sure that @id is always in the result if the node matches the filter
+        if (property_exists($subject, '@id'))
+        {
+            $result->{'@id'} = $subject->{'@id'};
+
+            if (is_null($filter) && in_array($subject->{'@id'}, $path))
+            {
+                $parent[] = $result;
+
+                return true;
+            }
+
+            $path[] = $subject->{'@id'};
+        }
+
+        // If no filter is specified, simply return the passed node - {} is a wildcard
+        if (is_null($filter) || (0 === count($filter)))
+        {
+            // TODO What effect should @explicit have with a wildcard match?
+            if (is_object($subject))
+            {
+                if ((true == $options->{'@embed'}) || (false == property_exists($subject, '@id')))
+                {
+                    $this->addMissingNodeProperties($subject, $options, $subjectMap, $graph, $result, $path);
+                }
+
+                $parent[] = $result;
+            }
+            else
+            {
+                $parent[] = $subject;
+            }
+
+            return true;
+        }
+
+        foreach ($filter as $property => $validValues)
+        {
+            if (is_array($validValues) && (0 === count($validValues)))
+            {
+                if (property_exists($subject, $property) ||
+                    (('@graph' == $property) && isset($result->{'@id'}) && property_exists($subjectMap, $result->{'@id'})))
+                {
+                    return false;  // [] says that the property must not exist but it does
+                }
+
+                continue;
+            }
+
+            if (false == property_exists($subject, $property))
+            {
+                // The property does not exist, check if it's @graph and the referenced graph exists
+                if ('@graph' == $property)
+                {
+                    if (isset($result->{'@id'}) && property_exists($subjectMap, $result->{'@id'}))
+                    {
+                        $result->{'@graph'} = array();
+                        $match = false;
+
+                        foreach ($subjectMap->{$result->{'@id'}} as $item)
+                        {
+                            foreach ($validValues as $validValue)
+                            {
+                                $match |= $this->subjectMatchesFrame($item, $validValue, $options, $subjectMap, $result->{'@id'}, $result->{'@graph'});
+                            }
+                        }
+
+                        if (false == $match)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            continue;  // with next property
+                        }
+                    }
+                    else
+                    {
+                        // the referenced graph doesn't exist
+                        return false;
+                    }
+                }
+
+                // otherwise, look if we have a default value for it
+                if (false == is_array($validValues))
+                {
+                    $validValues = array($validValues);
+                }
+
+                $defaultFound = false;
+                foreach ($validValues as $validValue)
+                {
+                    if (is_object($validValue) && property_exists($validValue, '@default'))
+                    {
+                        if (is_null($validValue->{'@default'}))
+                        {
+                            $result->{$property} = new \stdClass();
+                            $result->{$property}->{'@null'} = true;
+                        }
+                        else
+                        {
+                            $result->{$property} = $validValue->{'@default'};
+                        }
+                        $defaultFound = true;
+                        break;
+                    }
+                }
+
+                if (true == $defaultFound)
+                {
+                    continue;
+                }
+
+                return false;  // required property does not exist and no default value was found
+            }
+
+            // Check whether the values of the property match the filter
+            $match = false;
+            $result->{$property} = array();
+
+            if (false == is_array($validValues))
+            {
+                if ($subject->{$property} === $validValues)
+                {
+                    $result->{$property} = $subject->{$property};
+                    continue;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            foreach($validValues as $validValue)
+            {
+                if (is_object($validValue))
+                {
+                    // Extract framing options from subframe ($validValue is a subframe)
+                    $newOptions = clone $options;
+                    unset($newOptions->{'@default'});
+
+                    foreach (self::$framingKeywords as $keyword)
+                    {
+                        if (property_exists($validValue, $keyword))
+                        {
+                            $newOptions->{$keyword} = $validValue->{$keyword};
+                            unset($validValue->{$keyword});
+                        }
+                    }
+
+                    $subjectValues = $subject->{$property};
+                    if (false == is_array($subjectValues))
+                    {
+                        $subjectValues = array($subjectValues);
+                    }
+
+                    foreach ($subjectValues as $value)
+                    {
+                        if (is_object($value) && property_exists($value, '@id'))
+                        {
+                            $match |= $this->subjectMatchesFrame($subjectMap->{$graph}->{$value->{'@id'}},
+                                                                 $validValue,
+                                                                 $newOptions,
+                                                                 $subjectMap,
+                                                                 $graph,
+                                                                 $result->{$property},
+                                                                 $path);
+                        }
+                        else
+                        {
+                            $match |= $this->subjectMatchesFrame($value, $validValue, $newOptions, $subjectMap, $graph, $result->{$property}, $path);
+                        }
+                    }
+                }
+                elseif (is_array($validValue))
+                {
+                    throw new SyntaxException('Invalid frame detected. Property "' . $property .
+                                              '" must not be an array of arrays.', $frame);
+                }
+                else
+                {
+                    // This will just catch non-expanded IRIs for @id and @type
+                    $subjectValues = $subject->{$property};
+                    if (false == is_array($subjectValues))
+                    {
+                        $subjectValues = array($subjectValues);
+                    }
+
+                    if (in_array($validValue, $subjectValues))
+                    {
+                        $match = true;
+                        $result->{$property} = $subject->{$property};
+                    }
+                }
+            }
+
+            if (false == $match)
+            {
+                return false;
+            }
+        }
+
+        // Discard subtree if this object should not be embedded
+        if ((false == $options->{'@embed'}) && property_exists($subject, '@id'))
+        {
+            $result = new \stdClass();
+            $result->{'@id'} = $subject->{'@id'};
+            $parent[] = $result;
+
+            return true;
+        }
+
+        // all properties matched the filter, add the properties of the
+        // node which haven't been added yet
+        if (false == $options->{'@explicit'})
+        {
+            $this->addMissingNodeProperties($subject, $options, $subjectMap, $graph, $result, $path);
+        }
+
+        $parent[] = $result;
+
+        return true;
+    }
+
+    /**
+     * Adds all properties from $subject to $result if they haven't been added yet
+     *
+     * @param object $subject    The subject whose properties should processed.
+     * @param object $options    The current framing options.
+     * @param object $subjectMap The subject map.
+     * @param string $graph      The currently used graph.
+     * @param array  $result     The object to which the properties should be added.
+     * @param array  $path       The path of already processed nodes.
+     */
+    function addMissingNodeProperties($subject, $options, $subjectMap, $graph, &$result, $path)
+    {
+        foreach ($subject as $property => $value)
+        {
+            if (property_exists($result, $property))
+            {
+                continue; // property has already been added
+            }
+
+            if (true == $options->{'@embedChildren'})
+            {
+                if (false == is_array($value))
+                {
+                    // TODO In @type this could be subject reference, how should that be handled?
+                    $result->{$property} = $value;
+                    continue;
+                }
+
+                $result->{$property} = array();
+                foreach ($value as $item)
+                {
+                    if (is_object($item))
+                    {
+                        if (property_exists($item, '@id'))
+                        {
+                            $item = $subjectMap->{$graph}->{$item->{'@id'}};
+                        }
+
+                        $this->subjectMatchesFrame($item, null, $options, $subjectMap, $graph, $result->{$property}, $path);
+                    }
+                    else
+                    {
+                        $result->{$property}[] = $item;
+                    }
+                }
+
+            }
+            else
+            {
+                // TODO Perform deep object copy??
+                $result->{$property} = $value;
+            }
+        }
     }
 }

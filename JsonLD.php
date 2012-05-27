@@ -242,6 +242,91 @@ class JsonLD
     }
 
     /**
+     * Frame a JSON-LD document according a supplied frame
+     *
+     * Both, the document and context can be supplied directly as strings or
+     * by passing a file path or an IRI.
+     *
+     *  Usage:
+     *  <code>
+     *    $result = JsonLD::frame('document.jsonld', 'frame.jsonldf');
+     *    print_r($compacted);
+     *  </code>
+     *
+     * @param mixed  $document The JSON-LD document to compact.
+     * @param mixed  $frame    The frame.
+     * @param string $baseiri  The base IRI for the document.
+     * @param bool   $optimize If set to true, the JSON-LD processor is allowed optimize
+     *                         the result to produce even compacter representations.
+     * @param mixed  $options  The options.
+     *
+     * @return mixed The resulting JSON-LD document.
+     *
+     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
+     * @throws ProcessException If framing failed.
+     *
+     * @api
+     */
+    static public function frame($document, $frame, $baseiri = null, $optimize = false)
+    {
+        // TODO $document can be an IRI, if so overwrite $baseiri accordingly!?
+        $document = self::expand($document, $baseiri);
+        $frame = self::parse($frame);
+
+        if (false == is_object($frame))
+        {
+            throw new SyntaxException('Invalid frame detected. It must be an object.',
+                                      $frame);
+        }
+
+        $framedDocument = new \stdClass();
+
+        if (property_exists($frame, '@context'))
+        {
+            $framedDocument->{'@context'} = $frame->{'@context'};
+        }
+
+
+        $processor = new Processor();
+        $activectx = array();
+
+        $processor->expand($frame, $activectx, null, true);
+
+        // optimize away default graph (@graph as the only property at the top-level object)
+        if (is_object($frame) && property_exists($frame, '@graph') &&
+            (1 == count(get_object_vars($frame))))
+        {
+            $frame = $frame->{'@graph'};
+        }
+
+        if (false === is_array($frame))
+        {
+            $frame = array($frame);
+        }
+
+        $state = new \stdClass();
+        $result = array();
+
+        $processor->frame($state, $document, $frame, $result, null);
+
+        self::compact($result, $framedDocument);
+
+        // Make that the result is always an array
+        if (false == is_array($result))
+        {
+            $result = array($result);
+        }
+
+        // TODO Aliasing possible here?
+        // $graphKeyword = $processor->compactIri('@graph', $activectx);
+        // $framedDocument->{$graphKeyword} = $result;
+        $framedDocument->{'@graph'} = $result;
+
+        return $framedDocument;
+    }
+
+    /**
      * Converts a PHP value to a JSON-LD string.
      *
      * The dump method will do its best to convert the supplied value into
