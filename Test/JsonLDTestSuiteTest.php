@@ -46,11 +46,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testExpansion($name, $test)
     {
-        if ('expand-0027-in.jsonld' == $test->{'input'})
-        {
-            $this->markTestSkipped('Duplicates are not removed during expansion. See ISSUE-129');
-        }
-
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::expand($this->basedir . $test->{'input'},
                                  self::BASE_IRI . $test->{'input'});
