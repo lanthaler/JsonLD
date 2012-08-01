@@ -359,10 +359,16 @@ class Processor
 
                         foreach ($value as $item)
                         {
-                            if (is_object($item))
+                            // This is an automatic recovery for @type values being subject references
+                            if (is_object($item) && (count($props = get_object_vars($item)) == 1))
                             {
-
-                                $item = $this->compactValue($item, '@id', null, $activectx);
+                                foreach ($item as $itemKey => $itemValue)
+                                {
+                                    if ('@id' == $this->expandIri($itemKey, $activectx, false))
+                                    {
+                                        $item = $itemValue;
+                                    }
+                                }
                             }
 
                             if (is_string($item))
