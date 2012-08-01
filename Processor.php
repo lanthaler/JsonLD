@@ -29,7 +29,7 @@ class Processor
 
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
-                                     '@container', '@list', '@set', '@graph',
+                                     '@container', '@list', '@set', '@graph', '@vocab',
                                      '@null');  // TODO Introduce this! Should this just be supported during framing!?
 
     /** Framing options keywords */
@@ -300,7 +300,7 @@ class Processor
                 unset($element->{$property});
 
                 // ... it will be re-added later using the expanded IRI
-                $expProperty = $this->expandIri($property, $activectx, false);
+                $expProperty = $this->expandIri($property, $activectx, false, true);
 
                 // Make sure to keep framing keywords if a frame is being expanded
                 if ((true == $frame) && in_array($expProperty, self::$framingKeywords))
@@ -350,7 +350,7 @@ class Processor
 
                     if (is_string($value))
                     {
-                        $value = $this->expandIri($value, $activectx, true);
+                        $value = $this->expandIri($value, $activectx, true, true);
                         self::setProperty($element, $expProperty, $value);
                     }
                     elseif (is_array($value))
@@ -364,7 +364,7 @@ class Processor
                             {
                                 foreach ($item as $itemKey => $itemValue)
                                 {
-                                    if ('@id' == $this->expandIri($itemKey, $activectx, false))
+                                    if ('@id' == $this->expandIri($itemKey, $activectx, false, true))
                                     {
                                         $item = $itemValue;
                                     }
@@ -373,7 +373,7 @@ class Processor
 
                             if (is_string($item))
                             {
-                                $result[] = $this->expandIri($item, $activectx);
+                                $result[] = $this->expandIri($item, $activectx, true, true);
                             }
                             else
                             {
@@ -390,6 +390,7 @@ class Processor
                     }
                     else
                     {
+                        // FIXXXME Remove this branch!
                         if (is_object($value))
                         {
                             $value = $this->compactValue($value, '@id', null, $activectx);
@@ -402,7 +403,7 @@ class Processor
                             {
                                 if (property_exists($value, '@id'))
                                 {
-                                    $value->{'@id'} = $this->expandIri($value->{'@id'}, $activectx);
+                                    $value->{'@id'} = $this->expandIri($value->{'@id'}, $activectx, true, true);
                                 }
 
                                 self::setProperty($element, $expProperty, $value);
@@ -412,7 +413,7 @@ class Processor
                             throw new SyntaxException("Invalid value for $property detected.", $value);
                         }
 
-                        $value = $this->expandIri($value, $activectx);
+                        $value = $this->expandIri($value, $activectx, true, true);
                         self::setProperty($element, $expProperty, $value);
                     }
 
@@ -578,14 +579,16 @@ class Processor
     /**
      * Expands a JSON-LD IRI to an absolute IRI
      *
-     * @param mixed  $value        The value to be expanded to an absolute IRI.
-     * @param array  $activectx    The active context.
-     * @param bool   $relativeIri  Specifies if $value should be treated as
-     *                             relative IRI as fallback or not.
+     * @param mixed  $value         The value to be expanded to an absolute IRI.
+     * @param array  $activectx     The active context.
+     * @param bool   $relativeIri   Specifies whether $value should be treated as
+     *                              relative IRI as fallback or not.
+     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
+     *                              if set or not.
      *
      * @return string The expanded IRI.
      */
-    private function expandIri($value, $activectx, $relativeIri = false)
+    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false)
     {
         // TODO Handle relative IRIs
 
@@ -616,10 +619,18 @@ class Processor
                 }
             }
         }
-        elseif (true == $relativeIri)
+        elseif (false == in_array($value, self::$keywords))
         {
-            // TODO Handle relative IRIs properly
-            return $this->baseiri . $value;
+            if ((true == $vocabRelative) && array_key_exists('@vocab', $activectx))
+            {
+                // TODO Handle relative IRIs properly
+                return $activectx['@vocab'] . $value;
+            }
+            elseif (true == $relativeIri)
+            {
+                // TODO Handle relative IRIs properly
+                return $this->baseiri . $value;
+            }
         }
 
         // can't expand it, return as is
@@ -1199,6 +1210,10 @@ class Processor
                 return $prefix . $suffix;
             }
         }
+        elseif (array_key_exists('@vocab', $activectx))
+        {
+            return $activectx['@vocab']. $iri;
+        }
 
 
         // Couldn't expand it, return as is
@@ -1235,6 +1250,18 @@ class Processor
             }
             elseif (is_object($context))
             {
+                if (property_exists($context, '@vocab') && (false == is_null($context->{'@vocab'})))
+                {
+                    if (false == is_string($context->{'@vocab'}))
+                    {
+                        throw new SyntaxException(
+                            "The value of @vocab must be a string.",
+                            $context);
+                    }
+
+                    $activectx['@vocab'] = $context->{'@vocab'};
+                }
+
                 foreach ($context as $key => $value)
                 {
                     if (is_null($value))
