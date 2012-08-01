@@ -1243,20 +1243,21 @@ class Processor
                         continue;
                     }
 
-                    if (in_array($key, self::$keywords))
+                    if ('@language' == $key)
                     {
-                        if ('@language' == $key)
+                        if (false == is_string($value))
                         {
-                            if (false == is_string($value))
-                            {
-                                throw new SyntaxException(
-                                    'The value of @language must be a string.',
-                                    $context);
-                            }
-
-                            $activectx[$key] = $value;
+                            throw new SyntaxException(
+                                'The value of @language must be a string.',
+                                $context);
                         }
 
+                        $activectx[$key] = $value;
+                        continue;
+                    }
+
+                    if (in_array($key, self::$keywords))
+                    {
                         // Keywords can't be altered
                         continue;
                     }
