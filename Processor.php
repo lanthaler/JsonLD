@@ -353,8 +353,13 @@ class Processor
                         $value = $this->expandIri($value, $activectx, true, true);
                         self::setProperty($element, $expProperty, $value);
                     }
-                    elseif (is_array($value))
+                    else
                     {
+                        if (false == is_array($value))
+                        {
+                            $value = array($value);
+                        }
+
                         $result = array();
 
                         foreach ($value as $item)
@@ -377,7 +382,14 @@ class Processor
                             }
                             else
                             {
-                                throw new SyntaxException("Invalid value in $property detected.", $value);
+                                // TODO Check if this is enough!!
+                                if (true == $frame)
+                                {
+                                    self::mergeIntoProperty($element, $expProperty, $item);
+                                    continue;
+                                }
+
+                                throw new SyntaxException("Invalid value $property detected.", $value);
                             }
 
                         }
@@ -387,34 +399,6 @@ class Processor
                         {
                             self::mergeIntoProperty($element, $expProperty, $result, true);
                         }
-                    }
-                    else
-                    {
-                        // FIXXXME Remove this branch!
-                        if (is_object($value))
-                        {
-                            $value = $this->compactValue($value, '@id', null, $activectx);
-                        }
-
-                        if (false == is_string($value))
-                        {
-                            // TODO Check if this is enough!!
-                            if (true == $frame)
-                            {
-                                if (property_exists($value, '@id'))
-                                {
-                                    $value->{'@id'} = $this->expandIri($value->{'@id'}, $activectx, true, true);
-                                }
-
-                                self::setProperty($element, $expProperty, $value);
-                                continue;
-                            }
-
-                            throw new SyntaxException("Invalid value for $property detected.", $value);
-                        }
-
-                        $value = $this->expandIri($value, $activectx, true, true);
-                        self::setProperty($element, $expProperty, $value);
                     }
 
                     continue;
