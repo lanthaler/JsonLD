@@ -342,9 +342,12 @@ class JsonLD
      */
     static public function toString($value, $pretty = false)
     {
-        if (defined('JSON_UNESCAPED_SLASHES'))
+        $options = 0;
+
+        if (PHP_VERSION_ID >= 50400)
         {
-            $options = JSON_UNESCAPED_SLASHES;
+            $options |= JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+
             if ($pretty)
             {
                 $options |= JSON_PRETTY_PRINT;
@@ -352,8 +355,18 @@ class JsonLD
 
             return json_encode($value, $options);
         }
+        else
+        {
+            $result = json_encode($value);
+            $result = str_replace('\\/', '/', $result);  // unescape slahes
 
-        $result = json_encode($value);
-        return str_replace('\\/', '/', $result);
+            // unescape unicode
+            return preg_replace_callback(
+                '/\\\\u([a-f0-9]{4})/',
+                function ($match) {
+                    return iconv('UCS-4LE', 'UTF-8', pack('V', hexdec($match[1])));
+                },
+                $result);
+        }
     }
 }
