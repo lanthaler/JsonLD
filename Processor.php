@@ -583,7 +583,7 @@ class Processor
 
         if (false !== ($colon = strpos($value, ':')))
         {
-            if ('://' == substr($value, $colon, 3))
+            if ('://' == substr($value, $colon, 3))  // TODO Check this
             {
                 // Safety measure to prevent reassigned of, e.g., http://
                 return $value;
@@ -1176,7 +1176,7 @@ class Processor
             }
         }
 
-        if (array_key_exists($iri, $activectx) && array_key_exists('@id', $activectx[$iri]))
+        if (array_key_exists($iri, $activectx))
         {
             // all values in the active context have already been expanded
             return $activectx[$iri]['@id'];
@@ -1185,6 +1185,12 @@ class Processor
         if (false !== strpos($iri, ':'))
         {
             list($prefix, $suffix) = explode(':', $iri, 2);
+
+            if ('//' == substr($suffix, 0, 2))  // TODO Check this
+            {
+                // Safety measure to prevent reassigned of, e.g., http://
+                return $iri;
+            }
 
             $prefix = $this->contextIriExpansion($prefix, $loclctx, $activectx, $path);
 
@@ -1207,7 +1213,7 @@ class Processor
     /**
      * Processes a local context to update the active context
      *
-     * @param array  $loclctx    The local context.
+     * @param mixed  $loclctx    The local context.
      * @param array  $activectx  The active context.
      *
      * @throws ProcessException If processing of the context failed.
@@ -1236,10 +1242,11 @@ class Processor
             {
                 if (property_exists($context, '@vocab') && (false == is_null($context->{'@vocab'})))
                 {
-                    if (false == is_string($context->{'@vocab'}))
+                    if ((false !== is_null($context->{'@vocab'})) &&
+                        ((false != is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))))
                     {
                         throw new SyntaxException(
-                            "The value of @vocab must be a string.",
+                            "The value of @vocab must be null or an absolute IRI.",
                             $context);
                     }
 
@@ -1288,33 +1295,34 @@ class Processor
                     }
                     elseif (is_object($value))
                     {
+                        unset($activectx[$key]);  // delete previous definition
                         $context->{$key} = clone $context->{$key};  // make sure we don't modify the passed context
+
+                        $expanded = null;
 
                         if (isset($value->{'@id'}))
                         {
                             $expanded = $this->contextIriExpansion($value->{'@id'}, $context, $activectx);
-
-                            if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
-                            {
-                                throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
-                                                          $loclctx);
-                            }
-
-                            $context->{$key}->{'@id'} = $expanded;
-                            $activectx[$key] = array('@id' => $expanded);
-
-                            if (in_array($expanded, self::$keywords))
-                            {
-                                // if it's an aliased keyword, we ignore all other properties
-                                // TODO Should we throw an exception if there are other properties?
-                                continue;
-                            }
                         }
                         else
                         {
-                            // term definitions can't be modified but just be replaced
-                            // TODO Check this if we allow IRI -> null mapping!
-                            unset($activectx[$key]);
+                            $expanded = $this->contextIriExpansion($key, $context, $activectx);
+                        }
+
+                        if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
+                        {
+                            throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
+                                                      $loclctx);
+                        }
+
+                        $context->{$key}->{'@id'} = $expanded;
+                        $activectx[$key] = array('@id' => $expanded);
+
+                        if (in_array($expanded, self::$keywords))
+                        {
+                            // if it's an aliased keyword, we ignore all other properties
+                            // TODO Should we throw an exception if there are other properties?
+                            continue;
                         }
 
                         if (isset($value->{'@type'}))
@@ -1350,23 +1358,6 @@ class Processor
                             if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
                             {
                                 $activectx[$key]['@container'] = $value->{'@container'};
-                            }
-                        }
-
-                        // Try to set @id if it's not set, this is required for term definitions using compact IRIs
-                        if (false == isset($activectx[$key]['@id']))
-                        {
-                            $expanded = $this->contextIriExpansion($key, $context, $activectx);
-
-                            if (('@id' != $expanded) && (false === strpos($expanded, ':')))
-                            {
-                                // the term is not mapped to an IRI and can't be interpreted as an IRI itself,
-                                // drop the whole definition
-                                unset($activectx[$key]);
-                            }
-                            else
-                            {
-                                $activectx[$key]['@id'] = $expanded;
                             }
                         }
                     }
