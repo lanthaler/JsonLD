@@ -679,7 +679,7 @@ class Processor
                 {
                     // Keywords can just be aliased but no other settings apply so no need
                     // to pass the value
-                    $activeprty = $this->compactIri($property, $activectx, null, $optimize);
+                    $activeprty = $this->compactIri($property, $activectx, null, $optimize, true);
 
                     if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
                     {
@@ -687,7 +687,7 @@ class Processor
                         if (is_string($value))
                         {
                             // TODO Transform @id to relative IRIs by default??
-                            $value = $this->compactIri($value, $activectx, null, $optimize);
+                            $value = $this->compactIri($value, $activectx, null, $optimize, ('@type' == $property));
                         }
                         else
                         {
@@ -712,7 +712,7 @@ class Processor
                                 foreach ($value as $key => &$iri)
                                 {
                                     // TODO Transform to relative IRIs by default??
-                                    $iri = $this->compactIri($iri, $activectx, null, $optimize);
+                                    $iri = $this->compactIri($iri, $activectx, null, $optimize, true);
                                 }
                             }
 
@@ -744,7 +744,7 @@ class Processor
                 // Make sure that empty arrays are preserved
                 if (0 == count($value))
                 {
-                    $activeprty = $this->compactIri($property, $activectx, null, $optimize);
+                    $activeprty = $this->compactIri($property, $activectx, null, $optimize, true);
                     self::mergeIntoProperty($element, $activeprty, $value);
 
                     // ... continue with next property
@@ -755,7 +755,7 @@ class Processor
                 // Compact every item in value separately as they could map to different terms
                 foreach ($value as &$val)
                 {
-                    $activeprty = $this->compactIri($property, $activectx, $val, $optimize);
+                    $activeprty = $this->compactIri($property, $activectx, $val, $optimize, true);
                     $def = $this->getTermDefinition($activeprty, $activectx);
 
                     if (is_object($val))
@@ -801,10 +801,12 @@ class Processor
      * @param mixed  $value         The value of the property to compact.
      * @param bool   $toRelativeIri Specifies whether $value should be
      *                              transformed to a relative IRI as fallback.
+     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
+     *                              if set or not.
      *
      * @return string The compacted IRI.
      */
-    public function compactIri($iri, $activectx, $value = null, $toRelativeIri = false)
+    public function compactIri($iri, $activectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
     {
         // TODO Handle $toRelativeIri or remove it
         $compactIris = array($iri);
@@ -858,6 +860,26 @@ class Processor
                             $compactIris[] = $compactIri;
                         }
                     }
+                }
+            }
+        }
+
+        if ((true == $vocabRelative) && (true == array_key_exists('@vocab', $activectx)))
+        {
+            if ((0 === strpos($iri, $activectx['@vocab'])) &&
+                (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
+            {
+                $rank = $this->calculateTermRank($relativeIri, $value, $activectx);
+
+                if ($rank > $highestRank)
+                {
+                    $compactIris = array();
+                    $highestRank = $rank;
+                }
+
+                if ($rank == $highestRank)
+                {
+                    $compactIris[] = $relativeIri;
                 }
             }
         }
@@ -1006,7 +1028,11 @@ class Processor
 
         if (array_key_exists($term, $activectx))
         {
-            $rank++;   // a term is preferred to (compact) IRIs
+            $rank++;   // a term is preferred to (constructed) IRIs/compact IRIs
+        }
+        elseif (array_key_exists('@vocab', $activectx) && (false !== strpos($term, ':')))
+        {
+            $rank--;   // relative IRIs to @vocab are preferred over absolute and compact IRIs
         }
 
         // If it's a @list object, calculate the rank by first checking if the
