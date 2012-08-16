@@ -8,3 +8,4 @@ before_script:
   - git clone git://github.com/json-ld/json-ld.org.git
   - mv ./json-ld.org/test-suite/tests ./Test/
   - rm -rf ./json-ld.org
+  - composer install

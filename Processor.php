@@ -12,6 +12,7 @@ namespace ML\JsonLD;
 use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
+use ML\IRI\IRI;
 
 /**
  * Processor processes JSON-LD documents as specified by the JSON-LD
@@ -38,7 +39,11 @@ class Processor
                                             '@embedChildren');  // TODO How should this be called?
                                             // TODO Add @preserve, @null?? Update spec keyword list
 
-    /** The base IRI */
+    /**
+     * The base IRI
+     *
+     * @var IRI
+     */
     private $baseiri = null;
 
     /** Blank node map */
@@ -181,7 +186,7 @@ class Processor
      */
     public function __construct($baseiri = null)
     {
-        $this->baseiri = $baseiri;
+        $this->baseiri = new IRI($baseiri);
     }
 
     /**
@@ -247,7 +252,6 @@ class Processor
      */
     public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
     {
-        // TODO Should duplicate values be eliminated during expansion?
         if (is_array($element))
         {
             $result = array();
@@ -574,8 +578,6 @@ class Processor
      */
     private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false)
     {
-        // TODO Handle relative IRIs
-
         if (array_key_exists($value, $activectx) && isset($activectx[$value]['@id']))
         {
             return $activectx[$value]['@id'];
@@ -607,13 +609,12 @@ class Processor
         {
             if ((true == $vocabRelative) && array_key_exists('@vocab', $activectx))
             {
-                // TODO Handle relative IRIs properly
+                // TODO Handle relative IRIs properly??
                 return $activectx['@vocab'] . $value;
             }
             elseif (true == $relativeIri)
             {
-                // TODO Handle relative IRIs properly
-                return $this->baseiri . $value;
+                return (string)$this->baseiri->resolve($value);
             }
         }
 
@@ -1261,7 +1262,6 @@ class Processor
         {
             if (is_null($context))
             {
-                // Reset to the initial context, i.e., an empty array (TODO see ISSUE-80)
                 $activectx = array();
             }
             elseif (is_object($context))
@@ -1502,7 +1502,6 @@ class Processor
                     continue;  // we handled @id already
                 }
 
-                // TODO Remove $iriKeyword if type gets expanded into @id objects - see ISSUE-120
                 if ('@type' === $property)
                 {
                     $subject->{$property} = array();

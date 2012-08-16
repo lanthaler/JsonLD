@@ -32,7 +32,7 @@ The easiest way to use JsonLD is to integrate it as a dependency in your project
 
     {
         "require": {
-            "ml/json-ld": "*"
+            "ml/json-ld": "@dev"
         }
     }
 
