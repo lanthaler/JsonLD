@@ -20,9 +20,6 @@ use ML\JsonLD\Test\TestManifestIterator;
  */
 class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
 {
-    /** The base IRI used by the tests. */
-    const BASE_IRI = 'http://json-ld.org/test-suite/tests/';
-
     /**
      * The base directory from which the test manifests, input, and output
      * files should be read.
@@ -39,16 +36,18 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests expansion.
      *
-     * @param string $name The test name.
-     * @param obj    $test The test definition.
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
      *
      * @dataProvider expansionProvider
      */
-    public function testExpansion($name, $test)
+    public function testExpansion($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::expand($this->basedir . $test->{'input'},
-                                 self::BASE_IRI . $test->{'input'});
+                                 null,
+                                 $options);
 
         $this->assertEquals($expected, $result);
     }
@@ -64,17 +63,18 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests compaction.
      *
-     * @param string $name The test name.
-     * @param obj    $test The test definition.
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
      *
      * @dataProvider compactionProvider
      */
-    public function testCompaction($name, $test)
+    public function testCompaction($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::compact($this->basedir . $test->{'input'},
                                   $this->basedir . $test->{'context'},
-                                  self::BASE_IRI . $test->{'input'});
+                                  $options);
 
         $this->assertEquals($expected, $result);
     }
@@ -91,12 +91,13 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests framing.
      *
-     * @param string $name The test name.
-     * @param obj    $test The test definition.
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
      *
      * @dataProvider framingProvider
      */
-    public function testFraming($name, $test)
+    public function testFraming($name, $test, $options)
     {
         if (in_array($test->{'input'}, array('frame-0005-in.jsonld', 'frame-0009-in.jsonld', 'frame-0010-in.jsonld',
                                              'frame-0012-in.jsonld', 'frame-0013-in.jsonld')))
@@ -108,7 +109,8 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::frame($this->basedir . $test->{'input'},
                                 $this->basedir . $test->{'frame'},
-                                self::BASE_IRI . $test->{'input'});
+                                null,
+                                $options);
 
         $this->assertEquals($expected, $result);
     }

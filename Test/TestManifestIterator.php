@@ -83,8 +83,19 @@ class TestManifestIterator implements \Iterator
      */
     public function current()
     {
-        $test = array('name' => $this->manifest->{'sequence'}[$this->key]->{'name'},
-                      'test' => $this->manifest->{'sequence'}[$this->key]);
+        $options = new \stdClass();
+        if (property_exists($this->manifest, 'baseIri'))
+        {
+            $options->base = $this->manifest->baseIri . $this->manifest->{'sequence'}[$this->key]->input;
+        }
+        else
+        {
+            $options->base = $this->manifest->{'sequence'}[$this->key]->input;
+        }
+
+        $test = array('name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
+                      'test'    => $this->manifest->{'sequence'}[$this->key],
+                      'options' => $options);
 
         return $test;
     }

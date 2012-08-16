@@ -46,6 +46,39 @@ class Processor
      */
     private $baseiri = null;
 
+    /**
+     * Optimize compacted output
+     *
+     * If set to true, the processor is free to optimize the result to produce
+     * an even compacter representation than the algorithm described by the
+     * official JSON-LD specification.
+     *
+     * @var bool
+     */
+    private $optimize;
+
+    /**
+     * Use native types when converting from RDF
+     *
+     * If set to true, the processor will try to convert datatyped literals
+     * to native types instead of using the expanded object form when
+     * converting from RDF. xsd:boolean values will be converted to booleans
+     * whereas xsd:integer and xsd:double values will be converted to numbers.
+     *
+     * @var bool
+     */
+    private $useNativeTypes;
+
+    /**
+     * Use rdf:type instead of @type when converting from RDF
+     *
+     * If set to true, the JSON-LD processor will use the expanded rdf:type
+     * IRI as the property instead of @type when converting from RDF.
+     *
+     * @var bool
+     */
+    private $useRdfType;
+
     /** Blank node map */
     private $blankNodeMap = array();
 
@@ -182,11 +215,32 @@ class Processor
     /**
      * Constructor
      *
-     * @param string $baseiri The base IRI.
+     * The options parameter must be passed and all off the following properties
+     * have to be set:
+     *   - <em>base</em>           The base IRI of the input document.
+     *   - <em>optimize</em>       If set to true, the processor is free to optimize
+     *                             the result to produce an even compacter
+     *                             representation than the algorithm described by
+     *                             the official JSON-LD specification.
+     *   - <em>useNativeTypes</em> If set to true, the processor will try to
+     *                             convert datatyped literals to native types
+     *                             instead of using the expanded object form
+     *                             when converting from RDF. xsd:boolean values
+     *                             will be converted to booleans whereas
+     *                             xsd:integer and xsd:double values will be
+     *                             converted to numbers.
+     *   - <em>useRdfType</em>     If set to true, the JSON-LD processor will use
+     *                             the expanded rdf:type IRI as the property instead
+     *                             of @type when converting from RDF.
+     *
+     * @param object $options Options to configure the various algorithms.
      */
-    public function __construct($baseiri = null)
+    public function __construct($options)
     {
-        $this->baseiri = new IRI($baseiri);
+        $this->baseiri = new IRI($options->base);
+        $this->optimize = (bool) $options->optimize;
+        $this->useNativeTypes = (bool) $options->useNativeTypes;
+        $this->useRdfType = (bool) $options->useRdfType;
     }
 
     /**
@@ -198,7 +252,7 @@ class Processor
      *
      * @throws ParseException If the JSON-LD document is not valid.
      */
-    public function parse($document)
+    public static function parse($document)
     {
         if (function_exists('mb_detect_encoding') &&
             (false === mb_detect_encoding($document, 'UTF-8', true)))
@@ -636,14 +690,14 @@ class Processor
      *
      * @return mixed The compacted JSON-LD document.
      */
-    public function compact(&$element, $activectx = array(), $activeprty = null, $optimize = false)
+    public function compact(&$element, $activectx = array(), $activeprty = null)
     {
         if (is_array($element))
         {
             $result = array();
             foreach ($element as &$item)
             {
-                $this->compact($item, $activectx, $activeprty, $optimize);
+                $this->compact($item, $activectx, $activeprty);
                 if (false == is_null($item))
                 {
                     $result[] = $item;
@@ -680,7 +734,7 @@ class Processor
                 {
                     // Keywords can just be aliased but no other settings apply so no need
                     // to pass the value
-                    $activeprty = $this->compactIri($property, $activectx, null, $optimize, true);
+                    $activeprty = $this->compactIri($property, $activectx, null, false, true);
 
                     if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
                     {
@@ -688,7 +742,7 @@ class Processor
                         if (is_string($value))
                         {
                             // TODO Transform @id to relative IRIs by default??
-                            $value = $this->compactIri($value, $activectx, null, $optimize, ('@type' == $property));
+                            $value = $this->compactIri($value, $activectx, null, $this->optimize, ('@type' == $property));
                         }
                         else
                         {
@@ -704,7 +758,7 @@ class Processor
 
                                     if (is_object($item))
                                     {
-                                        $this->compact($item, $activectx, null, $optimize);
+                                        $this->compact($item, $activectx, null);
                                     }
                                 }
                             }
@@ -713,7 +767,7 @@ class Processor
                                 foreach ($value as $key => &$iri)
                                 {
                                     // TODO Transform to relative IRIs by default??
-                                    $iri = $this->compactIri($iri, $activectx, null, $optimize, true);
+                                    $iri = $this->compactIri($iri, $activectx, null, $this->optimize, true);
                                 }
                             }
 
@@ -725,7 +779,7 @@ class Processor
                     }
                     else
                     {
-                        $this->compact($value, $activectx, $activeprty, $optimize);
+                        $this->compact($value, $activectx, $activeprty);
                     }
 
                     self::setProperty($element, $activeprty, $value);
@@ -745,7 +799,7 @@ class Processor
                 // Make sure that empty arrays are preserved
                 if (0 == count($value))
                 {
-                    $activeprty = $this->compactIri($property, $activectx, null, $optimize, true);
+                    $activeprty = $this->compactIri($property, $activectx, null, false, true);
                     self::mergeIntoProperty($element, $activeprty, $value);
 
                     // ... continue with next property
@@ -756,7 +810,7 @@ class Processor
                 // Compact every item in value separately as they could map to different terms
                 foreach ($value as &$val)
                 {
-                    $activeprty = $this->compactIri($property, $activectx, $val, $optimize, true);
+                    $activeprty = $this->compactIri($property, $activectx, $val, false, true);
                     $def = $this->getTermDefinition($activeprty, $activectx);
 
                     if (is_object($val))
@@ -783,7 +837,7 @@ class Processor
                             $val = $this->compactValue($val, $def['@type'], $def['@language'], $activectx);
                         }
 
-                        $this->compact($val, $activectx, $activeprty, $optimize);
+                        $this->compact($val, $activectx, $activeprty);
                     }
 
                     // Merge value back into resulting object making sure that value is always an array if a container is set
@@ -1679,8 +1733,15 @@ class Processor
             }
         }
 
+        $procOptions = new \stdClass();
+        $procOptions->base = (string)$this->baseiri;
+        $procOptions->optimize = $this->optimize;
+        $procOptions->useNativeTypes = $this->useNativeTypes;
+        $procOptions->useRdfType = $this->useRdfType;
+
+        $processor = new Processor($procOptions);
+
         $subjectMap = new \stdClass();
-        $processor = new Processor();
         $processor->createSubjectMap($subjectMap, $element);
 
         $graph = '@merged';
