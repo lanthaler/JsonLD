@@ -363,12 +363,9 @@ class JsonLD
             $frame = array($frame);
         }
 
-        $state = new \stdClass();
-        $result = array();
+        $result = $processor->frame($input, $frame);
 
-        $processor->frame($state, $input, $frame, $result, null);
-
-        self::compact($result, $framedDocument, $options);
+        self::compact($result, $framedDocument, $options);  // TODO: Check this!
 
         // Make that the result is always an array
         if (false == is_array($result))

@@ -260,7 +260,6 @@ class Processor
             throw new ParseException('The JSON-LD document does not appear to be valid UTF-8.');
         }
 
-        $error = null;
         $data = json_decode($document, false, 512);
 
         switch (json_last_error())
@@ -424,7 +423,7 @@ class Processor
                         foreach ($value as $item)
                         {
                             // This is an automatic recovery for @type values being subject references
-                            if (is_object($item) && (count($props = get_object_vars($item)) == 1))
+                            if (is_object($item) && (count(get_object_vars($item)) == 1))
                             {
                                 foreach ($item as $itemKey => $itemValue)
                                 {
@@ -1695,19 +1694,16 @@ class Processor
     /**
      * Frames a JSON-LD document according a supplied frame
      *
-     * @param mixed  $state      The current state.
-     * @param object $subjectMap The subject map generated from the input document.
-     * @param mixed  $frame      The frame.
-     * @param mixed  $result     .
-     * @param string $activeprty The active property.
-     * @param string $graph      The active graph.
-     * @param array  $relevantSubjects The list of subjects relevant to the passed frame.
+     * @param object $element A JSON-LD element to be framed.
+     * @param mixed  $frame   The frame.
+     *
+     * @return array $result The framed element in expanded form.
      *
      * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
      * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
      * @throws ProcessException If framing failed.
      */
-    public function frame($state, $element, $frame, &$parent, $activeprty)
+    public function frame($element, $frame)
     {
         if ((false == is_array($frame)) || (1 != count($frame)) || (false == is_object($frame[0])))
         {
@@ -1758,10 +1754,14 @@ class Processor
 
         unset($processor);
 
+        $result = array();
+
         foreach ($subjectMap->{$graph} as $subject)
         {
-            $this->subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, $parent);
+            $this->subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, $result);
         }
+
+        return $result;
     }
 
     /**
