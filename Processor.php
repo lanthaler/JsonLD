@@ -282,6 +282,7 @@ class Processor
                 break;
             case JSON_ERROR_UTF8:
                 throw new ParseException('Malformed UTF-8 characters (possibly incorrectly encoded).');
+                break;
             default:
                 throw new ParseException('Unknown error while parsing JSON.');
                 break;
@@ -568,7 +569,7 @@ class Processor
                     (false == property_exists($element, '@language')) &&
                     (false == property_exists($element, '@type'))))
             {
-                new SyntaxException(
+                throw new SyntaxException(
                     'Detected an @value object that contains additional data.',
                     $element);
             }
