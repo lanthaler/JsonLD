@@ -722,6 +722,16 @@ class Processor
                 $element = null;
                 return;
             }
+            elseif (property_exists($element, '@value') || property_exists($element, '@id'))
+            {
+                $def = $this->getTermDefinition($activeprty, $activectx);
+                $element = $this->compactValue($element, $def['@type'], $def['@language'], $activectx);
+
+                if (false === is_object($element))
+                {
+                    return;
+                }
+            }
 
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
@@ -732,8 +742,8 @@ class Processor
 
                 if (in_array($property, self::$keywords))
                 {
-                    // Keywords can just be aliased but no other settings apply so no need
-                    // to pass the value
+                    // Keywords can just be aliased but no other settings apply
+                    // so we don't need to pass the value
                     $activeprty = $this->compactIri($property, $activectx, null, false, true);
 
                     if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
@@ -754,7 +764,7 @@ class Processor
 
                                 foreach ($value as $key => &$item)
                                 {
-                                    $item = $this->compactValue($item, '@id', null, $activectx);
+                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx);
 
                                     if (is_object($item))
                                     {
@@ -817,27 +827,23 @@ class Processor
                     {
                         if (property_exists($val, '@list'))
                         {
-                            foreach ($val->{'@list'} as &$listItem)
-                            {
-                                $listItem = $this->compactValue($listItem, $def['@type'], $def['@language'], $activectx);
-                            }
+                            $this->compact($val->{'@list'}, $activectx, $activeprty);
 
                             if ('@list' == $def['@container'])
                             {
                                 $val = $val->{'@list'};
 
-                                // a term can just hold one list if it has a @list container (we don't support lists of lists)
+                                // a term can just hold one list if it has a @list container
+                                // (we don't support lists of lists)
                                 self::setProperty($element, $activeprty, $val);
 
-                                continue; // ... continue with next value
+                                continue;  // ... continue with next value
                             }
                         }
                         else
                         {
-                            $val = $this->compactValue($val, $def['@type'], $def['@language'], $activectx);
+                            $this->compact($val, $activectx, $activeprty);
                         }
-
-                        $this->compact($val, $activectx, $activeprty);
                     }
 
                     // Merge value back into resulting object making sure that value is always an array if a container is set
@@ -1021,8 +1027,6 @@ class Processor
      * @param array  $activectx The active context.
      *
      * @return mixed The compacted value.
-     *
-     * @see compactValue()
      */
     private function compactValue($value, $type, $language, $activectx)
     {
@@ -1445,6 +1449,7 @@ class Processor
             }
             else
             {
+                // TODO Detect recursive context imports
                 $remoteContext = JSONLD::parse($context);
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context'))
