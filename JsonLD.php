@@ -170,11 +170,14 @@ class JsonLD
      * It is possible to configure the compaction process by setting the
      * options parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
-     *   - <em>optimize</em> If set to true, the processor is free to optimize
-     *                       the result to produce an even compacter
-     *                       representation than the algorithm described by
-     *                       the official JSON-LD specification.
+     *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>optimize</em>      If set to true, the processor is free to optimize
+     *                            the result to produce an even compacter
+     *                            representation than the algorithm described by
+     *                            the official JSON-LD specification.
+     *   - <em>compactArrays</em> If set to true, arrays holding just one element
+     *                            are compacted to scalars, otherwise the arrays
+     *                            are kept as arrays.
      *
      * The options parameter might be passed as an associative array or an
      * object.
@@ -221,13 +224,18 @@ class JsonLD
             $compactedDocument->{'@context'} = $context;
         }
 
-        if (is_array($input))
+        if (is_array($input) && (1 !== count($input)))
         {
             $graphKeyword = $processor->compactIri('@graph', $activectx);
             $compactedDocument->{$graphKeyword} = $input;
         }
         else
         {
+            if (is_array($input))
+            {
+                $input = $input[0];
+            }
+
             $compactedDocument = (object) ((array)$compactedDocument + (array)$input);
         }
 
@@ -299,11 +307,14 @@ class JsonLD
      * It is possible to configure the framing process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
-     *   - <em>optimize</em> If set to true, the processor is free to optimize
-     *                       the result to produce an even compacter
-     *                       representation than the algorithm described by
-     *                       the official JSON-LD specification.
+     *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>optimize</em>      If set to true, the processor is free to optimize
+     *                            the result to produce an even compacter
+     *                            representation than the algorithm described by
+     *                            the official JSON-LD specification.
+     *   - <em>compactArrays</em> If set to true, arrays holding just one element
+     *                            are compacted to scalars, otherwise the arrays
+     *                            are kept as arrays.
      *
      * The options parameter might be passed as an associative array or an
      * object.
@@ -436,6 +447,7 @@ class JsonLD
     {
         $result = (object)array(
             'base' => '',
+            'compactArrays' => true,
             'optimize' => false,
             'useNativeTypes' => true,
             'useRdfType' => false
@@ -447,6 +459,10 @@ class JsonLD
             if (property_exists($options, 'base') && is_string($options->base))
             {
                 $result->base = $options->base;
+            }
+            if (property_exists($options, 'compactArrays') && is_bool($options->compactArrays))
+            {
+                $result->compactArrays = $options->compactArrays;
             }
             if (property_exists($options, 'optimize') && is_bool($options->optimize))
             {

@@ -47,6 +47,16 @@ class Processor
     private $baseiri = null;
 
     /**
+     * Compact arrays with just one element to a scalar
+     *
+     * If set to true, arrays holding just one element are compacted to
+     * scalars, otherwise the arrays are kept as arrays.
+     *
+     * @var bool
+     */
+    private $compactArrays;
+
+    /**
      * Optimize compacted output
      *
      * If set to true, the processor is free to optimize the result to produce
@@ -218,6 +228,9 @@ class Processor
      * The options parameter must be passed and all off the following properties
      * have to be set:
      *   - <em>base</em>           The base IRI of the input document.
+     *   - <em>compactArrays</em>  If set to true, arrays holding just one element
+     *                             are compacted to scalars, otherwise the arrays
+     *                             are kept as arrays.
      *   - <em>optimize</em>       If set to true, the processor is free to optimize
      *                             the result to produce an even compacter
      *                             representation than the algorithm described by
@@ -238,6 +251,7 @@ class Processor
     public function __construct($options)
     {
         $this->baseiri = new IRI($options->base);
+        $this->compactArrays = (bool) $options->compactArrays;
         $this->optimize = (bool) $options->optimize;
         $this->useNativeTypes = (bool) $options->useNativeTypes;
         $this->useRdfType = (bool) $options->useRdfType;
@@ -423,7 +437,7 @@ class Processor
                         foreach ($value as $item)
                         {
                             // This is an automatic recovery for @type values being subject references
-                            if (is_object($item) && (count(get_object_vars($item)) == 1))
+                            if (is_object($item) && (1 === count(get_object_vars($item))))
                             {
                                 foreach ($item as $itemKey => $itemValue)
                                 {
@@ -707,7 +721,7 @@ class Processor
 
             // If there's just one entry and the active property has no
             // @list container, optimize the array away
-            if (is_array($element) && (1 == count($element)) &&
+            if (is_array($element) && (true === $this->compactArrays) && (1 == count($element)) &&
                 ((false == isset($activectx[$activeprty]['@container'])) ||
                  ('@list' != $activectx[$activeprty]['@container'])))
             {
@@ -781,7 +795,7 @@ class Processor
                                 }
                             }
 
-                            if (is_array($value) && (1 == count($value)))
+                            if (is_array($value) && (true === $this->compactArrays) && (1 === count($value)))
                             {
                                 $value = $value[0];
                             }
@@ -846,9 +860,14 @@ class Processor
                         }
                     }
 
-                    // Merge value back into resulting object making sure that value is always an array if a container is set
-                    self::mergeIntoProperty($element, $activeprty, $val,
-                                            isset($activectx[$activeprty]['@container']));
+                    // Merge value back into resulting object making sure that value is always
+                    // an array if a container is set or compactArrays is set to false
+                    $asArray = ((false === $this->compactArrays) ||
+                        (isset($activectx[$activeprty]['@container']) &&
+                         (('@set' === $activectx[$activeprty]['@container']) ||
+                          ('@list' === $activectx[$activeprty]['@container']))));
+
+                    self::mergeIntoProperty($element, $activeprty, $val, $asArray);
                 }
             }
         }
@@ -1737,6 +1756,7 @@ class Processor
 
         $procOptions = new \stdClass();
         $procOptions->base = (string)$this->baseiri;
+        $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
         $procOptions->useRdfType = $this->useRdfType;
