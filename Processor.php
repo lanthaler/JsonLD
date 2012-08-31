@@ -436,7 +436,7 @@ class Processor
 
                         foreach ($value as $item)
                         {
-                            // This is an automatic recovery for @type values being subject references
+                            // This is an automatic recovery for @type values being node references
                             if (is_object($item) && (1 === count(get_object_vars($item))))
                             {
                                 foreach ($item as $itemKey => $itemValue)
@@ -1484,16 +1484,16 @@ class Processor
     }
 
     /**
-     * Creates a subject map of an expanded JSON-LD document
+     * Creates a node map of an expanded JSON-LD document
      *
-     * @param object  $subjectMap The object holding the subject map.
+     * @param object  $nodeMap    The object holding the node map.
      * @param mixed   $element    A JSON-LD element to be flattened.
      * @param string  $parent     The property referencing the passed element.
      * @param boolean $list       Is a list being processed?
      * @param boolean $iriKeyword If set to true, strings are interpreted as IRI.
      * @param string  $graph      The current graph; @default for the default graph.
      */
-    private function createSubjectMap(&$subjectMap, $element, &$parent = null, $list = false, $iriKeyword = false, $graph = '@default')
+    private function createNodeMap(&$nodeMap, $element, &$parent = null, $list = false, $iriKeyword = false, $graph = '@default')
     {
         // TODO Make sure all objects are cloned!
 
@@ -1501,7 +1501,7 @@ class Processor
         {
             foreach ($element as $item)
             {
-                $this->createSubjectMap($subjectMap, $item, $parent, $list, $iriKeyword, $graph);
+                $this->createNodeMap($nodeMap, $item, $parent, $list, $iriKeyword, $graph);
             }
 
             return;
@@ -1515,7 +1515,7 @@ class Processor
                 $flattenedList = new \stdClass();
                 $flattenedList->{'@list'} = array();
 
-                $this->createSubjectMap($subjectMap, $element->{'@list'}, $flattenedList->{'@list'}, true, false, $graph);
+                $this->createNodeMap($nodeMap, $element->{'@list'}, $flattenedList->{'@list'}, true, false, $graph);
 
                 $parent[] = $flattenedList;
 
@@ -1539,34 +1539,34 @@ class Processor
 
             if (null !== $parent)
             {
-                $subject = new \stdClass();
-                $subject->{'@id'} = $id;
+                $node = new \stdClass();
+                $node->{'@id'} = $id;
 
-                // Just add the subject reference if it isn't there yet or it is a list
-                if ((true === $list) || (false == in_array($subject, $parent)))
+                // Just add the node reference if it isn't there yet or it is a list
+                if ((true === $list) || (false == in_array($node, $parent)))
                 {
                     // TODO In array is not enough as the comparison is not strict enough
                     // "1" and 1 are considered to be the same.
-                    $parent[] = $subject;
+                    $parent[] = $node;
                 }
             }
 
-            $subject = null;
-            if (isset($subjectMap->{$graph}->{$id}))
+            $node = null;
+            if (isset($nodeMap->{$graph}->{$id}))
             {
-                $subject = $subjectMap->{$graph}->{$id};
+                $node = $nodeMap->{$graph}->{$id};
             }
             else
             {
-                if (false == isset($subjectMap->{$graph}))
+                if (false == isset($nodeMap->{$graph}))
                 {
-                    $subjectMap->{$graph} = new \stdClass();
+                    $nodeMap->{$graph} = new \stdClass();
                 }
 
-                $subject = new \stdClass();
-                $subject->{'@id'} = $id;
+                $node = new \stdClass();
+                $node->{'@id'} = $id;
 
-                $subjectMap->{$graph}->{$id} = $subject;
+                $nodeMap->{$graph}->{$id} = $node;
             }
 
 
@@ -1582,8 +1582,8 @@ class Processor
 
                 if ('@type' === $property)
                 {
-                    $subject->{$property} = array();
-                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, true, $graph);
+                    $node->{$property} = array();
+                    $this->createNodeMap($nodeMap, $value, $node->{$property}, false, true, $graph);
 
                     continue;
                 }
@@ -1592,7 +1592,7 @@ class Processor
                 {
                     // TODO We don't need a list of nodes in that graph, do we?
                     $null = null;
-                    $this->createSubjectMap($subjectMap, $value, $null, false, false, $id);
+                    $this->createNodeMap($nodeMap, $value, $null, false, false, $id);
 
                     continue;
                 }
@@ -1600,16 +1600,16 @@ class Processor
                 if (in_array($property, self::$keywords))
                 {
                     // Check this! Blank nodes in keywords handled wrong!?
-                    self::mergeIntoProperty($subject, $property, $value, true, true);
+                    self::mergeIntoProperty($node, $property, $value, true, true);
                 }
                 else
                 {
-                    if (false === isset($subject->{$property}))
+                    if (false === isset($node->{$property}))
                     {
-                        $subject->{$property} = array();
+                        $node->{$property} = array();
                     }
 
-                    $this->createSubjectMap($subjectMap, $value, $subject->{$property}, false, false, $graph);
+                    $this->createNodeMap($nodeMap, $value, $node->{$property}, false, false, $graph);
                 }
             }
         }
@@ -1636,22 +1636,22 @@ class Processor
     }
 
     /**
-     * Merges the subject maps of all graphs in the passed subject map into
-     * a new <code>@merged</code> subject map.
+     * Merges the node maps of all graphs in the passed node map into a new
+     * <code>@merged</code> node map.
      *
-     * @param object  $subjectMap The subject map whose different graphs
-     *                            should be merged into one.
+     * @param object $nodeMap The node map whose different graphs should be
+     *                        merged into one.
      */
-    private function mergeSubjectMapGraphs(&$subjectMap)
+    private function mergeNodeMapGraphs(&$nodeMap)
     {
-        $graphs = array_keys((array) $subjectMap);
+        $graphs = array_keys((array) $nodeMap);
         foreach ($graphs as $graph)
         {
-            $subjects = array_keys((array) $subjectMap->{$graph});
-            foreach ($subjects as $subject)
+            $nodes = array_keys((array) $nodeMap->{$graph});
+            foreach ($nodes as $node)
             {
                 $parent = null;
-                $this->createSubjectMap($subjectMap, $subjectMap->{$graph}->{$subject}, $parent, false, false, '@merged');
+                $this->createNodeMap($nodeMap, $nodeMap->{$graph}->{$node}, $parent, false, false, '@merged');
             }
         }
     }
@@ -1694,19 +1694,19 @@ class Processor
      */
     public function flatten($element, $graph = '@merged')
     {
-        $subjectMap = new \stdClass();
-        $this->createSubjectMap($subjectMap, $element);
+        $nodeMap = new \stdClass();
+        $this->createNodeMap($nodeMap, $element);
 
         if ('@merged' === $graph)
         {
-            $this->mergeSubjectMapGraphs($subjectMap);
+            $this->mergeNodeMapGraphs($nodeMap);
         }
 
         $flattened = array();
 
-        if (property_exists($subjectMap, $graph))
+        if (property_exists($nodeMap, $graph))
         {
-            foreach ($subjectMap->{$graph} as $value)
+            foreach ($nodeMap->{$graph} as $value)
             {
                 $flattened[] = $value;
             }
@@ -1763,8 +1763,8 @@ class Processor
 
         $processor = new Processor($procOptions);
 
-        $subjectMap = new \stdClass();
-        $processor->createSubjectMap($subjectMap, $element);
+        $nodeMap = new \stdClass();
+        $processor->createNodeMap($nodeMap, $element);
 
         $graph = '@merged';
         if (property_exists($frame, '@graph'))
@@ -1774,35 +1774,35 @@ class Processor
         else
         {
             // We need the merged graph, create it
-            $processor->mergeSubjectMapGraphs($subjectMap);
+            $processor->mergeNodeMapGraphs($nodeMap);
         }
 
         unset($processor);
 
         $result = array();
 
-        foreach ($subjectMap->{$graph} as $subject)
+        foreach ($nodeMap->{$graph} as $node)
         {
-            $this->subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, $result);
+            $this->nodeMatchesFrame($node, $frame, $options, $nodeMap, $graph, $result);
         }
 
         return $result;
     }
 
     /**
-     * Checks whether a subject matches a frame or not.
+     * Checks whether a node matches a frame or not.
      *
-     * @param object $subject    The subject.
-     * @param object $frame      The frame.
-     * @param object $options    The current framing options.
-     * @param object $subjectMap The subject map.
-     * @param string $graph      The currently used graph.
-     * @param array  $parent     The parent to which matching results should be added.
-     * @param array  $path       The path of already processed nodes.
+     * @param object $node    The node.
+     * @param object $frame   The frame.
+     * @param object $options The current framing options.
+     * @param object $nodeMap The node map.
+     * @param string $graph   The currently used graph.
+     * @param array  $parent  The parent to which matching results should be added.
+     * @param array  $path    The path of already processed nodes.
      *
-     * @return bool Returns true if the subject matches the frame, otherwise false.
+     * @return bool Returns true if the node matches the frame, otherwise false.
      */
-    private function subjectMatchesFrame($subject, $frame, $options, $subjectMap, $graph, &$parent, $path = array())
+    private function nodeMatchesFrame($node, $frame, $options, $nodeMap, $graph, &$parent, $path = array())
     {
         // TODO How should lists be handled? Is the @list required in the frame (current behavior) or not?
         // https://github.com/json-ld/json-ld.org/issues/110
@@ -1816,36 +1816,36 @@ class Processor
         $result = new \stdClass();
 
         // Make sure that @id is always in the result if the node matches the filter
-        if (property_exists($subject, '@id'))
+        if (property_exists($node, '@id'))
         {
-            $result->{'@id'} = $subject->{'@id'};
+            $result->{'@id'} = $node->{'@id'};
 
-            if (is_null($filter) && in_array($subject->{'@id'}, $path))
+            if (is_null($filter) && in_array($node->{'@id'}, $path))
             {
                 $parent[] = $result;
 
                 return true;
             }
 
-            $path[] = $subject->{'@id'};
+            $path[] = $node->{'@id'};
         }
 
         // If no filter is specified, simply return the passed node - {} is a wildcard
         if (is_null($filter) || (0 === count($filter)))
         {
             // TODO What effect should @explicit have with a wildcard match?
-            if (is_object($subject))
+            if (is_object($node))
             {
-                if ((true == $options->{'@embed'}) || (false == property_exists($subject, '@id')))
+                if ((true == $options->{'@embed'}) || (false == property_exists($node, '@id')))
                 {
-                    $this->addMissingNodeProperties($subject, $options, $subjectMap, $graph, $result, $path);
+                    $this->addMissingNodeProperties($node, $options, $nodeMap, $graph, $result, $path);
                 }
 
                 $parent[] = $result;
             }
             else
             {
-                $parent[] = $subject;
+                $parent[] = $node;
             }
 
             return true;
@@ -1855,8 +1855,8 @@ class Processor
         {
             if (is_array($validValues) && (0 === count($validValues)))
             {
-                if (property_exists($subject, $property) ||
-                    (('@graph' == $property) && isset($result->{'@id'}) && property_exists($subjectMap, $result->{'@id'})))
+                if (property_exists($node, $property) ||
+                    (('@graph' == $property) && isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})))
                 {
                     return false;  // [] says that the property must not exist but it does
                 }
@@ -1864,21 +1864,21 @@ class Processor
                 continue;
             }
 
-            if (false == property_exists($subject, $property))
+            if (false == property_exists($node, $property))
             {
                 // The property does not exist, check if it's @graph and the referenced graph exists
                 if ('@graph' == $property)
                 {
-                    if (isset($result->{'@id'}) && property_exists($subjectMap, $result->{'@id'}))
+                    if (isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'}))
                     {
                         $result->{'@graph'} = array();
                         $match = false;
 
-                        foreach ($subjectMap->{$result->{'@id'}} as $item)
+                        foreach ($nodeMap->{$result->{'@id'}} as $item)
                         {
                             foreach ($validValues as $validValue)
                             {
-                                $match |= $this->subjectMatchesFrame($item, $validValue, $options, $subjectMap, $result->{'@id'}, $result->{'@graph'});
+                                $match |= $this->nodeMatchesFrame($item, $validValue, $options, $nodeMap, $result->{'@id'}, $result->{'@graph'});
                             }
                         }
 
@@ -1937,9 +1937,9 @@ class Processor
 
             if (false == is_array($validValues))
             {
-                if ($subject->{$property} === $validValues)
+                if ($node->{$property} === $validValues)
                 {
-                    $result->{$property} = $subject->{$property};
+                    $result->{$property} = $node->{$property};
                     continue;
                 }
                 else
@@ -1965,27 +1965,27 @@ class Processor
                         }
                     }
 
-                    $subjectValues = $subject->{$property};
-                    if (false == is_array($subjectValues))
+                    $nodeValues = $node->{$property};
+                    if (false == is_array($nodeValues))
                     {
-                        $subjectValues = array($subjectValues);
+                        $nodeValues = array($nodeValues);
                     }
 
-                    foreach ($subjectValues as $value)
+                    foreach ($nodeValues as $value)
                     {
                         if (is_object($value) && property_exists($value, '@id'))
                         {
-                            $match |= $this->subjectMatchesFrame($subjectMap->{$graph}->{$value->{'@id'}},
-                                                                 $validValue,
-                                                                 $newOptions,
-                                                                 $subjectMap,
-                                                                 $graph,
-                                                                 $result->{$property},
-                                                                 $path);
+                            $match |= $this->nodeMatchesFrame($nodeMap->{$graph}->{$value->{'@id'}},
+                                                              $validValue,
+                                                              $newOptions,
+                                                              $nodeMap,
+                                                              $graph,
+                                                              $result->{$property},
+                                                              $path);
                         }
                         else
                         {
-                            $match |= $this->subjectMatchesFrame($value, $validValue, $newOptions, $subjectMap, $graph, $result->{$property}, $path);
+                            $match |= $this->nodeMatchesFrame($value, $validValue, $newOptions, $nodeMap, $graph, $result->{$property}, $path);
                         }
                     }
                 }
@@ -1997,16 +1997,16 @@ class Processor
                 else
                 {
                     // This will just catch non-expanded IRIs for @id and @type
-                    $subjectValues = $subject->{$property};
-                    if (false == is_array($subjectValues))
+                    $nodeValues = $node->{$property};
+                    if (false == is_array($nodeValues))
                     {
-                        $subjectValues = array($subjectValues);
+                        $nodeValues = array($nodeValues);
                     }
 
-                    if (in_array($validValue, $subjectValues))
+                    if (in_array($validValue, $nodeValues))
                     {
                         $match = true;
-                        $result->{$property} = $subject->{$property};
+                        $result->{$property} = $node->{$property};
                     }
                 }
             }
@@ -2018,10 +2018,10 @@ class Processor
         }
 
         // Discard subtree if this object should not be embedded
-        if ((false == $options->{'@embed'}) && property_exists($subject, '@id'))
+        if ((false == $options->{'@embed'}) && property_exists($node, '@id'))
         {
             $result = new \stdClass();
-            $result->{'@id'} = $subject->{'@id'};
+            $result->{'@id'} = $node->{'@id'};
             $parent[] = $result;
 
             return true;
@@ -2031,7 +2031,7 @@ class Processor
         // node which haven't been added yet
         if (false == $options->{'@explicit'})
         {
-            $this->addMissingNodeProperties($subject, $options, $subjectMap, $graph, $result, $path);
+            $this->addMissingNodeProperties($node, $options, $nodeMap, $graph, $result, $path);
         }
 
         $parent[] = $result;
@@ -2040,18 +2040,18 @@ class Processor
     }
 
     /**
-     * Adds all properties from $subject to $result if they haven't been added yet
+     * Adds all properties from node to result if they haven't been added yet
      *
-     * @param object $subject    The subject whose properties should processed.
-     * @param object $options    The current framing options.
-     * @param object $subjectMap The subject map.
-     * @param string $graph      The currently used graph.
-     * @param array  $result     The object to which the properties should be added.
-     * @param array  $path       The path of already processed nodes.
+     * @param object $node    The node whose properties should processed.
+     * @param object $options The current framing options.
+     * @param object $nodeMap The node map.
+     * @param string $graph   The currently used graph.
+     * @param array  $result  The object to which the properties should be added.
+     * @param array  $path    The path of already processed nodes.
      */
-    function addMissingNodeProperties($subject, $options, $subjectMap, $graph, &$result, $path)
+    function addMissingNodeProperties($node, $options, $nodeMap, $graph, &$result, $path)
     {
-        foreach ($subject as $property => $value)
+        foreach ($node as $property => $value)
         {
             if (property_exists($result, $property))
             {
@@ -2062,7 +2062,7 @@ class Processor
             {
                 if (false == is_array($value))
                 {
-                    // TODO In @type this could be subject reference, how should that be handled?
+                    // TODO In @type this could be node reference, how should that be handled?
                     $result->{$property} = $value;
                     continue;
                 }
@@ -2074,10 +2074,10 @@ class Processor
                     {
                         if (property_exists($item, '@id'))
                         {
-                            $item = $subjectMap->{$graph}->{$item->{'@id'}};
+                            $item = $nodeMap->{$graph}->{$item->{'@id'}};
                         }
 
-                        $this->subjectMatchesFrame($item, null, $options, $subjectMap, $graph, $result->{$property}, $path);
+                        $this->nodeMatchesFrame($item, null, $options, $nodeMap, $graph, $result->{$property}, $path);
                     }
                     else
                     {
