@@ -109,7 +109,7 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param string|object $input        The JSON-LD document to expand.
+     * @param string|array|object $input  The JSON-LD document to expand.
      * @param null|string|object $context An optional context to use additionally
      *                                    to the context embedded in input when
      *                                    expanding the input.
@@ -184,8 +184,8 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param mixed $input               The JSON-LD document to compact.
-     * @param mixed $context             The context.
+     * @param string|array|object $input The JSON-LD document to compact.
+     * @param string|object $context     The context.
      * @param null|array|object $options Options to configure the compaciton
      *                                   process.
      *
@@ -325,8 +325,8 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param mixed  $input               The JSON-LD document to compact.
-     * @param mixed  $frame               The frame.
+     * @param string|array|object $input  The JSON-LD document to compact.
+     * @param string|object $frame        The frame.
      * @param null|string|object $context An optional context to use additionally
      *                                    to the context embedded in input when
      *                                    expanding the input.
