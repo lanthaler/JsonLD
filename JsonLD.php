@@ -37,7 +37,7 @@ class JsonLD
      *
      * @return mixed The JSON-LD document converted to a PHP representation.
      *
-     * @throws ParseException If the JSON-LD is not valid.
+     * @throws ParseException If the JSON-LD input document is invalid.
      *
      * @api
      */
@@ -118,9 +118,11 @@ class JsonLD
      *
      * @return array The expanded JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD document or a remote context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
-     * @throws ProcessException If processing of the JSON-LD document failed.
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If expanding the JSON-LD document failed.
      *
      * @api
      */
@@ -189,9 +191,11 @@ class JsonLD
      *
      * @return mixed The compacted JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
-     * @throws ProcessException If compaction failed.
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If compacting the JSON-LD document failed.
      *
      * @api
      */
@@ -275,9 +279,11 @@ class JsonLD
      *
      * @return array The flattened JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD document or a remote context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
-     * @throws ProcessException If processing of the JSON-LD document failed.
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If flattening the JSON-LD document failed.
      *
      * @api
      */
@@ -329,9 +335,11 @@ class JsonLD
      *
      * @return mixed The resulting JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
-     * @throws ProcessException If framing failed.
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If framing the JSON-LD document failed.
      *
      * @api
      */
