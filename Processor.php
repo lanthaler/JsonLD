@@ -1469,7 +1469,7 @@ class Processor
             else
             {
                 // TODO Detect recursive context imports
-                $remoteContext = JSONLD::parse($context);
+                $remoteContext = JsonLD::parse($context);
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context'))
                 {
