@@ -97,132 +97,6 @@ class Processor
 
 
     /**
-     * Adds a property to an object if it doesn't exist yet
-     *
-     * If the property already exists, an exception is thrown as the existing
-     * value would be lost.
-     *
-     * @param object $object   The object.
-     * @param string $property The name of the property.
-     * @param mixed  $value    The value of the property.
-     *
-     * @throws SyntaxException If the property exists already JSON-LD.
-     */
-    private static function setProperty(&$object, $property, $value)
-    {
-        if (property_exists($object, $property))
-        {
-            throw new SyntaxException(
-                "Colliding \"$property\" properties detected.",
-                $object);
-        }
-
-        $object->{$property} = $value;
-    }
-
-    /**
-     * Merges a value into a property of an object
-     *
-     * @param object $object      The object.
-     * @param string $property    The name of the property to which the value should be merged into.
-     * @param mixed  $value       The value to merge into the property.
-     * @param bool   $alwaysArray If set to true, the resulting property will always be an array.
-     * @param bool   $unique      If set to true, the value is only added if it doesn't exist yet.
-     */
-    private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false, $unique = false)
-    {
-        if (property_exists($object, $property))
-        {
-            // No need to add a null value
-            if (is_null($value))
-            {
-                return;
-            }
-
-            if (false === is_array($object->{$property}))
-            {
-                $object->{$property} = array($object->{$property});
-            }
-
-            if ($unique)
-            {
-                foreach ($object->{$property} as $item)
-                {
-                    // TODO Check if this check is enough to check equivalence
-                    if ($value == $item)
-                    {
-                        return;
-                    }
-                }
-            }
-
-            if (false == is_array($value))
-            {
-                $object->{$property}[] = $value;
-            }
-            else
-            {
-                $object->{$property} = array_merge($object->{$property}, $value);
-            }
-        }
-        else
-        {
-            if ((true == $alwaysArray) && (false == is_array($value)))
-            {
-                $object->{$property} = array();
-
-                if (false == is_null($value))
-                {
-                    $object->{$property}[] = $value;
-                }
-            }
-            else
-            {
-                $object->{$property} = $value;
-            }
-        }
-    }
-
-    /**
-     * Compares two values by their length and then lexicographically
-     *
-     * If two strings have different lenghts, the shorter one will be
-     * considered less than the other. If they have the same lenght, they
-     * are compared lexicographically.
-     *
-     * @param mixed $a Value A.
-     * @param mixed $a Value B.
-     *
-     * @return int If value A is shorter than value B, -1 will be returned; if it's
-     *             longer 1 will be returned. If both values have the same lenght
-     *             and value A is considered lexicographically less, -1 will be
-     *             returned, if they are equal 0 will be returned, otherwise 1
-     *             will be returned.
-     */
-    private static function compare($a, $b)
-    {
-        $lenA = strlen($a);
-        $lenB = strlen($b);
-
-        if ($lenA < $lenB)
-        {
-            return -1;
-        }
-        elseif ($lenA == $lenB)
-        {
-            if ($a == $b)
-            {
-                return 0;
-            }
-            return ($a < $b) ? -1 : 1;
-        }
-        else
-        {
-            return 1;
-        }
-    }
-
-    /**
      * Constructor
      *
      * The options parameter must be passed and all off the following properties
@@ -2049,7 +1923,7 @@ class Processor
      * @param array  $result  The object to which the properties should be added.
      * @param array  $path    The path of already processed nodes.
      */
-    function addMissingNodeProperties($node, $options, $nodeMap, $graph, &$result, $path)
+    private function addMissingNodeProperties($node, $options, $nodeMap, $graph, &$result, $path)
     {
         foreach ($node as $property => $value)
         {
@@ -2091,6 +1965,132 @@ class Processor
                 // TODO Perform deep object copy??
                 $result->{$property} = $value;
             }
+        }
+    }
+
+    /**
+     * Adds a property to an object if it doesn't exist yet
+     *
+     * If the property already exists, an exception is thrown as the existing
+     * value would be lost.
+     *
+     * @param object $object   The object.
+     * @param string $property The name of the property.
+     * @param mixed  $value    The value of the property.
+     *
+     * @throws SyntaxException If the property exists already JSON-LD.
+     */
+    private static function setProperty(&$object, $property, $value)
+    {
+        if (property_exists($object, $property))
+        {
+            throw new SyntaxException(
+                "Colliding \"$property\" properties detected.",
+                $object);
+        }
+
+        $object->{$property} = $value;
+    }
+
+    /**
+     * Merges a value into a property of an object
+     *
+     * @param object $object      The object.
+     * @param string $property    The name of the property to which the value should be merged into.
+     * @param mixed  $value       The value to merge into the property.
+     * @param bool   $alwaysArray If set to true, the resulting property will always be an array.
+     * @param bool   $unique      If set to true, the value is only added if it doesn't exist yet.
+     */
+    private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false, $unique = false)
+    {
+        if (property_exists($object, $property))
+        {
+            // No need to add a null value
+            if (is_null($value))
+            {
+                return;
+            }
+
+            if (false === is_array($object->{$property}))
+            {
+                $object->{$property} = array($object->{$property});
+            }
+
+            if ($unique)
+            {
+                foreach ($object->{$property} as $item)
+                {
+                    // TODO Check if this check is enough to check equivalence
+                    if ($value == $item)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            if (false == is_array($value))
+            {
+                $object->{$property}[] = $value;
+            }
+            else
+            {
+                $object->{$property} = array_merge($object->{$property}, $value);
+            }
+        }
+        else
+        {
+            if ((true == $alwaysArray) && (false == is_array($value)))
+            {
+                $object->{$property} = array();
+
+                if (false == is_null($value))
+                {
+                    $object->{$property}[] = $value;
+                }
+            }
+            else
+            {
+                $object->{$property} = $value;
+            }
+        }
+    }
+
+    /**
+     * Compares two values by their length and then lexicographically
+     *
+     * If two strings have different lenghts, the shorter one will be
+     * considered less than the other. If they have the same lenght, they
+     * are compared lexicographically.
+     *
+     * @param mixed $a Value A.
+     * @param mixed $a Value B.
+     *
+     * @return int If value A is shorter than value B, -1 will be returned; if it's
+     *             longer 1 will be returned. If both values have the same lenght
+     *             and value A is considered lexicographically less, -1 will be
+     *             returned, if they are equal 0 will be returned, otherwise 1
+     *             will be returned.
+     */
+    private static function compare($a, $b)
+    {
+        $lenA = strlen($a);
+        $lenB = strlen($b);
+
+        if ($lenA < $lenB)
+        {
+            return -1;
+        }
+        elseif ($lenA == $lenB)
+        {
+            if ($a == $b)
+            {
+                return 0;
+            }
+            return ($a < $b) ? -1 : 1;
+        }
+        else
+        {
+            return 1;
         }
     }
 }
