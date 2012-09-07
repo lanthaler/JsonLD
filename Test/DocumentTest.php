@@ -134,9 +134,10 @@ JSON_LD_DOCUMENT;
         $this->assertSame($node1_1, $node1->getProperty('http://vocab.com/contains'), 'n1 -contains-> n1.1');
 
         $this->assertSame($node3, $node2->getProperty('http://vocab.com/link'), 'n2 -link-> n3');
-        $this->assertCount(2, $node2->getProperty('http://vocab.com/contains'), 'n2 -contains-> 2 nodes');
-        $this->assertSame($node2_1, $node2->getProperty('http://vocab.com/contains')[0], 'n2 -contains-> n2.1');
-        $this->assertSame($node2_2, $node2->getProperty('http://vocab.com/contains')[1], 'n2 -contains-> n2.1');
+        $values = $node2->getProperty('http://vocab.com/contains');
+        $this->assertCount(2, $values, 'n2 -contains-> 2 nodes');
+        $this->assertSame($node2_1, $values[0], 'n2 -contains-> n2.1');
+        $this->assertSame($node2_2, $values[1], 'n2 -contains-> n2.1');
 
         $this->assertSame($node1, $node3->getProperty('http://vocab.com/link'), 'n3 -link-> n1');
         $this->assertSame($node3_1, $node3->getProperty('http://vocab.com/contains'), 'n3 -contains-> n3.1');
