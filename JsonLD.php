@@ -26,7 +26,7 @@ class JsonLD
      * The document can be supplied directly as a string or by passing a
      * file path or an IRI.
      *
-     *  Usage:
+     * Usage:
      *  <code>
      *    $document = JsonLD::parse('document.jsonld');
      *    print_r($document);
@@ -87,6 +87,44 @@ class JsonLD
 
             throw $e;
         }
+    }
+
+    /**
+     * Parses a JSON-LD document and returns it as a {@link Document}.
+     *
+     * The document can be supplied directly as a string or by passing a
+     * file path or an IRI.
+     *
+     * Usage:
+     *  <code>
+     *    $document = JsonLD::getDocument('document.jsonld');
+     *  </code>
+     *
+     * <strong>Please note that currently all data is merged into one graph,
+     *   named graphs are not supported yet!</strong>
+     *
+     * It is possible to configure the processing by setting the options
+     * parameter accordingly. Available options are:
+     *
+     *   - <em>base</em>     The base IRI of the input document.
+     *
+     * @param string|array|object $input The JSON-LD document to process.
+     * @param null|array|object $options Options to configure the processing.
+     *
+     * @return Document The parsed JSON-LD document.
+     *
+     * @throws ParseException If the JSON-LD input document is invalid.
+     *
+     * @api
+     */
+    public static function getDocument($input, $options = null)
+    {
+        // TODO $input can be an IRI, if so overwrite base iri accordingly
+        $input = self::expand($input, null, $options);
+
+        $processor = new Processor(self::mergeOptions($options));
+
+        return $processor->getDocument($input);
     }
 
     /**

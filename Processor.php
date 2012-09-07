@@ -44,7 +44,7 @@ class Processor
      *
      * @var IRI
      */
-    private $baseiri = null;
+    private $baseIri = null;
 
     /**
      * Compact arrays with just one element to a scalar
@@ -124,7 +124,7 @@ class Processor
      */
     public function __construct($options)
     {
-        $this->baseiri = new IRI($options->base);
+        $this->baseIri = new IRI($options->base);
         $this->compactArrays = (bool) $options->compactArrays;
         $this->optimize = (bool) $options->optimize;
         $this->useNativeTypes = (bool) $options->useNativeTypes;
@@ -134,7 +134,7 @@ class Processor
     /**
      * Parses a JSON-LD document to a PHP value
      *
-     * @param  string $document A JSON-LD document.
+     * @param string $document A JSON-LD document.
      *
      * @return mixed  A PHP value.
      *
@@ -176,6 +176,83 @@ class Processor
         }
 
         return (empty($data)) ? null : $data;
+    }
+
+    /**
+     * Parses a JSON-LD document and returns it as a {@link Document}
+     *
+     * @param array|object $input The JSON-LD document to process.
+     *
+     * @return Document The parsed JSON-LD document.
+     *
+     * @throws ParseException If the JSON-LD input document is invalid.
+     */
+    public function getDocument($input)
+    {
+        // TODO Add support for named graphs
+        $nodeMap = new \stdClass();
+        $this->createNodeMap($nodeMap, $input);
+        $this->mergeNodeMapGraphs($nodeMap);
+
+        // As we do not support named graphs yet we are currently just
+        // interested in the merged graph
+        $nodeMap = $nodeMap->{'@merged'};
+
+        // We need to keep track of blank nodes as they are renamed when
+        // inserted into the Document
+
+        $document = new Document($this->baseIri);
+        $nodes = array();
+
+        foreach ($nodeMap as $id => &$item)
+        {
+            if (!isset($nodes[$id]))
+            {
+                $nodes[$id] = $document->createNode($item->{'@id'});
+            }
+
+            $node = $nodes[$id];
+            unset($item->{'@id'});
+
+            foreach ($item as $property => $value)
+            {
+                foreach ($value as $val)
+                {
+                    if (property_exists($val, '@value'))
+                    {
+                        if (property_exists($val, '@type'))
+                        {
+                            $node->setProperty($property, new TypedValue($val->{'@value'}, $val->{'@type'}));
+                        }
+                        elseif (property_exists($val, '@language'))
+                        {
+                            $node->addPropertyValue($property, new LanguageTaggedString($val->{'@value'}, $val->{'@language'}));
+                        }
+                        else
+                        {
+                            $node->addPropertyValue($property, $val->{'@value'});
+                        }
+                    }
+                    elseif (property_exists($val, '@id'))
+                    {
+                        if (!isset($nodes[$val->{'@id'}]))
+                        {
+                            $nodes[$val->{'@id'}] = $document->createNode($val->{'@id'});
+                        }
+                        $node->addPropertyValue($property, $nodes[$val->{'@id'}]);
+                    }
+                    else // .. it must be a list
+                    {
+                        // TODO Handle lists
+                        throw new \Exception('Not implemented yet');
+                    }
+                }
+            }
+        }
+
+        unset($nodeMap);
+
+        return $document;
     }
 
     /**
@@ -556,7 +633,7 @@ class Processor
             }
             elseif (true == $relativeIri)
             {
-                return (string)$this->baseiri->resolve($value);
+                return (string)$this->baseIri->resolve($value);
             }
         }
 
@@ -1404,7 +1481,7 @@ class Processor
                 $id = $element->{'@id'};
             }
 
-            // if no @id was found or it was a blank node and we are not currently
+            // if no @id was found or if it was a blank node and we are not currently
             // merging graphs, assign a new identifier to avoid collissions
             if ((null === $id) || (('@merged' != $graph) && (0 === strncmp($id, '_:', 2))))
             {
@@ -1629,7 +1706,7 @@ class Processor
         }
 
         $procOptions = new \stdClass();
-        $procOptions->base = (string)$this->baseiri;
+        $procOptions->base = (string)$this->baseIri;
         $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
@@ -1971,8 +2048,8 @@ class Processor
     /**
      * Adds a property to an object if it doesn't exist yet
      *
-     * If the property already exists, an exception is thrown as the existing
-     * value would be lost.
+     * If the property already exists, an exception is thrown as otherwise
+     * the existing value would be lost.
      *
      * @param object $object   The object.
      * @param string $property The name of the property.
