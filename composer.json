@@ -16,7 +16,7 @@
     "require": {
         "php": ">=5.3.0",
         "ext-json": "*",
-        "ml/iri": "@dev"
+        "ml/iri": "1.*"
     },
     "autoload": {
         "psr-0": { "ML\\JsonLD": "" }
