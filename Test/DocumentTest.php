@@ -10,6 +10,7 @@
 namespace ML\JsonLD\Test;
 
 use ML\JsonLD\JsonLD;
+use ML\JsonLD\Processor;
 use ML\JsonLD\Document;
 use ML\JsonLD\Node;
 use ML\JsonLD\LanguageTaggedString;
@@ -35,11 +36,13 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
   "@context": {
     "ex": "http://vocab.com/",
     "ex:lang": { "@language": "en" },
-    "ex:typed": { "@type": "ex:type" }
+    "ex:typed": { "@type": "ex:type/datatype" },
+    "node": "ex:type/node"
   },
   "@graph": [
     {
       "@id": "1",
+      "@type": "ex:type/node",
       "ex:name": "1",
       "ex:link": { "@id": "./2" },
       "ex:contains": { "ex:nested": "1.1" }
@@ -47,6 +50,7 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
     {
       "@id": "/node/2",
       "ex:name": "2",
+      "@type": "ex:type/nodeWithAliases",
       "ex:lang": "language-tagged string",
       "ex:typed": "typed value",
       "ex:link": { "@id": "/node/3" },
@@ -59,6 +63,7 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
     {
       "@id": "http://example.com/node/3",
       "ex:name": "3",
+      "@type": "node",
       "ex:link": { "@id": "http://example.com/node/1" },
       "ex:contains": {
         "@id": "_:someBlankNode",
@@ -71,8 +76,8 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
       ],
       "ex:typed": [
         "typed value",
-        { "@value": "typed value", "@language": "ex:otherType" },
-        { "@value": "typed value", "@language": "ex:type" }
+        { "@value": "typed value", "@language": "ex:/type/otherDataType" },
+        { "@value": "typed value", "@language": "ex:/type/datatype" }
       ]
     }
   ]
@@ -95,11 +100,13 @@ JSON_LD_DOCUMENT;
             '_:b0',
             '_:b1',
             '_:b2',
-            '_:b3'
+            '_:b3',
+            'http://vocab.com/type/node',
+            'http://vocab.com/type/nodeWithAliases'
         );
 
         $nodes = $this->document->getNodes();
-        $this->assertCount(7, $nodes);
+        $this->assertCount(count($nodeIds), $nodes);
 
         foreach ($nodes as $node) {
             // Is the node's ID valid?
@@ -130,17 +137,23 @@ JSON_LD_DOCUMENT;
         $node2_2 = $this->document->getNode('_:b2');
         $node3_1 = $this->document->getNode('_:b3');
 
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+
         $this->assertSame($node2, $node1->getProperty('http://vocab.com/link'), 'n1 -link-> n2');
         $this->assertSame($node1_1, $node1->getProperty('http://vocab.com/contains'), 'n1 -contains-> n1.1');
+        $this->assertSame($nodeType, $node1->getType(), 'n1 type');
 
         $this->assertSame($node3, $node2->getProperty('http://vocab.com/link'), 'n2 -link-> n3');
         $values = $node2->getProperty('http://vocab.com/contains');
         $this->assertCount(2, $values, 'n2 -contains-> 2 nodes');
         $this->assertSame($node2_1, $values[0], 'n2 -contains-> n2.1');
         $this->assertSame($node2_2, $values[1], 'n2 -contains-> n2.1');
+        $this->assertSame($nodeWithAliasesType, $node2->getType(), 'n2 type');
 
         $this->assertSame($node1, $node3->getProperty('http://vocab.com/link'), 'n3 -link-> n1');
         $this->assertSame($node3_1, $node3->getProperty('http://vocab.com/contains'), 'n3 -contains-> n3.1');
+        $this->assertSame($nodeType, $node3->getType(), 'n3 type');
     }
 
     /**
@@ -157,6 +170,9 @@ JSON_LD_DOCUMENT;
         $node2_2 = $this->document->getNode('_:b2');
         $node3_1 = $this->document->getNode('_:b3');
 
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+
         $this->assertSame($node1, $node2->getReverseProperty('http://vocab.com/link'), 'n2 <-link- n1');
         $this->assertSame($node1, $node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1');
 
@@ -166,6 +182,9 @@ JSON_LD_DOCUMENT;
 
         $this->assertSame($node3, $node1->getReverseProperty('http://vocab.com/link'), 'n1 <-link- n3');
         $this->assertSame($node3, $node3_1->getReverseProperty('http://vocab.com/contains'), 'n3.1 <-contains- n3');
+
+        $this->assertSame(array($node1, $node3), $nodeType->getReverseProperty(Node::TYPE), 'n1+n3 <-type- nodeType');
+        $this->assertSame(array($node2), $nodeWithAliasesType->getNodesWithThisType(), 'n2 <-type- nodeWithAliases');
     }
 
     /**
@@ -200,6 +219,10 @@ JSON_LD_DOCUMENT;
         $node1 = $this->document->getNode('http://example.com/node/1');
         $node1_1 = $this->document->getNode('_:b0');
         $node2 = $this->document->getNode('http://example.com/node/2');
+        $node3 = $this->document->getNode('http://example.com/node/3');
+
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
 
         $revProperties = $node2->getReverseProperties();
         $this->assertCount(1, $revProperties, 'Check number of node2\'s reverse properties');
@@ -214,9 +237,22 @@ JSON_LD_DOCUMENT;
         $this->assertNull($node2->getReverseProperty('http://vocab.com/link'), 'n2 <-link- n1 removed');
         $this->assertNull($node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1 removed');
 
+        $expectedProperties = array(
+            Node::TYPE => $this->document->getNode('http://vocab.com/type/node'),
+            'http://vocab.com/name' => '1'
+        );
         $properties = $node1->getProperties();
-        $this->assertCount(1, $properties, 'Check number of properties');
-        $this->assertSame(array('http://vocab.com/name' => '1'), $properties, 'Check properties');
+        $this->assertCount(2, $properties, 'Check number of properties');
+        $this->assertSame($expectedProperties, $properties, 'Check properties');
+
+        $this->assertSame(array($node1, $node3), $nodeType->getNodesWithThisType(), 'n1+n3 <-type- nodeType');
+        $this->assertSame($node2, $nodeWithAliasesType->getReverseProperty(Node::TYPE), 'n2 <-type- nodeWithAliases');
+
+        $node1->setType(null);
+        $node2->removeType($nodeWithAliasesType);
+
+        $this->assertSame($node3, $nodeType->getReverseProperty(Node::TYPE), 'n3 <-type- nodeType');
+        $this->assertSame(array(), $nodeWithAliasesType->getNodesWithThisType(), 'nodeWithAliases removed from n2');
     }
 
     /**
@@ -295,6 +331,38 @@ JSON_LD_DOCUMENT;
     }
 
     /**
+     * Tests the removal of node types from the document.
+     */
+    public function testNodeTypeRemoval()
+    {
+        // Remove nodeType
+        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node3 = $this->document->getNode('/node/3');
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+
+        $this->assertTrue($this->document->contains('http://vocab.com/type/node'), 'node type in document?');
+
+        $this->assertSame($nodeType, $node1->getType(), 'n1 type');
+        $this->assertSame($nodeType, $node3->getType(), 'n3 type');
+
+        $this->assertSame(
+            array(Node::TYPE => array($node1, $node3)),
+            $nodeType->getReverseProperties(),
+            'Check node type\'s reverse properties'
+        );
+
+        $this->document->remove($nodeType);
+
+        $this->assertSame(array(), $nodeType->getReverseProperties(), 'node type\'s reverse properties');
+        $this->assertSame(array(), $nodeType->getNodesWithThisType(), 'n1+n3 <-type- node type removed');
+
+        $this->assertNull($node1->getType(), 'n1 type removed');
+        $this->assertNull($node3->getType(), 'n3 type removed');
+
+        $this->assertFalse($this->document->contains('http://vocab.com/type/node'), 'node type still in document?');
+    }
+
+    /**
      * Tests if adding a value maintains uniqueness
      */
     public function testNodePropertyUniqueness()
@@ -360,8 +428,7 @@ JSON_LD_DOCUMENT;
         $this->assertCount(2, $value, 'lang: count value 1 removed again');
 
         $this->assertTrue($sameLangValue->equals($value[0]), 'lang: check values 1 (2)');
-        $this->assertTrue($newLangValue2->equals($value[1]), 'lang: check values 3 (2)');
-
+        $this->assertTrue($newLangValue2->equals($value[1]), 'lang: check values 2 (2)');
 
         // Typed values
         $node = $this->document->getNode('http://example.com/node/2');
@@ -369,15 +436,15 @@ JSON_LD_DOCUMENT;
 
         $this->assertInstanceOf('ML\JsonLD\TypedValue', $value, 'typed: initial value class');
         $this->assertEquals('typed value', $value->getValue(), 'typed: initial value');
-        $this->assertEquals('http://vocab.com/type', $value->getType(), 'typed: initial value type');
+        $this->assertEquals('http://vocab.com/type/datatype', $value->getType(), 'typed: initial value type');
 
-        $sameTypedValue = new TypedValue('typed value', 'http://vocab.com/type');
+        $sameTypedValue = new TypedValue('typed value', 'http://vocab.com/type/datatype');
         $this->assertTrue($value->equals($sameTypedValue), 'typed: equals same');
 
         $newTypedValue1 = new TypedValue('typed value', 'http://vocab.com/otherType');
         $this->assertFalse($value->equals($newTypedValue1), 'typed: equals new1');
 
-        $newTypedValue2 = new TypedValue('other typed value', 'http://vocab.com/type');
+        $newTypedValue2 = new TypedValue('other typed value', 'http://vocab.com/type/datatype');
         $this->assertFalse($value->equals($newTypedValue2), 'typed: equals new2');
 
         $node->addPropertyValue('http://vocab.com/typed', $sameTypedValue);
@@ -398,7 +465,7 @@ JSON_LD_DOCUMENT;
         $this->assertCount(2, $value, 'typed: count value 1 removed again');
 
         $this->assertTrue($sameTypedValue->equals($value[0]), 'typed: check values 1 (2)');
-        $this->assertTrue($newTypedValue2->equals($value[1]), 'typed: check values 3 (2)');
+        $this->assertTrue($newTypedValue2->equals($value[1]), 'typed: check values 2 (2)');
 
         // Nodes
         $node = $this->document->getNode('http://example.com/node/3');
@@ -433,7 +500,38 @@ JSON_LD_DOCUMENT;
         $this->assertCount(2, $value, 'typed: count new node 1 removed again');
 
         $this->assertTrue($node1->equals($value[0]), 'node: check values 1 (2)');
-        $this->assertTrue($newNode2->equals($value[1]), 'node: check values 3 (2)');
+        $this->assertTrue($newNode2->equals($value[1]), 'node: check values 2 (2)');
+
+        // Node types
+        $node1 = $this->document->getNode('http://example.com/node/1');
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+
+        $this->assertSame($nodeType, $node1->getType(), 'type: n1 initial type');
+
+        $newType1 = $this->document->createNode();
+        $this->assertTrue($this->document->contains($newNode1), 'type: new1 in document');
+
+        $node1->addType($nodeType);
+        $this->assertSame($nodeType, $node1->getType(), 'type: n1 type still same');
+
+        $node1->addType($nodeWithAliasesType);
+        $node1->addType($newType1);
+
+        $value = $node1->getType();
+        $this->assertCount(3, $value, 'type: count values added');
+
+        $this->assertSame($nodeType, $value[0], 'type: check values 1');
+        $this->assertSame($nodeWithAliasesType, $value[1], 'type: check values 2');
+        $this->assertSame($newType1, $value[2], 'type: check values 3');
+
+        $node1->removeType($nodeWithAliasesType);
+        $value = $node1->getType();
+        $this->assertCount(2, $value, 'typed: count nodeWithAliasesType removed again');
+
+        $this->assertTrue($nodeType->equals($value[0]), 'type: check values 1 (2)');
+        $this->assertTrue($newType1->equals($value[1]), 'type: check values 2 (2)');
+
     }
 
     /**
@@ -448,7 +546,51 @@ JSON_LD_DOCUMENT;
 
         $node1 = $this->document->getNode('http://example.com/node/1');
         $node1->addPropertyValue('http://vocab.com/link', $newNode);
+    }
 
+    /**
+     * Tests whether it is possible to set the node's type to an invalid
+     * value
+     *
+     * @expectedException InvalidArgumentException
+     */
+    public function testSetInvalidTypeValue()
+    {
+        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1->setType('http://vocab.com/type/aTypeAsString');
+    }
+
+    /**
+     * Tests whether it is possible to set the node's type to an invalid
+     * value when an array is used.
+     *
+     * @expectedException InvalidArgumentException
+     */
+    public function testSetInvalidTypeArray()
+    {
+        $types = array(
+            $this->document->getNode('http://vocab.com/type/nodeWithAliases'),
+            'http://vocab.com/type/aTypeAsString'
+        );
+
+        $node1 = $this->document->getNode('http://example.com/node/1');
+
+        $node1->setType($types);
+    }
+
+    /**
+     * Tests whether it is possible to add an type which is not part of the
+     * document
+     *
+     * @expectedException InvalidArgumentException
+     */
+    public function testAddTypeNotInDocument()
+    {
+        $document = new Document();
+        $newType = $document->createNode();
+
+        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1->addType($newType);
     }
 
     /**
@@ -473,7 +615,9 @@ JSON_LD_DOCUMENT;
     public function testCreateExistingNode()
     {
         $node1 = $this->document->getNode('http://example.com/node/1');
+        $nodeType = $this->document->getNode('http://vocab.com/type/node');
 
         $this->assertSame($node1, $this->document->createNode('http://example.com/node/1'));
+        $this->assertSame($nodeType, $this->document->createNode('http://vocab.com/type/node'));
     }
 }

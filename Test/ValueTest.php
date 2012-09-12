@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD\Test;
 
-
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 
@@ -119,10 +118,10 @@ class ValueTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($string2->equals($string3), 's2 == s3?');
 
 
-        $typed1a = new LanguageTaggedString('value', 'http://example.com/type1');
-        $typed1b = new LanguageTaggedString('value', 'http://example.com/type1');
-        $typed2 = new LanguageTaggedString('value', 'http://example.com/type2');
-        $typed3 = new LanguageTaggedString('wert', 'http://example.com/type1');
+        $typed1a = new TypedValue('value', 'http://example.com/type1');
+        $typed1b = new TypedValue('value', 'http://example.com/type1');
+        $typed2 = new TypedValue('value', 'http://example.com/type2');
+        $typed3 = new TypedValue('wert', 'http://example.com/type1');
 
         $this->assertTrue($typed1a->equals($typed1b), 't1a == t1b?');
         $this->assertFalse($typed1a->equals($typed2), 't1a == t2?');

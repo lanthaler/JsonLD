@@ -214,6 +214,21 @@ class Processor
             $node = $nodes[$id];
             unset($item->{'@id'});
 
+            // Process node type as it needs to be handled differently than
+            // other properties
+            if (property_exists($item, '@type'))
+            {
+                foreach ($item->{'@type'} as $type)
+                {
+                    if (!isset($nodes[$type]))
+                    {
+                        $nodes[$type] = $document->createNode($type);
+                    }
+                    $node->addType($nodes[$type]);
+                }
+                unset($item->{'@type'});
+            }
+
             foreach ($item as $property => $value)
             {
                 foreach ($value as $val)

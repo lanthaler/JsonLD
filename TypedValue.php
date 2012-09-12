@@ -40,6 +40,10 @@ final class TypedValue extends Value
     /**
      * Set the type
      *
+     * For the sake of simplicity, the type is currently just a Node
+     * identifier in the form of a string and not a Node reference.
+     * This might be changed in the future.
+     *
      * @param string $type The type.
      *
      * @throws \InvalidArgumentException If the type is not a string. No
@@ -57,6 +61,10 @@ final class TypedValue extends Value
 
     /**
      * Get the type
+     *
+     * For the sake of simplicity, the type is currently just a Node
+     * identifier in the form of a string and not a Node reference.
+     * This might be changed in the future.
      *
      * @return string The type.
      */

@@ -17,6 +17,9 @@ namespace ML\JsonLD;
  */
 class Node
 {
+    /** The @type constant. */
+    const TYPE = '@type';
+
     /**
      * The document the node belongs to.
      *
@@ -62,11 +65,88 @@ class Node
     /**
      * Get ID
      *
-     * @return string|null $id The ID of the node or null.
+     * @return string|null The ID of the node or null.
      */
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set the node type
+     *
+     * @param null|Node|array[Node] The type(s) of this node.
+     *
+     * @throws \InvalidArgumentException If type is not null, a Node or an
+     *                                   array of Nodes.
+     */
+    public function setType($type)
+    {
+        if ((null !== $type) && !($type instanceof Node))
+        {
+            if (is_array($type))
+            {
+                foreach ($type as $val)
+                {
+                    if ((null !== $val) && !($val instanceof Node))
+                    {
+                        throw new \InvalidArgumentException('type must be null, a Node, or an array of Nodes');
+                    }
+                }
+            }
+            else
+            {
+                throw new \InvalidArgumentException('type must be null, a Node, or an array of Nodes');
+            }
+        }
+
+        return $this->setProperty(self::TYPE, $type);
+    }
+
+    /**
+     * Add a type to this node
+     *
+     * @param Node The type to add.
+     */
+    public function addType(Node $type)
+    {
+        return $this->addPropertyValue(self::TYPE, $type);
+    }
+
+    /**
+     * Remove a type from this node
+     *
+     * @param Node The type to remove.
+     */
+    public function removeType(Node $type)
+    {
+        return $this->removePropertyValue(self::TYPE, $type);
+    }
+
+    /**
+     * Get node type
+     *
+     * @return null|Node|array[Node] Returns the type(s) of this node.
+     */
+    public function getType()
+    {
+        return $this->getProperty(self::TYPE);
+    }
+
+    /**
+     * Get the nodes which have this node as their type
+     *
+     * This will return all nodes that link to this Node instance via the
+     * @type (rdf:type) property.
+     *
+     * @return array[Node] Returns the node(s) having this node as their
+     *                     type.
+     */
+    public function getNodesWithThisType()
+    {
+        return (isset($this->revProperties[self::TYPE]))
+            ? array_values($this->revProperties[self::TYPE])
+            : array();
     }
 
     /**
@@ -80,14 +160,25 @@ class Node
         return $this->document;
     }
 
-
     /**
      * Removes the node from the document
+     *
+     * This will also remove all references to and from other nodes in this
+     * node's document.
      */
     public function removeFromDocument()
     {
-        // Remove other node's reverse properties pointing to this node
-        foreach ($this->properties as $values)
+        // Remove other node's properties and reverse properties pointing to
+        // this node
+        foreach ($this->revProperties as $property => $nodes)
+        {
+            foreach ($nodes as $node)
+            {
+                $node->removePropertyValue($property, $this);
+            }
+        }
+
+        foreach ($this->properties as $property => $values)
         {
             if (!is_array($values))
             {
@@ -98,7 +189,7 @@ class Node
             {
                 if ($value instanceof Node)
                 {
-                    $value->removeReversePropertiesToNode($this);
+                    $this->removePropertyValue($property, $value);
                 }
             }
         }
@@ -401,25 +492,6 @@ class Node
     protected function addReverseProperty($property, Node $node)
     {
         $this->revProperties[$property][$node->getId()] = $node;
-    }
-
-    /**
-     * Remove all reverse properties linking to a specific node.
-     *
-     * @param Node $node The node which has properties pointing to this Node
-     *                   instance.
-     */
-    protected function removeReversePropertiesToNode(Node $node)
-    {
-        foreach ($this->revProperties as $property => &$value)
-        {
-            unset($this->revProperties[$property][$node->getId()]);
-
-            if (0 === count($this->revProperties[$property]))
-            {
-                unset($this->revProperties[$property]);
-            }
-        }
     }
 
     /**
