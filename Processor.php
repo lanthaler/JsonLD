@@ -475,7 +475,39 @@ class Processor
                     }
                     else
                     {
-                        $this->expand($value, $activectx, $property, $frame);
+                        if (isset($activectx[$property]['@container']) &&
+                            ('@language' == $activectx[$property]['@container']))
+                        {
+                            if (false === is_object($value))
+                            {
+                                throw new SyntaxException(
+                                    "Invalid value for $property detected (must be a language map).",
+                                    $value);
+                            }
+
+                            $updatedContext = $activectx;
+                            $result = array();
+                            foreach ($value as $language => $val)
+                            {
+                                $updatedContext['@language'] = $language;
+                                $this->expand($val, $updatedContext, $property, $frame);
+
+                                if (is_array($val))
+                                {
+                                    $result = array_merge($result, $val);
+                                }
+                                else
+                                {
+                                    $result[] = $val;
+                                }
+                            }
+
+                            $value = $result;
+                        }
+                        else
+                        {
+                            $this->expand($value, $activectx, $property, $frame);
+                        }
                     }
 
                     // ... and re-add it to the object if the expanded value is not null
@@ -1424,7 +1456,7 @@ class Processor
 
                         if (isset($value->{'@container'}))
                         {
-                            if (('@set' == $value->{'@container'}) || ('@list' == $value->{'@container'}))
+                            if (in_array($value->{'@container'}, array('@list', '@set', '@language')))
                             {
                                 $activectx[$key]['@container'] = $value->{'@container'};
                             }
