@@ -337,6 +337,57 @@ class JsonLD
     }
 
     /**
+     * Converts a JSON-LD document to quads
+     *
+     * The document can be supplied directly as a string or by passing a
+     * file path or an IRI.
+     *
+     * Usage:
+     *  <code>
+     *    $quads = JsonLD::toQuads('document.jsonld');
+     *    print_r($expanded);
+     *  </code>
+     *
+     * It is possible to configure the extraction process by setting the options
+     * parameter accordingly. Available options are:
+     *
+     *   - <em>base</em>     The base IRI of the input document.
+     *
+     * The options parameter might be passed as an associative array or an
+     * object.
+     *
+     * @param string|array|object $input  The JSON-LD document to expand.
+     * @param null|string|object $context An optional context to use additionally
+     *                                    to the context embedded in input when
+     *                                    expanding the input.
+     * @param null|array|object $options  Options to configure the expansion
+     *                                    process.
+     *
+     * @return array The extracted quads.
+     *
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If expanding the JSON-LD document failed.
+     *
+     * @api
+     */
+    public static function toQuads($input, $context = null, $options = null)
+    {
+        $options = self::mergeOptions($options);
+
+        $input = self::expand($input, $context, $options);
+
+        $processor = new Processor($options);
+
+        $quads = array();
+        $processor->toQuads($input, $quads);
+
+        return $quads;
+    }
+
+    /**
      * Frame a JSON-LD document according a supplied frame
      *
      * Both, the document and context can be supplied directly as strings or

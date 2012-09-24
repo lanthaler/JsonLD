@@ -27,6 +27,63 @@ abstract class Value
 
 
     /**
+     * Create a LanguageTaggedString or TypedValue from a JSON-LD element
+     *
+     * If the passed value element can't be transformed to a language-tagged
+     * string or a typed value null is returned.
+     *
+     * @param object $element The JSON-LD element
+     *
+     * @return null|LanguageTaggedString|TypedValue The parsed object
+     */
+    public static function fromJsonLd(\stdClass $element)
+    {
+        if (false === property_exists($element, '@value'))
+        {
+            return null;
+        }
+
+        $value = $element->{'@value'};
+        $type = (property_exists($element, '@type'))
+            ? $element->{'@type'}
+            : null;
+        $language = (property_exists($element, '@language'))
+            ? $element->{'@language'}
+            : null;
+
+        if (is_int($value) || is_float($value))
+        {
+            if ($value == (int)$value)
+            {
+                return new TypedValue(sprintf('%d', $value), RdfConstants::XSD_INTEGER);
+            }
+            else
+            {
+                return new TypedValue(
+                    preg_replace('/(0{0,14})E(\+?)/', 'E', sprintf('%1.15E', $value)),
+                    RdfConstants::XSD_DOUBLE
+                );
+            }
+        }
+        elseif (is_bool($value))
+        {
+            return new TypedValue(($value) ? 'true' : 'false', RdfConstants::XSD_BOOLEAN);
+        }
+        elseif (false === is_string($value))
+        {
+            return null;
+        }
+
+        // @type gets precedence
+        if ((null === $type) && (null !== $language))
+        {
+            return new LanguageTaggedString($value, $language);
+        }
+
+        return new TypedValue($value, (null === $type) ? RdfConstants::XSD_STRING : $type);
+    }
+
+    /**
      * Set the value
      *
      * @param string $value The value.

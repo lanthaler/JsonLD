@@ -18,12 +18,12 @@ processor's basic functionality.
     [deep-filtering](https://github.com/json-ld/json-ld.org/issues/110),
     [aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
     [named graphs](https://github.com/json-ld/json-ld.org/issues/118))
+  * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-to-rdf-algorithm)
   * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
 
 **Still missing:**
 
- * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-to-rdf-algorithm) /
-   [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
+ * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
  * [PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
    and [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md) compliance
 

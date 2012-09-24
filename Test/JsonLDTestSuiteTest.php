@@ -123,4 +123,60 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         return new TestManifestIterator($this->basedir . 'frame-manifest.jsonld');
     }
+
+    /**
+     * Tests conversion to quads.
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @dataProvider toQuadsProvider
+     */
+    public function testToQuads($name, $test, $options)
+    {
+        $expected = file_get_contents($this->basedir . $test->{'expect'});
+        $quads = JsonLD::toQuads($this->basedir . $test->{'input'},
+                                 null,
+                                 $options);
+
+        // TODO Extract this NQuads serializer to a separate class
+        $result = '';
+        foreach ($quads as $quad)
+        {
+            $result .= ('_' === $quad[0]->getScheme()) ? $quad[0] : '<' . $quad[0] . '>';
+            $result .= ' ';
+            $result .= ('_' === $quad[1]->getScheme()) ? $quad[1] : '<' . $quad[1] . '>';
+            $result .= ' ';
+            if ($quad[2] instanceof \ML\IRI\IRI)
+            {
+                $result .= ('_' === $quad[2]->getScheme()) ? $quad[2] : '<' . $quad[2] . '>';
+            }
+            else
+            {
+                $result .= '"' . $quad[2]->getValue() . '"';
+                $result .= ($quad[2] instanceof \ML\JsonLD\TypedValue)
+                    ? '^^<' . $quad[2]->getType() . '>'
+                    : '@' . $quad[2]->getLanguage();
+            }
+            $result .= ' ';
+            if ($quad[3])
+            {
+                $result .= ('_' === $quad[3]->getScheme()) ? $quad[3] : '<' . $quad[3] . '>';
+                $result .= ' ';
+            }
+            $result .= ".\n";
+        }
+
+        $this->assertEquals($expected, $result);
+    }
+
+
+    /**
+     * Provides conversion to quads test cases.
+     */
+    public function toQuadsProvider()
+    {
+        return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
+    }
 }

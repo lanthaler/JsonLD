@@ -1714,6 +1714,131 @@ class Processor
     }
 
     /**
+     * Converts a JSON-LD document to quads
+     *
+     * The result is an array of arrays each containing a quad:
+     *
+     * <code>
+     * array(
+     *   array(id, property, value, graph)
+     * )
+     * </code>
+     *
+     * @param mixed   $element    A JSON-LD element to be transformed into quads.
+     * @param array   $result     The resulting quads.
+     * @param array   $activesubj The active subject.
+     * @param string  $activeprty The active property.
+     * @param string  $graph      The graph currently being processed.
+     *
+     * @return array The extracted quads.
+     */
+    public function toQuads(&$element, &$result, $activesubj = null, $activeprty = null, $graph = null)
+    {
+        if (is_array($element))
+        {
+            foreach ($element as &$item)
+            {
+                $this->toQuads($item, $result, $activesubj, $activeprty, $graph);
+            }
+
+            return;
+        }
+
+        if (false === is_object($element))
+        {
+            throw new SyntaxException("The value of $activeprty must not be a string.");
+        }
+
+        if (property_exists($element, '@value'))
+        {
+            $value = Value::fromJsonLd($element);
+            $result[] = array($activesubj, $activeprty, $value, $graph);
+
+            return;
+        }
+        elseif (property_exists($element, '@list'))
+        {
+            if (0 === ($len = count($element->{'@list'})))
+            {
+                $result[] = array($activesubj, $activeprty, new IRI(RdfConstants::RDF_NIL), $graph);
+
+                return;
+            }
+
+            $first_bn = new IRI($this->getBlankNodeId());
+            $result[] = array($activesubj, $activeprty, $first_bn, $graph);
+
+            $i = 0;
+            while ($i < $len)
+            {
+                $this->toQuads($element->{'@list'}[$i], $result, $first_bn, new IRI(RdfConstants::RDF_FIRST), $graph);
+
+                $i++;
+                $rest_bn = ($i < $len)
+                    ? new IRI($this->getBlankNodeId())
+                    : new IRI(RdfConstants::RDF_NIL);
+
+                $result[] = array($first_bn, new IRI(RdfConstants::RDF_REST), $rest_bn, $graph);
+                $first_bn = $rest_bn;
+            }
+            
+            return;
+        }
+
+        $prevsubj = $activesubj;
+        if (property_exists($element, '@id'))
+        {
+            $activesubj = $element->{'@id'};
+
+            if (0 === strncmp($activesubj, '_:', 2))
+            {
+                $activesubj = $this->getBlankNodeId($activesubj);
+            }
+
+            unset($element->{'@id'});
+        }
+        else
+        {
+            $activesubj = $this->getBlankNodeId();
+        }
+
+        $activesubj = new IRI($activesubj);
+
+        if ($prevsubj)
+        {
+            $result[] = array($prevsubj, $activeprty, $activesubj, $graph);;
+        }
+
+        $properties = get_object_vars($element);
+        ksort($properties);
+
+        foreach ($properties as $property => $value)
+        {
+            if ('@type' === $property)
+            {
+                foreach ($value as $val)
+                {
+                    $result[] = array($activesubj, new IRI(RdfConstants::RDF_TYPE), new IRI($val), $graph);
+                }
+                continue;
+            }
+            elseif ('@graph' === $property)
+            {
+                $this->toQuads($value, $result, null, null, $activesubj);
+                continue;
+            }
+            elseif (in_array($property, self::$keywords))
+            {
+                continue;
+            }
+
+            $activeprty = new IRI($property);
+
+            $this->toQuads($value, $result, $activesubj, $activeprty, $graph);
+        }
+    }
+
+    /**
      * Frames a JSON-LD document according a supplied frame
      *
      * @param object $element A JSON-LD element to be framed.
