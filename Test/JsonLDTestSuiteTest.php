@@ -10,6 +10,7 @@
 namespace ML\JsonLD\Test;
 
 use ML\JsonLD\JsonLD;
+use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
 
@@ -105,7 +106,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
             $this->markTestSkipped('This implementation uses deep value matching and aggressive "re-embedding". See ISSUE-110 and ISSUE-119');
         }
 
-
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::frame($this->basedir . $test->{'input'},
                                 $this->basedir . $test->{'frame'},
@@ -140,33 +140,8 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
                                  null,
                                  $options);
 
-        // TODO Extract this NQuads serializer to a separate class
-        $result = '';
-        foreach ($quads as $quad)
-        {
-            $result .= ('_' === $quad[0]->getScheme()) ? $quad[0] : '<' . $quad[0] . '>';
-            $result .= ' ';
-            $result .= ('_' === $quad[1]->getScheme()) ? $quad[1] : '<' . $quad[1] . '>';
-            $result .= ' ';
-            if ($quad[2] instanceof \ML\IRI\IRI)
-            {
-                $result .= ('_' === $quad[2]->getScheme()) ? $quad[2] : '<' . $quad[2] . '>';
-            }
-            else
-            {
-                $result .= '"' . $quad[2]->getValue() . '"';
-                $result .= ($quad[2] instanceof \ML\JsonLD\TypedValue)
-                    ? '^^<' . $quad[2]->getType() . '>'
-                    : '@' . $quad[2]->getLanguage();
-            }
-            $result .= ' ';
-            if ($quad[3])
-            {
-                $result .= ('_' === $quad[3]->getScheme()) ? $quad[3] : '<' . $quad[3] . '>';
-                $result .= ' ';
-            }
-            $result .= ".\n";
-        }
+        $serializer = new NQuads();
+        $result = $serializer->serialize($quads);
 
         $this->assertEquals($expected, $result);
     }

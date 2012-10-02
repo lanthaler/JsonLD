@@ -1752,7 +1752,7 @@ class Processor
         if (property_exists($element, '@value'))
         {
             $value = Value::fromJsonLd($element);
-            $result[] = array($activesubj, $activeprty, $value, $graph);
+            $result[] = new Quad($activesubj, $activeprty, $value, $graph);
 
             return;
         }
@@ -1760,13 +1760,13 @@ class Processor
         {
             if (0 === ($len = count($element->{'@list'})))
             {
-                $result[] = array($activesubj, $activeprty, new IRI(RdfConstants::RDF_NIL), $graph);
+                $result[] = new Quad($activesubj, $activeprty, new IRI(RdfConstants::RDF_NIL), $graph);
 
                 return;
             }
 
             $first_bn = new IRI($this->getBlankNodeId());
-            $result[] = array($activesubj, $activeprty, $first_bn, $graph);
+            $result[] = new Quad($activesubj, $activeprty, $first_bn, $graph);
 
             $i = 0;
             while ($i < $len)
@@ -1778,10 +1778,10 @@ class Processor
                     ? new IRI($this->getBlankNodeId())
                     : new IRI(RdfConstants::RDF_NIL);
 
-                $result[] = array($first_bn, new IRI(RdfConstants::RDF_REST), $rest_bn, $graph);
+                $result[] = new Quad($first_bn, new IRI(RdfConstants::RDF_REST), $rest_bn, $graph);
                 $first_bn = $rest_bn;
             }
-            
+
             return;
         }
 
@@ -1806,7 +1806,7 @@ class Processor
 
         if ($prevsubj)
         {
-            $result[] = array($prevsubj, $activeprty, $activesubj, $graph);;
+            $result[] = new Quad($prevsubj, $activeprty, $activesubj, $graph);;
         }
 
         $properties = get_object_vars($element);
@@ -1818,7 +1818,7 @@ class Processor
             {
                 foreach ($value as $val)
                 {
-                    $result[] = array($activesubj, new IRI(RdfConstants::RDF_TYPE), new IRI($val), $graph);
+                    $result[] = new Quad($activesubj, new IRI(RdfConstants::RDF_TYPE), new IRI($val), $graph);
                 }
                 continue;
             }
