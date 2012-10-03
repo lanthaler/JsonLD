@@ -32,7 +32,7 @@ abstract class Value
      * If the passed value element can't be transformed to a language-tagged
      * string or a typed value null is returned.
      *
-     * @param object $element The JSON-LD element
+     * @param \stdClass $element The JSON-LD element
      *
      * @return null|LanguageTaggedString|TypedValue The parsed object
      */
@@ -111,9 +111,9 @@ abstract class Value
     }
 
     /**
-     * Compares this Value object to the specified value.
+     * Compares this instance to the specified value.
      *
-     * @param mixed $value
+     * @param mixed $other The value this instance should be compared to.
      * @return bool Returns true if the passed value is the same as this
      *              instance; false otherwise.
      */

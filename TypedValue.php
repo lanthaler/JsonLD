@@ -74,11 +74,7 @@ final class TypedValue extends Value
     }
 
     /**
-     * Compares this Value object to the specified value.
-     *
-     * @param mixed $value
-     * @return bool Returns true if the passed value is the same as this
-     *              instance; false otherwise.
+     * {@inheritdoc}
      */
     public function equals($other)
     {

@@ -473,7 +473,7 @@ class Node
     /**
      * Compares this Node object to the specified value.
      *
-     * @param mixed $value
+     * @param mixed $other The value this instance should be compared to.
      * @return bool Returns true if the passed value is the same as this
      *              instance; false otherwise.
      */

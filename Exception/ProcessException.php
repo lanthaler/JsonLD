@@ -21,9 +21,27 @@ use ML\JsonLD\JsonLD;
  */
 class ProcessException extends \RuntimeException
 {
+    /**
+     * The file being processed
+     *
+     * @var string
+     */
     private $parsedFile;
+
+    /**
+     * The code snippet that triggered this exception
+     *
+     * @var mixed
+     */
     private $snippet;
+
+    /**
+     * The raw error message (containing place-holders)
+     *
+     * @var string
+     */
     private $rawMessage;
+
 
     /**
      * Constructor.

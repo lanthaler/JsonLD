@@ -697,8 +697,6 @@ class Processor
      * @param mixed  $element    A JSON-LD element to be compacted.
      * @param array  $activectx  The active context.
      * @param string $activeprty The active property.
-     * @param bool   $optimize   If set to true, the JSON-LD processor is allowed optimize
-     *                           the passed context to produce even compacter representations.
      *
      * @return mixed The compacted JSON-LD document.
      */
@@ -2312,7 +2310,7 @@ class Processor
      * are compared lexicographically.
      *
      * @param mixed $a Value A.
-     * @param mixed $a Value B.
+     * @param mixed $b Value B.
      *
      * @return int If value A is shorter than value B, -1 will be returned; if it's
      *             longer 1 will be returned. If both values have the same lenght

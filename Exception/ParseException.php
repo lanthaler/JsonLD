@@ -18,8 +18,20 @@ namespace ML\JsonLD\Exception;
  */
 class ParseException extends \RuntimeException
 {
+    /**
+     * The file being parsed
+     *
+     * @var string
+     */
     private $parsedFile;
+
+    /**
+     * The raw error message (containing place-holders)
+     *
+     * @var string
+     */
     private $rawMessage;
+
 
     /**
      * Constructor.

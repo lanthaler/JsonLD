@@ -29,8 +29,8 @@ final class LanguageTaggedString extends Value
     /**
      * Constructor
      *
-     * @param string $value The string's value.
-     * @param string $type The string's language.
+     * @param string $value    The string's value.
+     * @param string $language The string's language.
      */
     public function __construct($value, $language)
     {
@@ -67,11 +67,7 @@ final class LanguageTaggedString extends Value
     }
 
     /**
-     * Compares this language-tagged string object to the specified value.
-     *
-     * @param mixed $value
-     * @return bool Returns true if the passed value is the same as this
-     *              instance; false otherwise.
+     * {@inheritdoc}
      */
     public function equals($other)
     {

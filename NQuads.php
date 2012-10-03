@@ -21,7 +21,7 @@ use ML\IRI\IRI;
 class NQuads implements QuadSerializer
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function serialize(array $quads)
     {

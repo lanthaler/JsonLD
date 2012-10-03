@@ -21,7 +21,7 @@ interface QuadSerializer
     /**
      * Serializes quads to a string.
      *
-     * @param array $quads Array of {@link Quad Quads} to be serialized
+     * @param Quad[] $quads Array of quads to be serialized.
      *
      * @return string The serialized quads.
      */

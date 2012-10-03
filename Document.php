@@ -69,7 +69,7 @@ class Document
      *
      *   - <em>base</em>     The base IRI of the input document.
      *
-     * @param string|array|object $input The JSON-LD document to process.
+     * @param string|array|object $document The JSON-LD document to process.
      * @param null|array|object $options Options to configure the processing.
      *
      * @return Document The parsed JSON-LD document.

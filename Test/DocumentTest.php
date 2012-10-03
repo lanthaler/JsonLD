@@ -24,6 +24,11 @@ use ML\JsonLD\TypedValue;
  */
 class DocumentTest extends \PHPUnit_Framework_TestCase
 {
+    /**
+     * The document instance being used throughout the tests.
+     *
+     * @var Document
+     */
     protected $document;
 
     /**
