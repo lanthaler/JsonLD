@@ -16,7 +16,7 @@ use ML\JsonLD\Exception\ParseException;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-interface QuadSerializer
+interface QuadSerializerInterface
 {
     /**
      * Serializes quads to a string.

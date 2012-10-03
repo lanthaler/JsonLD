@@ -18,7 +18,7 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class NQuads implements QuadSerializer
+class NQuads implements QuadSerializerInterface
 {
     /**
      * {@inheritdoc}
