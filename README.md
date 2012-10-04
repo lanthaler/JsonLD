@@ -19,11 +19,11 @@ processor's basic functionality.
     [aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
     [named graphs](https://github.com/json-ld/json-ld.org/issues/118))
   * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-to-rdf-algorithm)
+  * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
   * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
 
 **Still missing:**
 
- * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
  * [PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
    and [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md) compliance
 
@@ -71,9 +71,21 @@ $expanded = JsonLD::expand('document.jsonld');
 $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
 $framed = JsonLD::frame('document.jsonld', 'frame.jsonld');
 $flattened = JsonLD::flatten('document.jsonld');
+$quads = JsonLD::toQuads('document.jsonld');
 
 // Output the expanded document (pretty print)
 print JsonLD::toString($expanded, true);
+
+// Serialize the quads as N-Quads
+$nquads = new NQuads();
+$serialized = $nquads->serialize($quads);
+print $serialized;
+
+// And parse them again to a JSON-LD document
+$quads = $nquads->parse($serialized);
+$document = JsonLD::fromQuads($quads);
+
+print JsonLD::toString($document, true);
 
 // Node-centric API
 $doc = JsonLD::getDocument('document.jsonld');

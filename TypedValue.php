@@ -76,6 +76,65 @@ final class TypedValue extends Value
     /**
      * {@inheritdoc}
      */
+    public function toJsonLd($useNativeTypes = true)
+    {
+        $result = new \stdClass();
+
+        if (true === $useNativeTypes)
+        {
+            if (RdfConstants::XSD_STRING === $this->type)
+            {
+                $result->{'@value'} = $this->value;
+
+                return $result;
+            }
+            elseif (RdfConstants::XSD_BOOLEAN === $this->type)
+            {
+                if ('true' === $this->value)
+                {
+                    $result->{'@value'} = true;
+
+                    return $result;
+                }
+                elseif ('false' === $this->value)
+                {
+                    $result->{'@value'} = false;
+
+                    return $result;
+                }
+
+            }
+            elseif (RdfConstants::XSD_INTEGER === $this->type)
+            {
+                if (preg_match('/^[\+|-]?\d+$/', trim($this->value)))
+                {
+                    $result->{'@value'} = intval($this->value);
+
+                    return $result;
+                }
+            }
+            elseif (RdfConstants::XSD_DOUBLE === $this->type)
+            {
+                // TODO Need to handle +/-INF and NaN as well?
+                if (preg_match('/^[\+|-]?\d+(?:\.\d*)?(?:[eE][\+|-]?\d+)?$/', trim($this->value)))
+                {
+                    $result->{'@value'} = floatval($this->value);
+
+                    return $result;
+                }
+                // TODO Need to preserve doubles without fraction for round-tripping??
+            }
+        }
+
+        $result->{'@value'} = $this->value;
+        $result->{'@type'} = $this->type;
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function equals($other)
     {
         if (get_class($this) !== get_class($other))

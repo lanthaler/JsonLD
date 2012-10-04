@@ -161,4 +161,35 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
     }
+
+
+    /**
+     * Tests conversion from quads.
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @dataProvider fromQuadsProvider
+     */
+    public function testFromQuads($name, $test, $options)
+    {
+        $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
+
+        $parser = new NQuads();
+        $quads = $parser->parse(file_get_contents($this->basedir . $test->{'input'}));
+
+        $result = JsonLD::fromQuads($quads, null, $options);
+
+        $this->assertEquals($expected, $result);
+    }
+
+
+    /**
+     * Provides conversion to quads test cases.
+     */
+    public function fromQuadsProvider()
+    {
+        return new TestManifestIterator($this->basedir . 'fromRdf-manifest.jsonld');
+    }
 }

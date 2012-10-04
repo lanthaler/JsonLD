@@ -12,6 +12,7 @@ namespace ML\JsonLD;
 use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
+use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
 /**
@@ -289,7 +290,7 @@ class Processor
         if (is_array($element))
         {
             $result = array();
-            foreach($element as &$item)
+            foreach ($element as &$item)
             {
                 $this->expand($item, $activectx, $activeprty, $frame);
 
@@ -1742,11 +1743,6 @@ class Processor
             return;
         }
 
-        if (false === is_object($element))
-        {
-            throw new SyntaxException("The value of $activeprty must not be a string.");
-        }
-
         if (property_exists($element, '@value'))
         {
             $value = Value::fromJsonLd($element);
@@ -1837,6 +1833,217 @@ class Processor
     }
 
     /**
+     * Converts an array of quads to a JSON-LD document
+     *
+     * The resulting JSON-LD document will be in expanded form.
+     *
+     * @param Quad[] $quads The quads to convert
+     *
+     * @return array The JSON-LD document.
+     *
+     * @throws InvalidQuadException If the quad is invalid.
+     */
+    public function fromQuads(array $quads)
+    {
+        $graphs = array();
+        $graphs['@default'] = new \stdClass();
+        $graphs['@default']->nodeMap = array();
+        $graphs['@default']->listMap = array();
+
+        foreach ($quads as $quad)
+        {
+            $graphName = '@default';
+
+            if ($quad->getGraph())
+            {
+                $graphName = (string)$quad->getGraph();
+
+                // Add a reference to this graph to the default graph if it
+                // doesn't exist yet
+                if (false === isset($graphs['@default']->nodeMap[$graphName]))
+                {
+                    $graphs['@default']->nodeMap[$graphName] =
+                        self::objectToJsonLd($quad->getGraph());
+                }
+            }
+
+            if (false === isset($graphs[$graphName]))
+            {
+                $graphs[$graphName] = new \stdClass();
+                $graphs[$graphName]->nodeMap = array();
+                $graphs[$graphName]->listMap = array();
+            }
+            $graph = $graphs[$graphName];
+
+            // Subjects and properties are always IRIs (blank nodes are IRIs
+            // as well): convert them to a string representation
+            $subject = (string)$quad->getSubject();
+            $property = (string)$quad->getProperty();
+            $object = $quad->getObject();
+
+            // All list nodes are stored in listMap
+            if ($property === RdfConstants::RDF_FIRST)
+            {
+                if (false === isset($graph->listMap[$subject]))
+                {
+                    $graph->listMap[$subject] = new \stdClass();
+                }
+
+                $graph->listMap[$subject]->first =
+                    self::objectToJsonLd($object, $this->useNativeTypes);
+
+                continue;
+            }
+
+            if ($property === RdfConstants::RDF_REST)
+            {
+                if (false === ($object instanceof IRI))
+                {
+                    throw new InvalidQuadException(
+                        'The value of rdf:rest must be an IRI or blank node.',
+                        $quad
+                    );
+                }
+
+                if (false === isset($graph->listMap[$subject]))
+                {
+                    $graph->listMap[$subject] = new \stdClass();
+                }
+
+                $graph->listMap[$subject]->rest = (string)$object;
+
+                continue;
+            }
+
+
+            // All other nodes (not list nodes) are stored in nodeMap
+            if (false === isset($graph->nodeMap[$subject]))
+            {
+                $graph->nodeMap[$subject] =
+                    self::objectToJsonLd($quad->getSubject());
+            }
+            $node = $graph->nodeMap[$subject];
+
+
+            if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType))
+            {
+                if (false === ($object instanceof IRI))
+                {
+                    throw new InvalidQuadException(
+                        'The value of rdf:type must be an IRI.',
+                        $quad);
+                }
+
+                self::mergeIntoProperty($node, '@type', (string)$object, true);
+            }
+            else
+            {
+                $value = self::objectToJsonLd($object, $this->useNativeTypes);
+                self::mergeIntoProperty($node, $property, $value, true);
+
+                // If the object is an IRI or blank node it might be the
+                // beginning of a list. Add it to the list map storing a
+                // reference to the value in the nodeMap in the entry's
+                // "head" property so that we can easily replace it with an
+                //  @list object if it turns out to be really a list
+                if (property_exists($value, '@id'))
+                {
+                    $id = $value->{'@id'};
+                    if (false === isset($graph->listMap[$id]))
+                    {
+                        $graph->listMap[$id] = new \stdClass();
+                    }
+
+                    $graph->listMap[$id]->head = $value;
+                }
+            }
+        }
+
+
+        // Reconstruct @list arrays from linked list structures for each graph
+        foreach ($graphs as $graphName => $graph)
+        {
+            foreach ($graph->listMap as $subject => $entry)
+            {
+                // If this node is a valid list head...
+                if (property_exists($entry, 'head') &&
+                    property_exists($entry, 'first'))
+                {
+                    $id = $subject;
+                    $value = $entry->head;
+
+                    // ... reconstruct the list
+                    $list = array();
+
+                    do
+                    {
+                        if (false === isset($graph->listMap[$id]))
+                        {
+                            throw new ProcessException(sprintf(
+                                'Invalid RDF list reference. "%s" doesn\'t exist.',
+                                $id)
+                            );
+                        }
+
+                        $entry = $graph->listMap[$id];
+
+                        if (false === property_exists($entry, 'first'))
+                        {
+                            throw new ProcessException(sprintf(
+                                'Invalid RDF list entry: rdf:first of "%s" missing.',
+                                $id)
+                            );
+                        }
+                        if (false === property_exists($entry, 'rest'))
+                        {
+                            throw new ProcessException(sprintf(
+                                'Invalid RDF list entry: rdf:rest of "%s" missing.',
+                                $id)
+                            );
+                        }
+
+                        $list[] = $entry->first;
+
+                        $id = $entry->rest;
+                    }
+                    while (RdfConstants::RDF_NIL !== $id);
+
+                    // and replace the object in the nodeMap with the list
+                    unset($value->{'@id'});
+                    $value->{'@list'} = $list;
+                }
+            }
+        }
+
+
+        // Generate the resulting document starting with the default graph
+        $document = array();
+
+        $nodes = $graphs['@default']->nodeMap;
+        ksort($nodes);
+
+        foreach ($nodes as $id => $node)
+        {
+            $document[] = $node;
+
+            if (isset($graphs[$id]))  // is this a named graph?
+            {
+                $node->{'@graph'} = array();
+
+                $graphNodes = $graphs[$id]->nodeMap;
+                ksort($nodes);
+
+                foreach ($graphNodes as $gnId => $graphNode)
+                {
+                    $node->{'@graph'}[] = $graphNode;
+                }
+            }
+        }
+
+        return $document;
+    }
+
+    /**
      * Frames a JSON-LD document according a supplied frame
      *
      * @param object $element A JSON-LD element to be framed.
@@ -1869,7 +2076,7 @@ class Processor
                 $options->{$keyword} = $frame->{$keyword};
                 unset($frame->{$keyword});
             }
-            elseif(false == property_exists($options, $keyword))
+            elseif (false == property_exists($options, $keyword))
             {
                 $options->{$keyword} = false;
             }
@@ -2069,7 +2276,7 @@ class Processor
                 }
             }
 
-            foreach($validValues as $validValue)
+            foreach ($validValues as $validValue)
             {
                 if (is_object($validValue))
                 {
@@ -2339,5 +2546,48 @@ class Processor
         {
             return 1;
         }
+    }
+
+    /**
+     * Converts an object to a JSON-LD representation
+     *
+     * Only {@link IRI IRIs}, {@LanguageTaggedString language-tagged strings},
+     * and {@link TypedValue typed values} are converted by this method. All
+     * other objects are returned as-is.
+     *
+     * @param  $object The object to convert.
+     * @param boolean $useNativeTypes If set to true, native types are used
+     *                                for xsd:integer, xsd:double, and
+     *                                xsd:boolean, otherwise typed strings
+     *                                will be used instead.
+     *
+     * @return mixed The JSON-LD representation of the object.
+     */
+    private static function objectToJsonLd($object, $useNativeTypes = true)
+    {
+        if ($object instanceof IRI)
+        {
+            $iri = (string)$object;
+            $result = new \stdClass();
+
+            // rdf:nil represents the end of a list and is at the same
+            // time used to represent empty lists
+            if (RdfConstants::RDF_NIL === $iri)
+            {
+                $result->{'@list'} = array();
+
+                return $result;
+            }
+
+            $result->{'@id'} = $iri;
+
+            return $result;
+        }
+        elseif ($object instanceof Value)
+        {
+            return $object->toJsonLd($useNativeTypes);
+        }
+
+        return $object;
     }
 }

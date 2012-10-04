@@ -69,6 +69,18 @@ final class LanguageTaggedString extends Value
     /**
      * {@inheritdoc}
      */
+    public function toJsonLd($useNativeTypes = true)
+    {
+        $result = new \stdClass();
+        $result->{'@value'} = $this->value;
+        $result->{'@language'} = $this->language;
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function equals($other)
     {
         if (get_class($this) !== get_class($other))

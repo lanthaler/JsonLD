@@ -369,7 +369,7 @@ class JsonLD
      *                          couldn't be parsed.
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
-     * @throws ProcessException If expanding the JSON-LD document failed.
+     * @throws ProcessException If converting the JSON-LD document to quads failed.
      *
      * @api
      */
@@ -385,6 +385,48 @@ class JsonLD
         $processor->toQuads($input, $quads);
 
         return $quads;
+    }
+
+    /**
+     * Converts an array of quads to a JSON-LD document
+     *
+     * Usage:
+     *  <code>
+     *    $document = JsonLD::fromQuads($quads);
+     *    JsonLD::toString($document, true);
+     *  </code>
+     *
+     * It is possible to configure the conversion process by setting the options
+     * parameter accordingly. Available options are:
+     *
+     *   - <em>base</em>           The base IRI of the input document.
+     *   - <em>useNativeTypes</em> If set to true, native types are used for
+     *                             xsd:integer, xsd:double, and xsd:boolean,
+     *                             otherwise typed strings will be used instead.
+     *   - <em>useRdfType</em>     If set to true, rdf:type will be used instead
+     *                             of @type in document.
+     *
+     * The options parameter might be passed as an associative array or an
+     * object.
+     *
+     * @param Quad[] $quads              Array of quads.
+     * @param null|array|object $options Options to configure the expansion
+     *                                   process.
+     *
+     * @return array The JSON-LD document in expanded form.
+     *
+     * @throws InvalidQuadException If an invalid quad was detected.
+     * @throws ProcessException If converting the quads to a JSON-LD document failed.
+     *
+     * @api
+     */
+    public static function fromQuads(array $quads, $options = null)
+    {
+        $options = self::mergeOptions($options);
+
+        $processor = new Processor($options);
+
+        return $processor->fromQuads($quads);
     }
 
     /**

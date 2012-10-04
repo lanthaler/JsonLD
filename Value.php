@@ -25,22 +25,48 @@ abstract class Value
      */
     protected $value;
 
+    /**
+     * Set the value
+     *
+     * @param string $value The value.
+     *
+     * @throws \InvalidArgumentException If the value is not a string.
+     */
+    public function setValue($value)
+    {
+        if (!is_string($value))
+        {
+            throw new \InvalidArgumentException('value must be a string.');
+        }
+
+        $this->value = $value;
+    }
+
+    /**
+     * Get the value
+     *
+     * @return string The value.
+     */
+    public function getValue()
+    {
+        return $this->value;
+    }
 
     /**
      * Create a LanguageTaggedString or TypedValue from a JSON-LD element
      *
      * If the passed value element can't be transformed to a language-tagged
-     * string or a typed value null is returned.
+     * string or a typed value false is returned.
      *
      * @param \stdClass $element The JSON-LD element
      *
-     * @return null|LanguageTaggedString|TypedValue The parsed object
+     * @return false|LanguageTaggedString|TypedValue The parsed object
      */
     public static function fromJsonLd(\stdClass $element)
     {
         if (false === property_exists($element, '@value'))
         {
-            return null;
+            return false;
         }
 
         $value = $element->{'@value'};
@@ -71,7 +97,7 @@ abstract class Value
         }
         elseif (false === is_string($value))
         {
-            return null;
+            return false;
         }
 
         // @type gets precedence
@@ -84,31 +110,16 @@ abstract class Value
     }
 
     /**
-     * Set the value
+     * Convert this instance to a JSON-LD element in expanded form
      *
-     * @param string $value The value.
+     * @param boolean $useNativeTypes If set to true, native types are used
+     *                                for xsd:integer, xsd:double, and
+     *                                xsd:boolean, otherwise typed strings
+     *                                will be used instead.
      *
-     * @throws \InvalidArgumentException If the value is not a string.
+     * @return string|integer|float|boolean|\stdClass The JSON-LD element.
      */
-    public function setValue($value)
-    {
-        if (!is_string($value))
-        {
-            throw new \InvalidArgumentException('value must be a string.');
-        }
-
-        $this->value = $value;
-    }
-
-    /**
-     * Get the value
-     *
-     * @return string The value.
-     */
-    public function getValue()
-    {
-        return $this->value;
-    }
+    abstract public function toJsonLd($useNativeTypes = true);
 
     /**
      * Compares this instance to the specified value.
