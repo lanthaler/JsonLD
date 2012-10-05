@@ -1,15 +1,14 @@
-JsonLD
+JsonLD [![Build Status](https://secure.travis-ci.org/lanthaler/JsonLD.png?branch=master)](http://travis-ci.org/lanthaler/JsonLD)
 ==============
 
-This is a [PSR-0](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md) compliant
-JSON-LD processor by one of the specifications authors. The processor is extensivelly tested and passes the
-[official JSON-LD test suite](https://github.com/json-ld/json-ld.org/tree/master/test-suite):
-[![Build Status](https://secure.travis-ci.org/lanthaler/JsonLD.png?branch=master)](http://travis-ci.org/lanthaler/JsonLD)
+JsonLD is a [PSR-0](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md) compliant
+JSON-LD processor. It is extensively tested and passes the
+[official JSON-LD test suite](https://github.com/json-ld/json-ld.org/tree/master/test-suite).
 
 There's also an [online playground](http://www.markus-lanthaler.com/jsonld/playground/) where you can evaluate the
 processor's basic functionality.
 
-**Already implemented:**
+**All the features of the official specification plus a few more are supported:**
 
   * [expansion](http://json-ld.org/spec/latest/json-ld-api/#expansion)
   * [compaction](http://json-ld.org/spec/latest/json-ld-api/#compaction)
@@ -22,10 +21,8 @@ processor's basic functionality.
   * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
   * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
 
-**Still missing:**
-
- * [PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
-   and [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md) compliance
+In the coming weeks I also plan to make the code [PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
+and [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md) compliant.
 
 
 Installation
