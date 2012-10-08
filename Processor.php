@@ -2439,7 +2439,7 @@ class Processor
         if (property_exists($object, $property))
         {
             throw new SyntaxException(
-                "Colliding \"$property\" properties detected.",
+                "Object already contains a property \"$property\".",
                 $object);
         }
 
