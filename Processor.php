@@ -891,6 +891,8 @@ class Processor
         // Calculate rank of full IRI
         $highestRank = $this->calculateTermRank($iri, $value, $activectx);
 
+        $highestRank = (false === $highestRank) ? 0 : $highestRank;
+
         foreach ($activectx as $term => $definition)
         {
             if (isset($definition['@id']))  // TODO Will anything else ever be in the context??
@@ -910,13 +912,12 @@ class Processor
                         $highestRank = $rank;
                     }
 
-                    if ($rank == $highestRank)
+                    if ((false !== $rank) && ($rank == $highestRank))
                     {
                         $compactIris[] = $term;
                     }
                 }
 
-                // TODO Should we really prevent empty suffixes?
                 // If no matching terms have been found yet, store compact IRI if it doesn't exist as term at the same time
                 if ((strlen($iri) > strlen($definition['@id'])) &&
                     (0 === substr_compare($iri, $definition['@id'], 0, strlen($definition['@id']))))
@@ -932,7 +933,7 @@ class Processor
                             $highestRank = $rank;
                         }
 
-                        if ($rank == $highestRank)
+                        if ((false !== $rank) && ($rank == $highestRank))
                         {
                             $compactIris[] = $compactIri;
                         }
@@ -954,7 +955,7 @@ class Processor
                     $highestRank = $rank;
                 }
 
-                if ($rank == $highestRank)
+                if ((false !== $rank) && ($rank == $highestRank))
                 {
                     $compactIris[] = $relativeIri;
                 }
@@ -1093,7 +1094,7 @@ class Processor
      * @param mixed  $value      The value of the property to rank the term for.
      * @param array  $activectx  The active context.
      *
-     * @return int Returns the term rank.
+     * @return int|false Returns the term rank or false if the term isn't usable.
      */
     private function calculateTermRank($term, $value, $activectx)
     {
@@ -1136,9 +1137,8 @@ class Processor
         {
             if ('@list' == $def['@container'])
             {
-                // For non-list values, a term with a list-container should never be choosen!
-                $rank -= 3;
-                return $rank;
+                // For non-list values, a term with a list-container should never be chosen!
+                return false;
             }
             elseif ('@set' == $def['@container'])
             {
@@ -1161,7 +1161,7 @@ class Processor
                     if (array_key_exists($term, $activectx) &&
                         (isset($activectx[$term]['@type']) || isset($activectx[$term]['@language'])))
                     {
-                        $rank -= 2;  // (-2 since the term was preferred initially)
+                        return false;
                     }
                 }
             }
