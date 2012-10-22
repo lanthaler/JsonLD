@@ -48,7 +48,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
             {
                 $result .= '"' . $quad->getObject()->getValue() . '"';
                 $result .= ($quad->getObject() instanceof TypedValue)
-                    ? '^^<' . $quad->getObject()->getType() . '>'
+                    ? (RdfConstants::XSD_STRING === $quad->getObject()->getType()) ? '' : '^^<' . $quad->getObject()->getType() . '>'
                     : '@' . $quad->getObject()->getLanguage();
             }
             $result .= ' ';
