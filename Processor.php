@@ -1663,7 +1663,7 @@ class Processor
      *
      * @param string $id If available, existing blank node identifier.
      *
-     * @return Returns a blank node identifier.
+     * @return string Returns a blank node identifier.
      */
     private function getBlankNodeId($id = null)
     {
