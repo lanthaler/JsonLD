@@ -1271,7 +1271,7 @@ class Processor
             {
                 return $this->contextIriExpansion($loclctx->{$iri}, $loclctx, $activectx, $path);
             }
-            elseif (property_exists($loclctx->{$iri}, '@id'))
+            elseif (isset($loclctx->{$iri}->{'@id'}))
             {
                 return $this->contextIriExpansion($loclctx->{$iri}->{'@id'}, $loclctx, $activectx, $path);
             }
@@ -1303,7 +1303,7 @@ class Processor
         }
         elseif (array_key_exists('@vocab', $activectx))
         {
-            return $activectx['@vocab']. $iri;
+            return $activectx['@vocab'] . $iri;
         }
 
 
