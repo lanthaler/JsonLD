@@ -54,7 +54,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::expand($this->basedir . $test->{'input'},
-                                 null,
                                  $options);
 
         $this->assertEquals($expected, $result);
@@ -116,7 +115,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::frame($this->basedir . $test->{'input'},
                                 $this->basedir . $test->{'frame'},
-                                null,
                                 $options);
 
         $this->assertEquals($expected, $result);
@@ -144,7 +142,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         $expected = file_get_contents($this->basedir . $test->{'expect'});
         $quads = JsonLD::toQuads($this->basedir . $test->{'input'},
-                                 null,
                                  $options);
 
         $serializer = new NQuads();
@@ -179,7 +176,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $parser = new NQuads();
         $quads = $parser->parse(file_get_contents($this->basedir . $test->{'input'}));
 
-        $result = JsonLD::fromQuads($quads, null, $options);
+        $result = JsonLD::fromQuads($quads, $options);
 
         $this->assertEquals($expected, $result);
     }

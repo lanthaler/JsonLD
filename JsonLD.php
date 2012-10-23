@@ -106,7 +106,10 @@ class JsonLD
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
+     *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *
      * @param string|array|object $input The JSON-LD document to process.
      * @param null|array|object $options Options to configure the processing.
@@ -120,7 +123,7 @@ class JsonLD
     public static function getDocument($input, $options = null)
     {
         // TODO $input can be an IRI, if so overwrite base iri accordingly
-        $input = self::expand($input, null, $options);
+        $input = self::expand($input, $options);
 
         $processor = new Processor(self::mergeOptions($options));
 
@@ -142,15 +145,15 @@ class JsonLD
      * It is possible to configure the expansion process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
+     *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *
      * The options parameter might be passed as an associative array or an
      * object.
      *
      * @param string|array|object $input  The JSON-LD document to expand.
-     * @param null|string|object $context An optional context to use additionally
-     *                                    to the context embedded in input when
-     *                                    expanding the input.
      * @param null|array|object $options  Options to configure the expansion
      *                                    process.
      *
@@ -164,18 +167,19 @@ class JsonLD
      *
      * @api
      */
-    public static function expand($input, $context = null, $options = null)
+    public static function expand($input, $options = null)
     {
         // TODO $input can be an IRI, if so overwrite base iri accordingly
         $input = self::parse($input);
 
-        $processor = new Processor(self::mergeOptions($options));
+        $options = self::mergeOptions($options);
+
+        $processor = new Processor($options);
         $activectx = array();
 
-        if (null !== $context)
+        if (null !== $options->expandContext)
         {
-            $context = self::parse($context);
-            $processor->processContext($context, $activectx);
+            $processor->processContext($options->expandContext, $activectx);
         }
 
         $processor->expand($input, $activectx);
@@ -211,6 +215,9 @@ class JsonLD
      * options parameter accordingly. Available options are:
      *
      *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *   - <em>optimize</em>      If set to true, the processor is free to optimize
      *                            the result to produce an even compacter
      *                            representation than the algorithm described by
@@ -224,7 +231,7 @@ class JsonLD
      *
      * @param string|array|object $input The JSON-LD document to compact.
      * @param string|object $context     The context.
-     * @param null|array|object $options Options to configure the compaciton
+     * @param null|array|object $options Options to configure the compaction
      *                                   process.
      *
      * @return mixed The compacted JSON-LD document.
@@ -242,7 +249,7 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         // TODO $input can be an IRI, if so overwrite $baseiri accordingly!?
-        $input = self::expand($input, null, $options);
+        $input = self::expand($input, $options);
         $context = self::parse($context);
 
         if (false == is_object($context) || (false == property_exists($context, '@context')))
@@ -300,6 +307,9 @@ class JsonLD
      * parameter accordingly. Available options are:
      *
      *   - <em>base</em>     The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *
      * The options parameter might be passed as an associative array or an
      * object.
@@ -309,9 +319,6 @@ class JsonLD
      *                                    be returned. The default graph is identified by
      *                                    <code>@default</code> and the merged graph by
      *                                    <code>@merged</code>.
-     * @param null|string|object $context An optional context to use additionally
-     *                                    to the context embedded in input when
-     *                                    expanding the input.
      * @param null|array|object $options  Options to configure the expansion
      *                                    process.
      *
@@ -325,11 +332,11 @@ class JsonLD
      *
      * @api
      */
-    public static function flatten($input, $graph = '@merged', $context = null, $options = null)
+    public static function flatten($input, $graph = '@merged', $options = null)
     {
         $options = self::mergeOptions($options);
 
-        $input = self::expand($input, $context, $options);
+        $input = self::expand($input, $options);
 
         $processor = new Processor($options);
 
@@ -351,15 +358,15 @@ class JsonLD
      * It is possible to configure the extraction process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
+     *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *
      * The options parameter might be passed as an associative array or an
      * object.
      *
      * @param string|array|object $input  The JSON-LD document to expand.
-     * @param null|string|object $context An optional context to use additionally
-     *                                    to the context embedded in input when
-     *                                    expanding the input.
      * @param null|array|object $options  Options to configure the expansion
      *                                    process.
      *
@@ -373,11 +380,11 @@ class JsonLD
      *
      * @api
      */
-    public static function toQuads($input, $context = null, $options = null)
+    public static function toQuads($input, $options = null)
     {
         $options = self::mergeOptions($options);
 
-        $input = self::expand($input, $context, $options);
+        $input = self::expand($input, $options);
 
         $processor = new Processor($options);
 
@@ -445,6 +452,9 @@ class JsonLD
      * parameter accordingly. Available options are:
      *
      *   - <em>base</em>          The base IRI of the input document.
+     *   - <em>expandContext</em> An optional context to use additionally
+     *                            to the context embedded in input when
+     *                            expanding the input.
      *   - <em>optimize</em>      If set to true, the processor is free to optimize
      *                            the result to produce an even compacter
      *                            representation than the algorithm described by
@@ -458,9 +468,6 @@ class JsonLD
      *
      * @param string|array|object $input  The JSON-LD document to compact.
      * @param string|object $frame        The frame.
-     * @param null|string|object $context An optional context to use additionally
-     *                                    to the context embedded in input when
-     *                                    expanding the input.
      * @param null|array|object $options  Options to configure the framing
      *                                    process.
      *
@@ -474,12 +481,12 @@ class JsonLD
      *
      * @api
      */
-    public static function frame($input, $frame, $context = null, $options = null)
+    public static function frame($input, $frame, $options = null)
     {
         $options = self::mergeOptions($options);
 
         // TODO $input can be an IRI, if so overwrite $baseiri accordingly!?
-        $input = self::expand($input, $context, $options);
+        $input = self::expand($input, $options);
         $frame = self::parse($frame);
 
         if (false == is_object($frame))
@@ -586,6 +593,7 @@ class JsonLD
     {
         $result = (object)array(
             'base' => '',
+            'expandContext' => null,
             'compactArrays' => true,
             'optimize' => false,
             'useNativeTypes' => true,
@@ -598,6 +606,16 @@ class JsonLD
             if (property_exists($options, 'base') && is_string($options->base))
             {
                 $result->base = $options->base;
+            }
+            if (property_exists($options, 'expandContext'))
+            {
+                if (is_string($options->expandContext)) {
+                    $result->expandContext = self::parse($options->expandContext);
+                }
+                elseif (is_object($options->expandContext))
+                {
+                    $result->expandContext = $options->expandContext;
+                }
             }
             if (property_exists($options, 'compactArrays') && is_bool($options->compactArrays))
             {
