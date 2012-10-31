@@ -640,36 +640,84 @@ class Processor
      *                              relative IRI as fallback or not.
      * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
      *                              if set or not.
+     * @param object $localctx      If the IRI is being expanded as part of context
+     *                              processing, the current local context has to be
+     *                              passed as well.
+     * @param array  $path          A path of already processed terms.
      *
      * @return string The expanded IRI.
      */
-    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false)
+    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false, $localctx = null, $path = array())
     {
-        if (array_key_exists($value, $activectx) && isset($activectx[$value]['@id']))
+        if ($localctx)
+        {
+            if (in_array($value, $path))
+            {
+                throw new ProcessException(
+                    'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
+                    $localctx);
+            }
+            else
+            {
+                $path[] = $value;
+
+                if (count($path) >= self::CONTEXT_MAX_IRI_RECURSIONS)
+                {
+                    throw new ProcessException(
+                        'Too many recursions in term definition: ' . join(' -> ', $path) . ' -> ' . $path[0],
+                        $localctx);
+                }
+            }
+
+            if (isset($localctx->{$value}))
+            {
+                if (is_string($localctx->{$value}))
+                {
+                    return $this->expandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
+                }
+                elseif (isset($localctx->{$value}->{'@id'}))
+                {
+                    return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
+                }
+            }
+        }
+
+
+        if (array_key_exists($value, $activectx) && isset($activectx[$value]['@id'])) // TODO 2nd check not needed!?
         {
             return $activectx[$value]['@id'];
         }
 
-        if (false !== ($colon = strpos($value, ':')))
+        if (false !== strpos($value, ':'))
         {
-            if ('://' == substr($value, $colon, 3))  // TODO Check this
+            list($prefix, $suffix) = explode(':', $value, 2);
+
+            if ('//' == substr($suffix, 0, 2))  // TODO Check this
             {
                 // Safety measure to prevent reassigned of, e.g., http://
                 return $value;
             }
-            else
+
+            if ('_' == $prefix)
             {
-                $prefix = substr($value, 0, $colon);
-                if ('_' == $prefix)
+                // it is a named blank node
+                return $value;
+            }
+            elseif ($localctx)
+            {
+
+                $prefix = $this->expandIri($prefix, $activectx, false, true, $localctx, $path);
+
+                // If prefix contains a colon, we have successfully expanded it
+                if (false !== strpos($prefix, ':'))
                 {
-                    // it is a named blank node
-                    return $value;
+                    return $prefix . $suffix;
                 }
-                elseif (array_key_exists($prefix, $activectx) && isset($activectx[$prefix]['@id']))
-                {
-                    // compact IRI
-                    return $activectx[$prefix]['@id'] . substr($value, $colon + 1);
-                }
+            }
+            elseif (array_key_exists($prefix, $activectx) && isset($activectx[$prefix]['@id']))
+            {
+                // compact IRI
+                return $activectx[$prefix]['@id'] . $suffix;
             }
         }
         elseif (false == in_array($value, self::$keywords))
@@ -1234,84 +1282,6 @@ class Processor
     }
 
     /**
-     * Expands compact IRIs in the context
-     *
-     * @param string $iri        The IRI that should be expanded.
-     * @param array  $loclctx    The local context.
-     * @param array  $activectx  The active context.
-     * @param array  $path       A path of already processed terms.
-     *
-     * @return string Returns the expanded IRI.
-     *
-     * @throws ProcessException If a cycle is detected while expanding the IRI.
-     */
-    private function contextIriExpansion($iri, $loclctx, $activectx, $path = array())
-    {
-        if (in_array($iri, $path))
-        {
-            throw new ProcessException(
-                'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
-                $loclctx);
-        }
-        else
-        {
-            $path[] = $iri;
-
-            if (count($path) >= self::CONTEXT_MAX_IRI_RECURSIONS)
-            {
-                throw new ProcessException(
-                    'Too many recursions in term definition: ' . join(' -> ', $path) . ' -> ' . $path[0],
-                    $loclctx);
-            }
-        }
-
-        if (isset($loclctx->{$iri}))
-        {
-            if (is_string($loclctx->{$iri}))
-            {
-                return $this->contextIriExpansion($loclctx->{$iri}, $loclctx, $activectx, $path);
-            }
-            elseif (isset($loclctx->{$iri}->{'@id'}))
-            {
-                return $this->contextIriExpansion($loclctx->{$iri}->{'@id'}, $loclctx, $activectx, $path);
-            }
-        }
-
-        if (array_key_exists($iri, $activectx))
-        {
-            // all values in the active context have already been expanded
-            return $activectx[$iri]['@id'];
-        }
-
-        if (false !== strpos($iri, ':'))
-        {
-            list($prefix, $suffix) = explode(':', $iri, 2);
-
-            if ('//' == substr($suffix, 0, 2))  // TODO Check this
-            {
-                // Safety measure to prevent reassigned of, e.g., http://
-                return $iri;
-            }
-
-            $prefix = $this->contextIriExpansion($prefix, $loclctx, $activectx, $path);
-
-            // If prefix contains a colon, we have successfully expanded it
-            if (false !== strpos($prefix, ':'))
-            {
-                return $prefix . $suffix;
-            }
-        }
-        elseif (array_key_exists('@vocab', $activectx))
-        {
-            return $activectx['@vocab'] . $iri;
-        }
-
-
-        // Couldn't expand it, return as is
-        return $iri;
-    }
-
-    /**
      * Processes a local context to update the active context
      *
      * @param mixed  $loclctx    The local context.
@@ -1382,7 +1352,7 @@ class Processor
 
                     if (is_string($value))
                     {
-                        $expanded = $this->contextIriExpansion($value, $context, $activectx);
+                        $expanded = $this->expandIri($value, $activectx, false, true, $context);
 
                         if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
                         {
@@ -1402,11 +1372,11 @@ class Processor
 
                         if (isset($value->{'@id'}))
                         {
-                            $expanded = $this->contextIriExpansion($value->{'@id'}, $context, $activectx);
+                            $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
                         }
                         else
                         {
-                            $expanded = $this->contextIriExpansion($key, $context, $activectx);
+                            $expanded = $this->expandIri($key, $activectx, false, true, $context);
                         }
 
                         if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
@@ -1427,7 +1397,7 @@ class Processor
 
                         if (isset($value->{'@type'}))
                         {
-                            $expanded = $this->contextIriExpansion($value->{'@type'}, $context, $activectx);
+                            $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
 
                             if (('@id' != $expanded) && (false === strpos($expanded, ':')))
                             {
