@@ -16,8 +16,6 @@ use ML\JsonLD\JsonLD;
  * Exception class thrown when an error occurs during processing.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
- *
- * @api
  */
 class ProcessException extends \RuntimeException
 {

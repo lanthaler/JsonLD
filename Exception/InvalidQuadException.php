@@ -16,8 +16,6 @@ use ML\JsonLD\Quad;
  * Exception that is thrown when an invalid quad is detected.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
- *
- * @api
  */
 class InvalidQuadException extends \RuntimeException
 {

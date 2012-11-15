@@ -13,8 +13,6 @@ namespace ML\JsonLD\Exception;
  * Exception class thrown when an error occurs during parsing.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
- *
- * @api
  */
 class ParseException extends \RuntimeException
 {

@@ -16,8 +16,6 @@ use ML\JsonLD\JsonLD;
  * Exception class thrown when a JSON-LD syntax error is detected.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
- *
- * @api
  */
 class SyntaxException extends \RuntimeException
 {

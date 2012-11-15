@@ -15,8 +15,6 @@ use ML\JsonLD\Exception\ParseException;
  * JsonLD offers convenience methods to load, process, and dump JSON-LD.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
- *
- * @api
  */
 class JsonLD
 {
@@ -38,8 +36,6 @@ class JsonLD
      * @return mixed The JSON-LD document converted to a PHP representation.
      *
      * @throws ParseException If the JSON-LD input document is invalid.
-     *
-     * @api
      */
     public static function parse($input)
     {
@@ -117,8 +113,6 @@ class JsonLD
      * @return Document The parsed JSON-LD document.
      *
      * @throws ParseException If the JSON-LD input document is invalid.
-     *
-     * @api
      */
     public static function getDocument($input, $options = null)
     {
@@ -164,8 +158,6 @@ class JsonLD
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If expanding the JSON-LD document failed.
-     *
-     * @api
      */
     public static function expand($input, $options = null)
     {
@@ -241,8 +233,6 @@ class JsonLD
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If compacting the JSON-LD document failed.
-     *
-     * @api
      */
     public static function compact($input, $context, $options = null)
     {
@@ -329,8 +319,6 @@ class JsonLD
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If flattening the JSON-LD document failed.
-     *
-     * @api
      */
     public static function flatten($input, $graph = '@merged', $options = null)
     {
@@ -377,8 +365,6 @@ class JsonLD
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If converting the JSON-LD document to quads failed.
-     *
-     * @api
      */
     public static function toQuads($input, $options = null)
     {
@@ -424,8 +410,6 @@ class JsonLD
      *
      * @throws InvalidQuadException If an invalid quad was detected.
      * @throws ProcessException If converting the quads to a JSON-LD document failed.
-     *
-     * @api
      */
     public static function fromQuads(array $quads, $options = null)
     {
@@ -478,8 +462,6 @@ class JsonLD
      * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If framing the JSON-LD document failed.
-     *
-     * @api
      */
     public static function frame($input, $frame, $options = null)
     {
@@ -549,8 +531,6 @@ class JsonLD
      *                      (this just works in PHP >=5.4)?
      *
      * @return string A JSON-LD string.
-     *
-     * @api
      */
     public static function toString($value, $pretty = false)
     {
