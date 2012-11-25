@@ -461,7 +461,6 @@ class Processor
                                 else
                                 {
                                     $result[] = $this->expandIri($item, $activectx, true, true);
-
                                 }
                             }
                             else
