@@ -159,7 +159,7 @@ class JsonLD
      *                          contains syntax errors.
      * @throws ProcessException If expanding the JSON-LD document failed.
      */
-    public static function expand($input, $options = null)
+    public static function expand($input, $options = null, $debug = false)
     {
         // TODO $input can be an IRI, if so overwrite base iri accordingly
         $input = self::parse($input);
@@ -174,18 +174,20 @@ class JsonLD
             $processor->processContext($options->expandContext, $activectx);
         }
 
-        $processor->expand($input, $activectx);
+        $processor->expand($input, $activectx, null, false, $debug);
 
-        // optimize away default graph (@graph as the only property at the top-level object)
-        if (is_object($input) && property_exists($input, '@graph') &&
-            (1 == count(get_object_vars($input))))
-        {
-            $input = $input->{'@graph'};
-        }
+        if (false === $debug) {
+            // optimize away default graph (@graph as the only property at the top-level object)
+            if (is_object($input) && property_exists($input, '@graph') &&
+                (1 == count(get_object_vars($input))))
+            {
+                $input = $input->{'@graph'};
+            }
 
-        if (false === is_array($input))
-        {
-            $input = array($input);
+            if (false === is_array($input))
+            {
+                $input = array($input);
+            }
         }
 
         return $input;

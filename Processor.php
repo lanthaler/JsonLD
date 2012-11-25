@@ -285,14 +285,14 @@ class Processor
      * @throws ProcessException If the expansion failed.
      * @throws ParseException   If a remote context couldn't be processed.
      */
-    public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
+    public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false, $debug = false)
     {
         if (is_array($element))
         {
             $result = array();
             foreach ($element as &$item)
             {
-                $this->expand($item, $activectx, $activeprty, $frame);
+                $this->expand($item, $activectx, $activeprty, $frame, $debug);
 
                 // Check for lists of lists
                 if ((isset($activectx[$activeprty]['@container']) &&
@@ -329,12 +329,25 @@ class Processor
             if (property_exists($element, '@context'))
             {
                 $this->processContext($element->{'@context'}, $activectx);
-                unset($element->{'@context'});
+
+                if (false === $debug) {
+                    unset($element->{'@context'});
+                } else {
+                    // TODO DEBUG
+                    $newctx = new \stdClass();
+                    $newctx->{'__value'} = $element->{'@context'};
+                    $newctx->{'__activectx'} = $activectx;
+                    $element->{'@context'} = $newctx;
+                }
             }
 
             $properties = get_object_vars($element);
             foreach ($properties as $property => &$value)
             {
+                if ('@context' === $property) {
+                    continue;
+                }
+
                 // Remove property from object...
                 unset($element->{$property});
 
@@ -344,7 +357,7 @@ class Processor
                 // Make sure to keep framing keywords if a frame is being expanded
                 if ((true == $frame) && in_array($expProperty, self::$framingKeywords))
                 {
-                    self::setProperty($element, $expProperty, $value);
+                    self::setProperty($element, $expProperty, $value, ($debug) ? $property : null);
                     continue;
                 }
 
@@ -365,6 +378,9 @@ class Processor
                      (false == in_array($expProperty, self::$keywords))))
                 {
                     // TODO Check if this is enough or if we need to do some regex check, is 0:1 valid? (see ISSUE-56)
+                    if ($debug) {
+                        self::setProperty($element, null, $value, $property);
+                    }
                     continue;
                 }
 
@@ -372,8 +388,16 @@ class Processor
                 {
                     if (is_string($value))
                     {
-                        $value = $this->expandIri($value, $activectx, true);
-                        self::setProperty($element, $expProperty, $value);
+                        if ($debug) {
+                            $result = new \stdClass();
+                            $result->{'__orig_value'} = $value;
+                            $result->{'__value'} = (object) array('@id' => $this->expandIri($value, $activectx, true));
+                            $value = $result;
+                        } else {
+                            $value = $this->expandIri($value, $activectx, true);
+                        }
+
+                        self::setProperty($element, $expProperty, $value, ($debug) ? $property : null);
                         continue;
                     }
                     else
@@ -385,16 +409,26 @@ class Processor
                 }
                 elseif ('@type' == $expProperty)
                 {
+                    // TODO DEBUG Handle this
+
                     // TODO Check value space once agreed (see ISSUE-114)
 
                     if (is_string($value))
                     {
-                        $value = $this->expandIri($value, $activectx, true, true);
-                        self::setProperty($element, $expProperty, $value);
+                        if ($debug) {
+                            $result = new \stdClass();
+                            $result->{'__orig_value'} = $value;
+                            $result->{'__value'} = (object) array('@id' => $this->expandIri($value, $activectx, true, true));
+                            $value = $result;
+                        } else {
+                            $value = $this->expandIri($value, $activectx, true, true);
+                        }
+
+                        self::setProperty($element, $expProperty, $value, ($debug) ? $property : null);
                     }
                     else
                     {
-                        if (false == is_array($value))
+                        if (false === ($wasArray = is_array($value)))
                         {
                             $value = array($value);
                         }
@@ -417,7 +451,10 @@ class Processor
 
                             if (is_string($item))
                             {
-                                $result[] = $this->expandIri($item, $activectx, true, true);
+                                $result[] = (object) array(
+                                    '__orig_value' => $item,
+                                    '__value' => (object) array('@id' => $this->expandIri($item, $activectx, true, true))
+                                );
                             }
                             else
                             {
@@ -433,10 +470,18 @@ class Processor
 
                         }
 
-                        // Don't keep empty arrays
-                        if (count($result) >= 1)
-                        {
-                            self::mergeIntoProperty($element, $expProperty, $result, true);
+                        if ($debug) {
+                            if (!$wasArray) {
+                                $result = $result[0];
+                            }
+
+                            self::setProperty($element, $expProperty, $result, $property);
+                        } else {
+                            // Don't keep empty arrays
+                            if (count($result) >= 1)
+                            {
+                                self::mergeIntoProperty($element, $expProperty, $result, true);
+                            }
                         }
                     }
 
@@ -463,7 +508,7 @@ class Processor
                         $value = array($value);
                     }
 
-                    self::setProperty($element, $expProperty, $value);
+                    self::setProperty($element, $expProperty, $value, ($debug) ? $property : null);
 
                     continue;
                 }
@@ -472,7 +517,7 @@ class Processor
                     // Expand value
                     if (('@set' == $expProperty) || ('@list' == $expProperty))
                     {
-                        $this->expand($value, $activectx, $activeprty, $frame);
+                        $this->expand($value, $activectx, $activeprty, $frame, $debug);
                     }
                     else
                     {
@@ -491,7 +536,7 @@ class Processor
                             foreach ($value as $language => $val)
                             {
                                 $updatedContext['@language'] = $language;
-                                $this->expand($val, $updatedContext, $property, $frame);
+                                $this->expand($val, $updatedContext, $property, $frame, $debug);
 
                                 if (is_array($val))
                                 {
@@ -507,7 +552,7 @@ class Processor
                         }
                         else
                         {
-                            $this->expand($value, $activectx, $property, $frame);
+                            $this->expand($value, $activectx, $property, $frame, $debug);
                         }
                     }
 
@@ -530,7 +575,14 @@ class Processor
                             $value = $obj;
                         }
 
-                        self::mergeIntoProperty($element, $expProperty, $value, true);
+                        if ($debug)
+                        {
+                            self::setProperty($element, $expProperty, $value, $property);
+                        }
+                        else
+                        {
+                            self::mergeIntoProperty($element, $expProperty, $value, true);
+                        }
                     }
                 }
             }
@@ -561,7 +613,15 @@ class Processor
                 }
             }
 
-            $element = $obj;
+            if ($debug) {
+                $wrapper = new \stdClass();
+                $wrapper->{'__orig_value'} = $element;
+                $wrapper->{'__value'} = $obj;
+
+                $element = $wrapper;
+            } else {
+                $element = $obj;
+            }
 
             return;  // nothing more to do.. completely expanded
         }
@@ -585,7 +645,7 @@ class Processor
                     'Detected an @value object that contains additional data.',
                     $element);
             }
-            elseif (property_exists($element, '@type') && (false == $frame) && (false == is_string($element->{'@type'})))
+            elseif (property_exists($element, '@type') && (false == $frame) && (false == $debug) && (false == is_string($element->{'@type'})))
             {
                 throw new SyntaxException(
                     'Invalid value for @type detected (must be a string).',
@@ -608,7 +668,7 @@ class Processor
         }
 
         // Not an @value object, make sure @type is an array
-        if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
+        if ((false === $debug) && property_exists($element, '@type') && (false == is_array($element->{'@type'})))
         {
             $element->{'@type'} = array($element->{'@type'});
         }
@@ -2404,8 +2464,22 @@ class Processor
      *
      * @throws SyntaxException If the property exists already JSON-LD.
      */
-    private static function setProperty(&$object, $property, $value)
+    private static function setProperty(&$object, $property, $value, $origProperty = null)
     {
+        if ($origProperty) {
+            if (property_exists($object, $origProperty))
+            {
+                throw new SyntaxException(
+                    "Object already contains a property \"$origProperty\".",
+                    $object);
+            }
+
+            $object->{$origProperty} = new \stdClass();
+            $object->{$origProperty}->{'__iri'} = $property;
+            $object->{$origProperty}->{'__value'} = $value;
+
+            return;
+        }
         if (property_exists($object, $property))
         {
             throw new SyntaxException(
