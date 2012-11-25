@@ -1436,15 +1436,15 @@ class Processor
             else
             {
                 // TODO Detect recursive context imports
-                $remoteContext = JsonLD::parse($context);
+                $remoteContext = JsonLD::parse((string)$this->baseIri->resolve($context));
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context'))
                 {
-                    $this->processContext($remoteContext, $activectx);
+                    $this->processContext($remoteContext->{'@context'}, $activectx);
                 }
                 else
                 {
-                    throw new ProcessException('Remote context "' . $context . '" is invalid.');
+                    throw new ProcessException('Remote context "' . $context . '" is invalid.', $remoteContext);
                 }
             }
         }
