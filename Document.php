@@ -179,6 +179,27 @@ class Document
     }
 
     /**
+     * Get nodes by type
+     *
+     * @param string|Node $type The type
+     *
+     * @return array[Node] Returns an array containing all nodes of the
+     *                     specified type in the document.
+     */
+    public function getNodesByType($type)
+    {
+        if (is_string($type))
+        {
+            if (null === ($type = $this->getNode($type)))
+            {
+                return array();
+            }
+        }
+
+        return $type->getNodesWithThisType();
+    }
+
+    /**
      * Check whether the document already contains a node with the
      * specified ID
      *
