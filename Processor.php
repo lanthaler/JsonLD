@@ -332,9 +332,11 @@ class Processor
                 unset($element->{'@context'});
             }
 
-            $properties = get_object_vars($element);
-            foreach ($properties as $property => &$value)
+            $properties = array_keys(get_object_vars($element));
+            foreach ($properties as $property)
             {
+                $value =& $element->{$property};
+
                 // Remove property from object...
                 unset($element->{$property});
 
