@@ -341,9 +341,10 @@ class Processor
                 }
             }
 
-            $properties = get_object_vars($element);
-            foreach ($properties as $property => &$value)
+            $properties = array_keys(get_object_vars($element));
+            foreach ($properties as $property)
             {
+                $value =& $element->{$property};
                 if ('@context' === $property) {
                     continue;
                 }
