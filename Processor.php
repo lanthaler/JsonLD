@@ -333,6 +333,8 @@ class Processor
             }
 
             $properties = get_object_vars($element);
+            ksort($properties);
+
             $element = new \stdClass();
 
             foreach ($properties as $property => $value)
