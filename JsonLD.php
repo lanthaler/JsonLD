@@ -477,20 +477,21 @@ class JsonLD
                                       $frame);
         }
 
-        $framedDocument = new \stdClass();
+        $processor = new Processor($options);
 
+        // Prepare result document by saving the frame's context
+        $framedDocument = new \stdClass();
+        $frameActiveContext = array();
         if (property_exists($frame, '@context'))
         {
             $framedDocument->{'@context'} = $frame->{'@context'};
+            $processor->processContext($frame->{'@context'}, $frameActiveContext);
         }
 
+        // Expand the frame
+        $processor->expand($frame, array(), null, true);
 
-        $processor = new Processor($options);
-        $activectx = array();
-
-        $processor->expand($frame, $activectx, null, true);
-
-        // optimize away default graph (@graph as the only property at the top-level object)
+        // and optimize away default graph (@graph as the only property at the top-level object)
         if (is_object($frame) && property_exists($frame, '@graph') &&
             (1 == count(get_object_vars($frame))))
         {
@@ -502,9 +503,11 @@ class JsonLD
             $frame = array($frame);
         }
 
+        // Frame the input document
         $result = $processor->frame($input, $frame);
 
-        self::compact($result, $framedDocument, $options);  // TODO: Check this!
+        // Compact the result using the frame's active context
+        $processor->compact($result, $frameActiveContext);
 
         // Make that the result is always an array
         if (false == is_array($result))
@@ -512,10 +515,8 @@ class JsonLD
             $result = array($result);
         }
 
-        // TODO Aliasing possible here?
-        // $graphKeyword = $processor->compactIri('@graph', $activectx);
-        // $framedDocument->{$graphKeyword} = $result;
-        $framedDocument->{'@graph'} = $result;
+        $graphKeyword = $processor->compactIri('@graph', $frameActiveContext);
+        $framedDocument->{$graphKeyword} = $result;
 
         return $framedDocument;
     }
