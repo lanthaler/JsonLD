@@ -332,15 +332,11 @@ class Processor
                 unset($element->{'@context'});
             }
 
-            $properties = array_keys(get_object_vars($element));
-            foreach ($properties as $property)
+            $properties = get_object_vars($element);
+            $element = new \stdClass();
+
+            foreach ($properties as $property => $value)
             {
-                $value =& $element->{$property};
-
-                // Remove property from object...
-                unset($element->{$property});
-
-                // ... it will be re-added later using the expanded IRI
                 $expProperty = $this->expandIri($property, $activectx, false, true);
 
                 // Make sure to keep framing keywords if a frame is being expanded
@@ -352,7 +348,7 @@ class Processor
 
                 if (in_array($expProperty, self::$keywords))
                 {
-                    // we don't allow overwritting the behavior of keywords,
+                    // we don't allow overwriting the behavior of keywords,
                     // so if the property expands to one, we treat it as the
                     // keyword itself
                     $property = $expProperty;
@@ -702,6 +698,11 @@ class Processor
      */
     private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false, $localctx = null, $path = array())
     {
+        if (in_array($value, self::$keywords))
+        {
+            return $value;
+        }
+
         if ($localctx)
         {
             if (in_array($value, $path))
