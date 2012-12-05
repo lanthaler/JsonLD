@@ -32,7 +32,7 @@ class Processor
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
                                      '@container', '@list', '@set', '@graph', '@vocab',
-                                     '@null');  // TODO Introduce this! Should this just be supported during framing!?
+                                     '@null', '@annotation');  // TODO Introduce this! Should this just be supported during framing!?
 
     /** Framing options keywords */
     private static $framingKeywords = array('@explicit', '@default', '@embed',
@@ -444,7 +444,7 @@ class Processor
 
                     continue;
                 }
-                elseif (('@value' == $expProperty) || ('@language' == $expProperty))
+                elseif (('@value' == $expProperty) || ('@language' == $expProperty) || ('@annotation' == $expProperty))
                 {
                     if (false == $frame)
                     {
@@ -457,6 +457,13 @@ class Processor
                         {
                             throw new SyntaxException(
                                 "Invalid value for $property detected (must be a scalar).",
+                                $value);
+                        }
+
+                        if (('@annotation' === $expProperty) && (false === is_string($value)))
+                        {
+                            throw new SyntaxException(
+                                'Invalid value for @annotation detected; must be a string.',
                                 $value);
                         }
                     }
@@ -479,29 +486,62 @@ class Processor
                     else
                     {
                         if (isset($activectx[$property]['@container']) &&
-                            ('@language' == $activectx[$property]['@container']))
+                            in_array($activectx[$property]['@container'], array('@language', '@annotation')))
                         {
                             if (false === is_object($value))
                             {
                                 throw new SyntaxException(
-                                    "Invalid value for $property detected (must be a language map).",
+                                    "Invalid value for \"$property\" detected. It must be an object as it is a @language or @annotation container.",
                                     $value);
                             }
 
-                            $updatedContext = $activectx;
                             $result = array();
-                            foreach ($value as $language => $val)
-                            {
-                                $updatedContext['@language'] = $language;
-                                $this->expand($val, $updatedContext, $property, $frame);
 
-                                if (is_array($val))
+                            if ('@language' === $activectx[$property]['@container'])
+                            {
+                                foreach ($value as $key => $val)
                                 {
-                                    $result = array_merge($result, $val);
+                                    if (false === is_array($val))
+                                    {
+                                        $val = array($val);
+                                    }
+
+                                    foreach ($val as $item)
+                                    {
+                                        if (false === is_string($item))
+                                        {
+                                            throw new SyntaxException(
+                                                "Detected invalid value in $property->$key: it must be a string as it is part of a language map.",
+                                                $item);
+                                        }
+
+                                        $result[] = (object) array(
+                                            '@value' => $item,
+                                            '@language' => strtolower($key)
+                                        );
+                                    }
                                 }
-                                else
+                            }
+                            else  // @container: @annotation
+                            {
+                                foreach ($value as $key => $val)
                                 {
-                                    $result[] = $val;
+                                    if (false === is_array($val))
+                                    {
+                                        $val = array($val);
+                                    }
+
+                                    $this->expand($val, $activectx, $activeprty, $frame);
+
+                                    foreach ($val as $item)
+                                    {
+                                        if (false === property_exists($item, '@annotation'))
+                                        {
+                                            $item->{'@annotation'} = $key;
+                                        }
+
+                                        $result[] = $item;
+                                    }
                                 }
                             }
 
@@ -578,13 +618,24 @@ class Processor
 
         if (property_exists($element, '@value'))
         {
-            if (($numProps > 2) ||
-                ((2 == $numProps) &&
-                    (false == property_exists($element, '@language')) &&
-                    (false == property_exists($element, '@type'))))
+            $numProps--;  // @value
+            if (property_exists($element, '@annotation'))
+            {
+                $numProps--;
+            }
+            if (property_exists($element, '@language'))
+            {
+                $numProps--;
+            }
+            elseif (property_exists($element, '@type'))
+            {
+                $numProps--;
+            }
+
+            if ($numProps > 0)
             {
                 throw new SyntaxException(
-                    'Detected an @value object that contains additional data.',
+                    'Detected an invalid @value object.',
                     $element);
             }
             elseif (property_exists($element, '@type') && (false == $frame) && (false == is_string($element->{'@type'})))
@@ -1427,7 +1478,7 @@ class Processor
 
                         if (isset($value->{'@container'}))
                         {
-                            if (in_array($value->{'@container'}, array('@list', '@set', '@language')))
+                            if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@annotation')))
                             {
                                 $activectx[$key]['@container'] = $value->{'@container'};
                             }
