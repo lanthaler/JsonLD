@@ -712,9 +712,17 @@ class Processor
         }
 
 
-        if (('@set' === $keyword) || ('@list' === $keyword) || ('@graph' === $keyword))
+        if (('@set' === $keyword) || ('@list' === $keyword))
         {
             $this->expand($value, $activectx, $activeprty, $frame);
+            self::mergeIntoProperty($element, $keyword, $value, true);
+
+            return true;
+        }
+
+        if ('@graph' === $keyword)
+        {
+            $this->expand($value, $activectx, $keyword, $frame);
             self::mergeIntoProperty($element, $keyword, $value, true);
 
             return true;
