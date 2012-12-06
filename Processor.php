@@ -499,7 +499,14 @@ class Processor
 
                 if (isset($def['@type']))
                 {
-                    $obj->{'@type'} = $def['@type'];
+                    if ('_:' === substr($def['@type'], 0, 2))
+                    {
+                        $obj->{'@type'} = $this->getBlankNodeId($def['@type']);
+                    }
+                    else
+                    {
+                        $obj->{'@type'} = $def['@type'];
+                    }
                 }
                 elseif (isset($def['@language']))
                 {
@@ -766,7 +773,36 @@ class Processor
     }
 
     /**
-     * Expands a JSON-LD IRI to an absolute IRI
+     * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute
+     * IRI and relabels blank nodes
+     *
+     * This method is nothing else than a wrapper around {@link doExpandIri}
+     * ensuring that all blank nodes are relabeled.
+     *
+     * @param mixed  $value         The value to be expanded to an absolute IRI.
+     * @param array  $activectx     The active context.
+     * @param bool   $relativeIri   Specifies whether $value should be treated as
+     *                              relative IRI as fallback or not.
+     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
+     *                              if set or not.
+     *
+     * @return string The expanded IRI.
+     */
+    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false)
+    {
+        $result = $this->doExpandIri($value, $activectx, $relativeIri, $vocabRelative);
+
+        if ('_:' === substr($result, 0, 2))
+        {
+            return $this->getBlankNodeId($result);
+        }
+
+        return $result;
+    }
+
+
+    /**
+     * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute IRI
      *
      * @param mixed  $value         The value to be expanded to an absolute IRI.
      * @param array  $activectx     The active context.
@@ -781,7 +817,7 @@ class Processor
      *
      * @return string The expanded IRI.
      */
-    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false, $localctx = null, $path = array())
+    private function doExpandIri($value, $activectx, $relativeIri = false, $vocabRelative = false, $localctx = null, $path = array())
     {
         if (in_array($value, self::$keywords))
         {
@@ -812,7 +848,7 @@ class Processor
             {
                 if (is_string($localctx->{$value}))
                 {
-                    return $this->expandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
+                    return $this->doExpandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
                 }
                 elseif (isset($localctx->{$value}->{'@id'}))
                 {
@@ -824,13 +860,13 @@ class Processor
                     }
 
                     // TODO PropGen Make sure it's not a property generator
-                    return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
+                    return $this->doExpandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
                 }
             }
         }
 
 
-        if (array_key_exists($value, $activectx) && isset($activectx[$value]['@id'])) // TODO 2nd check not needed!?
+        if (array_key_exists($value, $activectx))
         {
             return $activectx[$value]['@id'];
         }
@@ -852,7 +888,7 @@ class Processor
             }
             elseif ($localctx)
             {
-                $prefix = $this->expandIri($prefix, $activectx, false, true, $localctx, $path);
+                $prefix = $this->doExpandIri($prefix, $activectx, false, true, $localctx, $path);
 
                 // If prefix contains a colon, we have successfully expanded it
                 if (false !== strpos($prefix, ':'))
@@ -860,7 +896,7 @@ class Processor
                     return $prefix . $suffix;
                 }
             }
-            elseif (array_key_exists($prefix, $activectx) && isset($activectx[$prefix]['@id']))
+            elseif (array_key_exists($prefix, $activectx))
             {
                 // compact IRI
                 return $activectx[$prefix]['@id'] . $suffix;
@@ -1501,7 +1537,7 @@ class Processor
 
                     if (is_string($value))
                     {
-                        $expanded = $this->expandIri($value, $activectx, false, true, $context);
+                        $expanded = $this->doExpandIri($value, $activectx, false, true, $context);
 
                         if ((false === in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
                         {
@@ -1527,7 +1563,7 @@ class Processor
 
                                 foreach ($value->{'@id'} as $item)
                                 {
-                                    $result = $this->expandIri($item, $activectx, false, true, $context);
+                                    $result = $this->doExpandIri($item, $activectx, false, true, $context);
 
                                     if (false === strpos($result, ':'))
                                     {
@@ -1540,12 +1576,12 @@ class Processor
                             }
                             else
                             {
-                                $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                                $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
                             }
                         }
                         else
                         {
-                            $expanded = $this->expandIri($key, $activectx, false, true, $context);
+                            $expanded = $this->doExpandIri($key, $activectx, false, true, $context);
                         }
 
                         // Keep a reference to the place were we store the information. Property
@@ -1580,7 +1616,7 @@ class Processor
 
                         if (isset($value->{'@type'}))
                         {
-                            $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
+                            $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
 
                             if (('@id' != $expanded) && (false === strpos($expanded, ':')))
                             {
