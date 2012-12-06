@@ -339,7 +339,12 @@ class Processor
 
             foreach ($properties as $property => $value)
             {
-                $expProperty = $this->expandIri($property, $activectx, false, true);
+                $expProperty = $this->expandProperty($property, $activectx);
+
+                if (is_array($expProperty))
+                {
+                    $expProperty = $expProperty['@id'][0];
+                }
 
                 // Make sure to keep framing keywords if a frame is being expanded
                 if ((true == $frame) && in_array($expProperty, self::$framingKeywords))
@@ -355,16 +360,16 @@ class Processor
                     // keyword itself
                     $property = $expProperty;
                 }
+                elseif (false === strpos($expProperty, ':'))
+                {
+                    // the expanded property is neither a keyword nor an IRI
+                    continue;
+                }
 
                 // Remove properties with null values (except @value as we need
-                // it to determine what @type means) and all properties that are
-                // neither keywords nor valid IRIs (i.e., they don't contain a
-                // colon) since we drop unmapped JSON
-                if ((is_null($value) && ('@value' != $expProperty)) ||
-                    ((false === strpos($expProperty, ':')) &&
-                     (false == in_array($expProperty, self::$keywords))))
+                // it to determine what @type means)
+                if (is_null($value) && ('@value' != $expProperty))
                 {
-                    // TODO Check if this is enough or if we need to do some regex check, is 0:1 valid? (see ISSUE-56)
                     continue;
                 }
 
@@ -683,6 +688,28 @@ class Processor
     }
 
     /**
+     * Expand a property to an IRI or a JSON-LD keyword
+     *
+     * @param mixed  $value         The value to be expanded to an absolute IRI.
+     * @param array  $activectx     The active context.
+     *
+     * @return null|string|array<string> If the property could be expanded either
+     *                                   the IRI(s) or the keyword is returned;
+     *                                   otherwise null is returned.
+     */
+    private function expandProperty($value, $activectx)
+    {
+        if (isset($activectx['@propertyGenerators'][$value]))
+        {
+            return $activectx['@propertyGenerators'][$value];
+        }
+
+        $result = $this->expandIri($value, $activectx, false, true);
+
+        return $result;
+    }
+
+    /**
      * Expands a JSON-LD IRI to an absolute IRI
      *
      * @param mixed  $value         The value to be expanded to an absolute IRI.
@@ -733,6 +760,14 @@ class Processor
                 }
                 elseif (isset($localctx->{$value}->{'@id'}))
                 {
+                    if (false === is_string($localctx->{$value->{'@id'}}))
+                    {
+                        throw new SyntaxException(
+                            'A term definition must not use a property generator: ' . join(' -> ', $path),
+                            $localctx);
+                    }
+
+                    // TODO PropGen Make sure it's not a property generator
                     return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
                 }
             }
@@ -761,7 +796,6 @@ class Processor
             }
             elseif ($localctx)
             {
-
                 $prefix = $this->expandIri($prefix, $activectx, false, true, $localctx, $path);
 
                 // If prefix contains a colon, we have successfully expanded it
@@ -1348,6 +1382,9 @@ class Processor
      */
     public function processContext($loclctx, &$activectx)
     {
+        // Initialize variable
+        $activectxKey = null;
+
         if (is_object($loclctx))
         {
             $loclctx = clone $loclctx;
@@ -1410,7 +1447,7 @@ class Processor
                     {
                         $expanded = $this->expandIri($value, $activectx, false, true, $context);
 
-                        if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
+                        if ((false === in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
                         {
                             throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
                                                       $loclctx);
@@ -1428,28 +1465,62 @@ class Processor
 
                         if (isset($value->{'@id'}))
                         {
-                            $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                            if (is_array($value->{'@id'}))  // is it a property generator?
+                            {
+                                $expanded = array();
+
+                                foreach ($value->{'@id'} as $item)
+                                {
+                                    $result = $this->expandIri($item, $activectx, false, true, $context);
+
+                                    if (false === strpos($result, ':'))
+                                    {
+                                        throw new SyntaxException("\"$item\" in \"$key\" couldn't be expanded to an absolute IRI.",
+                                                                  $loclctx);
+                                    }
+
+                                    $expanded[] =  $result;
+                                }
+                            }
+                            else
+                            {
+                                $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                            }
                         }
                         else
                         {
                             $expanded = $this->expandIri($key, $activectx, false, true, $context);
                         }
 
-                        if ((false == in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':')))
+                        // Keep a reference to the place were we store the information. Property
+                        // generators are stored in a separate subtree in the active context
+                        if (is_array($expanded))
                         {
-                            throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
-                                                      $loclctx);
+                            // and are removed from the local context as they can't be used
+                            // in other term definitions
+                            unset($context->{$key});
+                            $activectxKey = &$activectx['@propertyGenerators'][$key];
+                        }
+                        else
+                        {
+                            $context->{$key}->{'@id'} = $expanded;
+                            $activectxKey = &$activectx[$key];
+
+                            if (in_array($expanded, self::$keywords))
+                            {
+                                // if it's an aliased keyword, we ignore all other properties
+                                // TODO Should we throw an exception if there are other properties?
+                                $activectxKey = array('@id' => $expanded);
+                                continue;
+                            }
+                            elseif (false === strpos($expanded, ':'))
+                            {
+                                throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.",
+                                                          $loclctx);
+                            }
                         }
 
-                        $context->{$key}->{'@id'} = $expanded;
-                        $activectx[$key] = array('@id' => $expanded);
-
-                        if (in_array($expanded, self::$keywords))
-                        {
-                            // if it's an aliased keyword, we ignore all other properties
-                            // TODO Should we throw an exception if there are other properties?
-                            continue;
-                        }
+                        $activectxKey = array('@id' => $expanded);
 
                         if (isset($value->{'@type'}))
                         {
@@ -1461,8 +1532,11 @@ class Processor
                                                           $loclctx);
                             }
 
-                            $context->{$key}->{'@type'} = $expanded;
-                            $activectx[$key]['@type'] = $expanded;
+                            if (property_exists($context, $key)) // otherwise it's a property generator
+                            {
+                                $context->{$key}->{'@type'} = $expanded;
+                            }
+                            $activectxKey['@type'] = $expanded;
 
                             // TODO Throw exception if language is set as well?
                         }
@@ -1475,15 +1549,15 @@ class Processor
                                     $context);
                             }
 
-                            // Note the else. Language tagging applies just to untyped literals
-                            $activectx[$key]['@language'] = $value->{'@language'};
+                            // Note the else. Language tagging applies just to term without type coercion
+                            $activectxKey['@language'] = $value->{'@language'};
                         }
 
                         if (isset($value->{'@container'}))
                         {
                             if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@annotation')))
                             {
-                                $activectx[$key]['@container'] = $value->{'@container'};
+                                $activectxKey['@container'] = $value->{'@container'};
                             }
                         }
                     }
