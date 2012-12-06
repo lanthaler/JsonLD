@@ -465,6 +465,9 @@ class Processor
 
                     if (is_array($expProperty))
                     {
+                        // Label all blank nodes to connect duplicates
+                        $this->labelBlankNodes($value);
+
                         // Create deep copies of the value for each property
                         $serialized = serialize($value);
 
@@ -749,6 +752,55 @@ class Processor
         // The keyword wasn't handled
         return false;
     }
+
+
+    /**
+     * Labels all nodes in an expanded JSON-LD structure with fresh blank node identifiers
+     *
+     * This method assumes that element and all its children have already been
+     * expanded.
+     *
+     * @param  mixed $element The expanded JSON-LD structure whose blank
+     *                        nodes should be labeled.
+     */
+    private function labelBlankNodes(&$element)
+    {
+        if (is_array($element))
+        {
+            foreach ($element as &$value)
+            {
+                $this->labelBlankNodes($value);
+            }
+        }
+        elseif (is_object($element))
+        {
+            if (property_exists($element, '@value'))
+            {
+                return;
+            }
+
+            if (property_exists($element, '@list'))
+            {
+                $this->labelBlankNodes($element->{'@list'});
+
+                return;
+            }
+
+            $properties = array_keys(get_object_vars($element));
+
+            if (false === property_exists($element, '@id'))
+            {
+                $element->{'@id'} = $this->getBlankNodeId();
+            }
+
+            foreach ($properties as $key)
+            {
+                $this->labelBlankNodes($element->{$key});
+            }
+        }
+
+    }
+
 
     /**
      * Expand a property to an IRI or a JSON-LD keyword
