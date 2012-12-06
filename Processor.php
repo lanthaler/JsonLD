@@ -367,10 +367,6 @@ class Processor
                         continue;
                     }
                 }
-                else
-                {
-                    $expProperty = $expProperty['@id'][0];
-                }
 
                 // Remove properties with null values
                 if (is_null($value))
@@ -466,7 +462,22 @@ class Processor
                         $value = $obj;
                     }
 
-                    self::mergeIntoProperty($element, $expProperty, $value, true);
+
+                    if (is_array($expProperty))
+                    {
+                        // Create deep copies of the value for each property
+                        $serialized = serialize($value);
+
+                        foreach ($expProperty['@id'] as $item)
+                        {
+                            $value = unserialize($serialized);
+                            self::mergeIntoProperty($element, $item, $value, true);
+                        }
+                    }
+                    else
+                    {
+                        self::mergeIntoProperty($element, $expProperty, $value, true);
+                    }
                 }
             }
         }
