@@ -446,7 +446,7 @@ class Processor
                 // Store the expanded value unless it is null
                 if (false == is_null($value))
                 {
-                    // If property has an @list container, and value is not yet an
+                    // If property has an @list container and value is not yet an
                     // expanded @list-object, transform it to one
                     if (isset($activectx[$property]['@container']) &&
                         ('@list' == $activectx[$property]['@container']) &&
@@ -489,7 +489,7 @@ class Processor
         // Expand scalars (scalars != null) to @value objects
         if (is_scalar($element))
         {
-            $def = $this->getTermDefinition($activeprty, $activectx);
+            $def = $this->getPropertyDefinition($activectx, $activeprty);
             $obj = new \stdClass();
 
             if ('@id' === $def['@type'])
@@ -1017,7 +1017,7 @@ class Processor
             }
             elseif (property_exists($element, '@value') || property_exists($element, '@id'))
             {
-                $def = $this->getTermDefinition($activeprty, $activectx);
+                $def = $this->getPropertyDefinition($activectx, $activeprty);
                 $element = $this->compactValue($element, $def['@type'], $def['@language'], $activectx);
 
                 if (false === is_object($element))
@@ -1053,7 +1053,7 @@ class Processor
                             // @graph values can be (expanded) objects as well
                             if ('@graph' == $property)
                             {
-                                $def = $this->getTermDefinition('@graph', $activectx);
+                                $def = $this->getPropertyDefinition($activectx, '@graph');
 
                                 foreach ($value as $key => &$item)
                                 {
@@ -1114,7 +1114,7 @@ class Processor
                 foreach ($value as &$val)
                 {
                     $activeprty = $this->compactIri($property, $activectx, $val, false, true);
-                    $def = $this->getTermDefinition($activeprty, $activectx);
+                    $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                     if (is_object($val))
                     {
@@ -1382,7 +1382,7 @@ class Processor
     {
         $rank = 0;
 
-        $def = $this->getTermDefinition($term, $activectx);
+        $def = $this->getPropertyDefinition($activectx, $term);
 
         if (array_key_exists($term, $activectx))
         {
@@ -1452,9 +1452,9 @@ class Processor
         return $rank;
     }
 
+
     /**
-     * Returns the type and language mapping as well as the container of the
-     * specified term.
+     * Returns a property's definition
      *
      * The result will be in the form
      * <pre>
@@ -1464,55 +1464,78 @@ class Processor
      *         'isKeyword'  => true or false)
      * </pre>
      *
-     * @param string $term       The term whose information should be retrieved.
-     * @param array  $activectx  The active context.
+     * If {@link $only} is set, only the value of that key of the array
+     * above will be returned.
      *
-     * @return array Returns an associative array containing the term definition.
+     * @param array  $activectx The active context.
+     * @param string $property  The property.
+     * @param string $only      If set, only a this element of the definition
+     *                          will be returned.
+     *
+     * @return array|string|null Returns either the property's definition or
+     *                           null if not found.
      */
-    private function getTermDefinition($term, $activectx)
+    private function getPropertyDefinition($activectx, $property, $only = null)
     {
-        $def = array('@type'      => null,
-                     '@language'  => (isset($activectx['@language']))
-                        ? $activectx['@language']
-                        : null,
-                     '@container' => null,
-                     'isKeyword'  => false);
-
-
-        if (in_array($term, self::$keywords))
+        if (in_array($property, self::$keywords))
         {
-            $def['@language'] = null;
-            $def['isKeyword'] = true;
-
-            if (('@id' == $term) || ('@type' == $term) || ('@graph' == $term))
+            $result = array();
+            if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
             {
-                $def['@type'] = '@id';
+                $result['@type'] = '@id';
             }
 
-            return $def;
-        }
-        elseif (false == isset($activectx[$term]))
-        {
-            return $def;
+            $result['@language'] = null;
+            $result['@container'] = null;
+            $result['isKeyword'] = true;
+
+            return $result;
         }
 
 
-        if (isset($activectx[$term]['@type']))
+        $result = array('@type'      => null,
+                        '@language'  => (isset($activectx['@language']))
+                            ? $activectx['@language']
+                            : null,
+                        '@container' => null,
+                        'isKeyword'  => false);
+        $def = null;
+
+        if (isset($activectx['@propertyGenerators'][$property]))
         {
-            $def['@type'] = $activectx[$term]['@type'];
-            $def['@language'] = null;
+            $def = $activectx['@propertyGenerators'][$property];
         }
-        elseif (array_key_exists('@language', $activectx[$term]))  // could be null
+        elseif (isset($activectx[$property]))
         {
-            $def['@language'] = $activectx[$term]['@language'];
+            $def = $activectx[$property];
+        }
+        else
+        {
+            return $result;
         }
 
-        if (isset($activectx[$term]['@container']))
+        if (isset($def['@type']))
         {
-            $def['@container'] = $activectx[$term]['@container'];
+            $result['@type'] = $def['@type'];
+            $result['@language'] = null;
+        }
+        elseif (array_key_exists('@language', $def))  // could be null
+        {
+            $result['@language'] = $def['@language'];
         }
 
-        return $def;
+        if (isset($def['@container']))
+        {
+            $result['@container'] = $def['@container'];
+        }
+
+
+        if ($only)
+        {
+            return (isset($result[$only])) ? $result[$only] : null;
+        }
+
+        return $result;
     }
 
     /**
