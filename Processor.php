@@ -609,7 +609,6 @@ class Processor
         }
     }
 
-
     /**
      * Expands the value of a keyword
      *
@@ -764,7 +763,6 @@ class Processor
         return false;
     }
 
-
     /**
      * Labels all nodes in an expanded JSON-LD structure with fresh blank node identifiers
      *
@@ -811,7 +809,6 @@ class Processor
         }
 
     }
-
 
     /**
      * Expand a property to an IRI or a JSON-LD keyword
@@ -862,7 +859,6 @@ class Processor
 
         return $result;
     }
-
 
     /**
      * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute IRI
@@ -1461,7 +1457,6 @@ class Processor
         return $rank;
     }
 
-
     /**
      * Returns a property's definition
      *
@@ -1657,6 +1652,8 @@ class Processor
 
                                     $expanded[] =  $result;
                                 }
+
+                                sort($expanded);
                             }
                             else
                             {
