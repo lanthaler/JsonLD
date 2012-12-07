@@ -510,7 +510,7 @@ class Processor
                         $obj->{'@type'} = $def['@type'];
                     }
                 }
-                elseif (isset($def['@language']))
+                elseif (isset($def['@language']) && is_string($obj->{'@value'}))
                 {
                     $obj->{'@language'} = $def['@language'];
                 }
@@ -538,10 +538,33 @@ class Processor
             }
             if (property_exists($element, '@language'))
             {
+                if (false === $frame)
+                {
+                    if (false === is_string($element->{'@language'}))
+                    {
+                        throw new SyntaxException(
+                            'Invalid value for @language detected (must be a string).',
+                            $element);
+                    }
+                    elseif (false === is_string($element->{'@value'}))
+                    {
+                        throw new SyntaxException(
+                            'Only strings can be language tagged.',
+                            $element);
+                    }
+                }
+
                 $numProps--;
             }
             elseif (property_exists($element, '@type'))
             {
+                if ((false === $frame) && (false === is_string($element->{'@type'})))
+                {
+                    throw new SyntaxException(
+                        'Invalid value for @type detected (must be a string).',
+                        $element);
+                }
+
                 $numProps--;
             }
 
@@ -551,21 +574,8 @@ class Processor
                     'Detected an invalid @value object.',
                     $element);
             }
-            elseif (property_exists($element, '@type') && (false == $frame) && (false == is_string($element->{'@type'})))
-            {
-                throw new SyntaxException(
-                    'Invalid value for @type detected (must be a string).',
-                    $element);
-            }
-            elseif (property_exists($element, '@language') && (false == $frame) && (false == is_string($element->{'@language'})))
-            {
-                throw new SyntaxException(
-                    'Invalid value for @language detected (must be a string).',
-                    $element);
-            }
             elseif (is_null($element->{'@value'}))
             {
-                // TODO Check what to do if there's no @type and no @language
                 // object has just an @value property that is null, can be replaced with that value
                 $element = $element->{'@value'};
             }
