@@ -295,8 +295,7 @@ class Processor
                 $this->expand($item, $activectx, $activeprty, $frame);
 
                 // Check for lists of lists
-                if ((isset($activectx[$activeprty]['@container']) &&
-                     ('@list' == $activectx[$activeprty]['@container'])) ||
+                if (('@list' === $this->getPropertyDefinition($activectx, $activeprty, '@container')) ||
                     ('@list' == $activeprty))
                 {
                     if (is_array($item) || (is_object($item) && property_exists($item, '@list')))
@@ -374,8 +373,9 @@ class Processor
                     continue;
                 }
 
-                if (isset($activectx[$property]['@container']) &&
-                    in_array($activectx[$property]['@container'], array('@language', '@annotation')))
+                $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
+
+                if (in_array($propertyContainer, array('@language', '@annotation')))
                 {
                     // Expand language and annotation maps
                     if (false === is_object($value))
@@ -387,7 +387,7 @@ class Processor
 
                     $result = array();
 
-                    if ('@language' === $activectx[$property]['@container'])
+                    if ('@language' === $propertyContainer)
                     {
                         foreach ($value as $key => $val)
                         {
@@ -448,8 +448,7 @@ class Processor
                 {
                     // If property has an @list container and value is not yet an
                     // expanded @list-object, transform it to one
-                    if (isset($activectx[$property]['@container']) &&
-                        ('@list' == $activectx[$property]['@container']) &&
+                    if (('@list' == $propertyContainer) &&
                         ((false == is_object($value) || (false == property_exists($value, '@list')))))
                     {
                         if (false == is_array($value))
@@ -998,11 +997,10 @@ class Processor
             }
             $element = $result;
 
-            // If there's just one entry and the active property has no
+            // If there's just one entry and the active property is not an
             // @list container, optimize the array away
-            if (is_array($element) && (true === $this->compactArrays) && (1 == count($element)) &&
-                ((false == isset($activectx[$activeprty]['@container'])) ||
-                 ('@list' != $activectx[$activeprty]['@container'])))
+            if ((true === $this->compactArrays) && (1 == count($element)) &&
+                ('@list' !== $this->getPropertyDefinition($activectx, $activeprty, '@container')))
             {
                 $element = $element[0];
             }
@@ -1141,10 +1139,9 @@ class Processor
 
                     // Merge value back into resulting object making sure that value is always
                     // an array if a container is set or compactArrays is set to false
-                    $asArray = ((false === $this->compactArrays) ||
-                        (isset($activectx[$activeprty]['@container']) &&
-                         (('@set' === $activectx[$activeprty]['@container']) ||
-                          ('@list' === $activectx[$activeprty]['@container']))));
+                    $asArray = (false === $this->compactArrays);
+                    $asArray |= in_array($this->getPropertyDefinition($activectx, $activeprty, '@container'),
+                        array('@list', '@set'));
 
                     self::mergeIntoProperty($element, $activeprty, $val, $asArray);
                 }
