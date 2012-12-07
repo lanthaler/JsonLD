@@ -612,11 +612,12 @@ class Processor
     /**
      * Expands the value of a keyword
      *
-     * @param object  $element   The object this property-value pair is part of.
-     * @param string  $keyword   The keyword whose value is being expanded.
-     * @param mixed   $value     The value to expand.
-     * @param array   $activectx The active context.
-     * @param boolean $frame     True if a frame is being expanded, otherwise false.
+     * @param object  $element    The object this property-value pair is part of.
+     * @param string  $activeprty The active property.
+     * @param string  $keyword    The keyword whose value is being expanded.
+     * @param mixed   $value      The value to expand.
+     * @param array   $activectx  The active context.
+     * @param boolean $frame      True if a frame is being expanded, otherwise false.
      *
      * @return boolean Returns true if the value was expanded; otherwise false
      *                 so that it can be further processed.
@@ -816,9 +817,9 @@ class Processor
      * @param mixed  $value         The value to be expanded to an absolute IRI.
      * @param array  $activectx     The active context.
      *
-     * @return null|string|array<string> If the property could be expanded either
-     *                                   the IRI(s) or the keyword is returned;
-     *                                   otherwise null is returned.
+     * @return null|string|string[] If the property could be expanded either
+     *                              the IRI(s) or the keyword is returned;
+     *                              otherwise null is returned.
      */
     private function expandProperty($value, $activectx)
     {
