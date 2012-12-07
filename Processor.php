@@ -529,13 +529,15 @@ class Processor
         // and optimize object where possible
         $numProps = count(get_object_vars($element));
 
+        // Annotations are allowed everywhere
+        if (property_exists($element, '@annotation'))
+        {
+            $numProps--;
+        }
+
         if (property_exists($element, '@value'))
         {
             $numProps--;  // @value
-            if (property_exists($element, '@annotation'))
-            {
-                $numProps--;
-            }
             if (property_exists($element, '@language'))
             {
                 if (false === $frame)
@@ -589,9 +591,7 @@ class Processor
             $element->{'@type'} = array($element->{'@type'});
         }
         if (($numProps > 1) && (
-            (property_exists($element, '@list') ||
-            property_exists($element, '@set') ||
-            property_exists($element, '@language'))))
+            (property_exists($element, '@list') || property_exists($element, '@set'))))
         {
             throw new SyntaxException(
                 'An object with a @list or @set property can\'t contain other properties.',
