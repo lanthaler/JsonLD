@@ -255,7 +255,8 @@ class JsonLD
         $processor = new Processor($options);
 
         $processor->processContext($context, $activectx);
-        $processor->compact($input, $activectx, null);
+        $inversectx = $processor->createInverseContext($activectx);
+        $processor->compact($input, $activectx, $inversectx, null);
 
         $compactedDocument = new \stdClass();
         if (null !== $context)
@@ -265,7 +266,7 @@ class JsonLD
 
         if (is_array($input) && (1 !== count($input)))
         {
-            $graphKeyword = $processor->compactIri('@graph', $activectx);
+            $graphKeyword = $processor->compactIri('@graph', $activectx, $inversectx);
             $compactedDocument->{$graphKeyword} = $input;
         }
         else
@@ -487,6 +488,7 @@ class JsonLD
             $framedDocument->{'@context'} = $frame->{'@context'};
             $processor->processContext($frame->{'@context'}, $frameActiveContext);
         }
+        $frameInverseContext = $processor->createInverseContext($frameActiveContext);
 
         // Expand the frame
         $processor->expand($frame, array(), null, true);
@@ -507,7 +509,7 @@ class JsonLD
         $result = $processor->frame($input, $frame);
 
         // Compact the result using the frame's active context
-        $processor->compact($result, $frameActiveContext);
+        $processor->compact($result, $frameActiveContext, $frameInverseContext);
 
         // Make that the result is always an array
         if (false == is_array($result))
@@ -515,7 +517,7 @@ class JsonLD
             $result = array($result);
         }
 
-        $graphKeyword = $processor->compactIri('@graph', $frameActiveContext);
+        $graphKeyword = $processor->compactIri('@graph', $frameActiveContext, $frameInverseContext);
         $framedDocument->{$graphKeyword} = $result;
 
         return $framedDocument;

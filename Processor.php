@@ -986,18 +986,19 @@ class Processor
      *
      * @param mixed  $element    A JSON-LD element to be compacted.
      * @param array  $activectx  The active context.
+     * @param array  $inversectx The inverse context.
      * @param string $activeprty The active property.
      *
      * @return mixed The compacted JSON-LD document.
      */
-    public function compact(&$element, $activectx = array(), $activeprty = null)
+    public function compact(&$element, $activectx = array(), $inversectx = array(), $activeprty = null)
     {
         if (is_array($element))
         {
             $result = array();
             foreach ($element as &$item)
             {
-                $this->compact($item, $activectx, $activeprty);
+                $this->compact($item, $activectx, $inversectx, $activeprty);
                 if (false == is_null($item))
                 {
                     $result[] = $item;
@@ -1024,7 +1025,7 @@ class Processor
             elseif (property_exists($element, '@value') || property_exists($element, '@id'))
             {
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
-                $element = $this->compactValue($element, $def['@type'], $def['@language'], $activectx);
+                $element = $this->compactValue($element, $def['@type'], $def['@language'], $activectx, $inversectx);
 
                 if (false === is_object($element))
                 {
@@ -1034,16 +1035,15 @@ class Processor
 
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
-            foreach ($properties as $property => &$value)
-            {
-                // Remove property from object it will be re-added later using the compacted IRI
-                unset($element->{$property});
+            $element = new \stdClass();
 
+            foreach ($properties as $property => $value)
+            {
                 if (in_array($property, self::$keywords))
                 {
                     // Keywords can just be aliased but no other settings apply
                     // so we don't need to pass the value
-                    $activeprty = $this->compactIri($property, $activectx, null, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, null, false, true);
 
                     if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
                     {
@@ -1051,7 +1051,7 @@ class Processor
                         if (is_string($value))
                         {
                             // TODO Transform @id to relative IRIs by default??
-                            $value = $this->compactIri($value, $activectx, null, $this->optimize, ('@type' == $property));
+                            $value = $this->compactIri($value, $activectx, $inversectx, null, $this->optimize, ('@type' == $property));
                         }
                         else
                         {
@@ -1063,11 +1063,11 @@ class Processor
 
                                 foreach ($value as $key => &$item)
                                 {
-                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx);
+                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx, $inversectx);
 
                                     if (is_object($item))
                                     {
-                                        $this->compact($item, $activectx, null);
+                                        $this->compact($item, $activectx, $inversectx, null);
                                     }
                                 }
                             }
@@ -1076,7 +1076,7 @@ class Processor
                                 foreach ($value as $key => &$iri)
                                 {
                                     // TODO Transform to relative IRIs by default??
-                                    $iri = $this->compactIri($iri, $activectx, null, $this->optimize, true);
+                                    $iri = $this->compactIri($iri, $activectx, $inversectx, null, $this->optimize, true);
                                 }
                             }
 
@@ -1088,7 +1088,7 @@ class Processor
                     }
                     else
                     {
-                        $this->compact($value, $activectx, $activeprty);
+                        $this->compact($value, $activectx, $inversectx, $activeprty);
                     }
 
                     self::setProperty($element, $activeprty, $value);
@@ -1097,18 +1097,11 @@ class Processor
                     continue;
                 }
 
-                // After expansion, the value of all properties is in array form
-                // TODO Remove this, this should really never appear!
-                if (false == is_array($value))
-                {
-                    throw new SyntaxException('Detected a property whose value is not an array: ' . $property, $element);
-                }
-
 
                 // Make sure that empty arrays are preserved
-                if (0 == count($value))
+                if (0 === count($value))
                 {
-                    $activeprty = $this->compactIri($property, $activectx, null, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, null, false, true);
                     self::mergeIntoProperty($element, $activeprty, $value);
 
                     // ... continue with next property
@@ -1119,14 +1112,14 @@ class Processor
                 // Compact every item in value separately as they could map to different terms
                 foreach ($value as &$val)
                 {
-                    $activeprty = $this->compactIri($property, $activectx, $val, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, $val, false, true);
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                     if (is_object($val))
                     {
                         if (property_exists($val, '@list'))
                         {
-                            $this->compact($val->{'@list'}, $activectx, $activeprty);
+                            $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
 
                             if ('@list' == $def['@container'])
                             {
@@ -1141,7 +1134,7 @@ class Processor
                         }
                         else
                         {
-                            $this->compact($val, $activectx, $activeprty);
+                            $this->compact($val, $activectx, $inversectx, $activeprty);
                         }
                     }
 
@@ -1158,10 +1151,12 @@ class Processor
     }
 
     /**
-     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     * Compacts a property's absolute IRI to a term, compact IRI or property
+     * generator
      *
      * @param mixed  $iri           The IRI to be compacted.
      * @param array  $activectx     The active context.
+     * @param array  $inversectx    The inverse context.
      * @param mixed  $value         The value of the property to compact.
      * @param bool   $toRelativeIri Specifies whether $value should be
      *                              transformed to a relative IRI as fallback.
@@ -1170,7 +1165,27 @@ class Processor
      *
      * @return string The compacted IRI.
      */
-    public function compactIri($iri, $activectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
+    private function compactPropertyIri($iri, $activectx, $inversectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
+    {
+        return $this->compactIri($iri, $activectx, $inversectx, $value, $toRelativeIri, $vocabRelative);
+
+    }
+
+    /**
+     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     *
+     * @param mixed  $iri           The IRI to be compacted.
+     * @param array  $activectx     The active context.
+     * @param array  $inversectx    The inverse context.
+     * @param mixed  $value         The value of the property to compact.
+     * @param bool   $toRelativeIri Specifies whether $value should be
+     *                              transformed to a relative IRI as fallback.
+     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
+     *                              if set or not.
+     *
+     * @return string The compacted IRI.
+     */
+    public function compactIri($iri, $activectx, $inversectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
     {
         // TODO Handle $toRelativeIri or remove it
         $compactIris = array($iri);
@@ -1325,14 +1340,15 @@ class Processor
     /**
      * Compacts a value.
      *
-     * @param mixed  $value     The value to compact (arrays are not allowed!).
-     * @param string $type      The type that applies (or null).
-     * @param string $language  The language that applies (or null).
-     * @param array  $activectx The active context.
+     * @param mixed  $value      The value to compact (arrays are not allowed!).
+     * @param string $type       The type that applies (or null).
+     * @param string $language   The language that applies (or null).
+     * @param array  $activectx  The active context.
+     * @param array  $inversectx The inverse context.
      *
      * @return mixed The compacted value.
      */
-    private function compactValue($value, $type, $language, $activectx)
+    private function compactValue($value, $type, $language, $activectx, $inversectx)
     {
         if ($this->checkValueTypeLanguageMatch($value, $type, $language))
         {
@@ -1345,7 +1361,7 @@ class Processor
                 }
                 elseif (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
                 {
-                    return $this->compactIri($value->{'@id'}, $activectx);
+                    return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
                 }
             }
 
@@ -1751,6 +1767,112 @@ class Processor
                 }
             }
         }
+    }
+
+    /**
+     * Creates an inverse context to simplify IRI compaction
+     *
+     * The inverse context is a multidimensional array that has the
+     * following shape:
+     *
+     * <code>
+     * [container|@null]
+     *   [@type|@language][typeIRI|languageCode]
+     *   [@null][@null]
+     *       [term|propGen]
+     *           [ array of terms ]
+     * </code>
+     *
+     * @param  array $activectx The active context.
+     *
+     * @return array The inverse context.
+     */
+    public function createInverseContext($activectx)
+    {
+        $inverseContext = array();
+        $propertyGenerators = isset($activectx['@propertyGenerators']) ? $activectx['@propertyGenerators'] : array();
+
+        unset($activectx['@vocab']);
+        unset($activectx['@language']);
+        unset($activectx['@propertyGenerators']);
+
+        $activectx = array_merge($activectx, $propertyGenerators);
+        unset($propertyGenerators);
+
+        // Put every IRI of each term into the inverse context
+        foreach ($activectx as $term => $def)
+        {
+            $container = (isset($def['@container'])) ? $def['@container'] : '@null';
+            $propertyGenerator = 'propGens';  // yes
+
+            if (false === is_array($def['@id']))
+            {
+                $def['@id'] = array($def['@id']);
+                $propertyGenerator = 'term';  // no
+            }
+
+            foreach ($def['@id'] as $iri)
+            {
+                if (isset($def['@type']))
+                {
+                    $inverseContext[$iri][$container]['@type'][$def['@type']][$propertyGenerator][] = $term;
+                }
+                elseif (array_key_exists('@language', $def))  // can be null
+                {
+                    $language = (null === $def['@language']) ? '@null' : $def['@language'];
+
+                    $inverseContext[$iri][$container]['@language'][$language][$propertyGenerator][] = $term;
+                }
+                else
+                {
+                    $inverseContext[$iri][$container]['@null']['@null'][$propertyGenerator][] = $term;
+                }
+            }
+        }
+
+        // Then sort the terms and eliminate all except the lexicographically least;
+        // do the same for property generators but only eliminate those expanding
+        // to the same IRIs
+        foreach ($inverseContext as &$container)
+        {
+            foreach ($container as &$typeLangBucket)
+            {
+                foreach ($typeLangBucket as $key => &$values)
+                {
+                    foreach ($values as &$termBuckets)
+                    {
+                        if (isset($termBuckets['term']))
+                        {
+                            usort($termBuckets['term'], array($this, 'compare'));
+
+                            $termBuckets['term'] = $termBuckets['term'][0];
+                        }
+
+                        if (isset($termBuckets['propGens']))
+                        {
+                            usort($termBuckets['propGens'], array($this, 'compare'));
+                            $len = count($termBuckets['propGens']);
+
+                            for ($j = count($termBuckets['propGens']) - 1; $j > 0; $j--)
+                            {
+                                for ($i = $j - 1; $i >= 0; $i--)
+                                {
+                                    if ($activectx[$termBuckets['propGens'][$i]] === $activectx[$termBuckets['propGens'][$j]])
+                                    {
+                                        array_splice($termBuckets['propGens'], $j, 1);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ksort($inverseContext);
+        $inverseContext = array_reverse($inverseContext);
+
+        return $inverseContext;
     }
 
     /**
