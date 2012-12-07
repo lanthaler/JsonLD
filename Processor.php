@@ -588,10 +588,12 @@ class Processor
         {
             $element->{'@type'} = array($element->{'@type'});
         }
-
-        if (($numProps > 1) && (property_exists($element, '@list') || property_exists($element, '@set')))
+        if (($numProps > 1) && (
+            (property_exists($element, '@list') ||
+            property_exists($element, '@set') ||
+            property_exists($element, '@language'))))
         {
-            new SyntaxException(
+            throw new SyntaxException(
                 'An object with a @list or @set property can\'t contain other properties.',
                 $element);
         }
