@@ -1044,7 +1044,7 @@ class Processor
                 {
                     // Keywords can just be aliased but no other settings apply
                     // so we don't need to pass the value
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx);
+                    $activeprty = $this->compactIri($property, $activectx, $inversectx);
 
                     if ('@id' == $property)
                     {
@@ -1055,14 +1055,14 @@ class Processor
                     {
                         if (is_string($value))
                         {
-                            $value = $this->compactPropertyIri($value, $activectx, $inversectx);
+                            $value = $this->compactVocabularyIri($value, $activectx, $inversectx);
                         }
                         else
                         {
                             foreach ($value as $key => &$iri)
                             {
                                 // TODO Transform to relative IRIs by default??
-                                $iri = $this->compactPropertyIri($iri, $activectx, $inversectx);
+                                $iri = $this->compactVocabularyIri($iri, $activectx, $inversectx);
                             }
 
                             if ((true === $this->compactArrays) && (1 === count($value)))
@@ -1098,7 +1098,7 @@ class Processor
                 // Make sure that empty arrays are preserved
                 if (0 === count($value))
                 {
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx);
+                    $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, null, true);
                     self::mergeIntoProperty($element, $activeprty, $value);
 
                     // ... continue with next property
@@ -1109,7 +1109,7 @@ class Processor
                 // Compact every item in value separately as they could map to different terms
                 foreach ($value as &$val)
                 {
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, $val);
+                    $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                     if (is_object($val))
@@ -1148,8 +1148,11 @@ class Processor
     }
 
     /**
-     * Compacts a property's absolute IRI to a term, compact IRI or property
+     * Compacts a vocabulary relative IRI to a term, compact IRI or property
      * generator
+     *
+     * Vocabulary relative IRIs are either properties or values of `@type`.
+     * Only properties can be compacted to property generators.     *
      *
      * @param mixed  $iri           The IRI to be compacted.
      * @param array  $activectx     The active context.
@@ -1157,12 +1160,11 @@ class Processor
      * @param mixed  $value         The value of the property to compact.
      * @param bool   $toRelativeIri Specifies whether $value should be
      *                              transformed to a relative IRI as fallback.
-     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
-     *                              if set or not.
+     * @param bool   $propGens      Return property generators or not?
      *
      * @return string The compacted IRI.
      */
-    private function compactPropertyIri($iri, $activectx, $inversectx, $value = null)
+    private function compactVocabularyIri($iri, $activectx, $inversectx, $value = null, $propGens = false)
     {
         return $this->compactIri($iri, $activectx, $inversectx, $value, false, true);
 
