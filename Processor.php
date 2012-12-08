@@ -1046,46 +1046,42 @@ class Processor
                     // so we don't need to pass the value
                     $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx);
 
-                    if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
+                    if ('@id' == $property)
                     {
-                        // TODO Should we really automatically compact the value of @id?
+                        // TODO Transform @id to relative IRIs by default??
+                        $value = $this->compactIri($value, $activectx, $inversectx, null, $this->optimize);
+                    }
+                    elseif ('@type' == $property)
+                    {
                         if (is_string($value))
                         {
-                            // TODO Transform @id to relative IRIs by default??
-                            $value = $this->compactIri($value, $activectx, $inversectx, null, $this->optimize, ('@type' == $property));
+                            $value = $this->compactPropertyIri($value, $activectx, $inversectx);
                         }
                         else
                         {
-                            // Must be @graph or @type, while @type requires all values to be strings,
-                            // @graph values can be (expanded) objects as well
-                            if ('@graph' == $property)
+                            foreach ($value as $key => &$iri)
                             {
-                                $def = $this->getPropertyDefinition($activectx, '@graph');
-
-                                foreach ($value as $key => &$item)
-                                {
-                                    $item = $this->compactValue($item, $def['@type'], $def['@language'], $activectx, $inversectx);
-
-                                    if (is_object($item))
-                                    {
-                                        $this->compact($item, $activectx, $inversectx, null);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                foreach ($value as $key => &$iri)
-                                {
-                                    // TODO Transform to relative IRIs by default??
-                                    $iri = $this->compactIri($iri, $activectx, $inversectx, null, $this->optimize, true);
-                                }
+                                // TODO Transform to relative IRIs by default??
+                                $iri = $this->compactPropertyIri($iri, $activectx, $inversectx);
                             }
 
-                            if (is_array($value) && (true === $this->compactArrays) && (1 === count($value)))
+                            if ((true === $this->compactArrays) && (1 === count($value)))
                             {
                                 $value = $value[0];
                             }
                         }
+                    }
+                    elseif ('@graph' == $property)
+                    {
+                        if ('@graph' == $property)
+                        {
+                            foreach ($value as $key => &$item)
+                            {
+                                $this->compact($item, $activectx, $inversectx, null);
+                            }
+                        }
+
+                        // TODO Should arrays with just one item be compacted for @graph
                     }
                     else
                     {
