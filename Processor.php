@@ -1164,6 +1164,122 @@ class Processor
     }
 
     /**
+     * Compacts a value.
+     *
+     * @param mixed  $value      The value to compact (arrays are not allowed!).
+     * @param string $type       The type that applies (or null).
+     * @param string $language   The language that applies (or null).
+     * @param array  $activectx  The active context.
+     * @param array  $inversectx The inverse context.
+     *
+     * @return mixed The compacted value.
+     */
+    private function compactValue($value, $type, $language, $activectx, $inversectx)
+    {
+        // TODO Add support for @annotation
+        $numProperties = count(get_object_vars($value));
+
+        if ((1 === $numProperties) && property_exists($value, '@id') &&
+            ('@id' === $type))
+        {
+            return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
+        }
+
+        if (property_exists($value, '@value'))
+        {
+            $check = (isset($value->{'@type'})) ? 'type' : null;
+            if (isset($value->{'@language'}))
+            {
+                $check = 'language';
+            }
+
+            if (null !== $check)
+            {
+                return ($value->{'@' . $check} === $$check) // $$ is correct
+                    ? $value->{'@value'}
+                    : $value;
+            }
+            else
+            {
+                // the object has just a @value property
+                if (null !== $type)
+                {
+                    return $value;
+                }
+                elseif (null !== $language)
+                {
+                    // language tagging just applies to strings
+                    return (is_string($value->{'@value'}))
+                        ? $value
+                        : $value->{'@value'};
+                }
+
+                return $value->{'@value'};
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     *
+     * @param mixed  $iri           The IRI to be compacted.
+     * @param array  $activectx     The active context.
+     * @param array  $inversectx    The inverse context.
+     * @param bool   $toRelativeIri Specifies whether $value should be
+     *                              transformed to a relative IRI as fallback.
+     *
+     * @return string The compacted IRI.
+     */
+    private function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
+    {
+        // Is there a term defined?
+        if (isset($inversectx[$iri]['term']))
+        {
+            return $inversectx[$iri]['term'];
+        }
+
+        // ... or can we construct a compact IRI?
+        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
+        {
+            return $result;
+        }
+
+        // ... otherwise return the IRI as is
+        return $iri;
+    }
+
+    /**
+     * Helper function that compacts an absolute IRI to a compact IRI
+     *
+     * @param string $iri        The IRI.
+     * @param array  $activectx  The active context.
+     * @param array  $inversectx The inverse context.
+     *
+     * @return string|null Returns the compact IRI on success; otherwise null.
+     */
+    private function compactIriToCompactIri($iri, $activectx, $inversectx)
+    {
+        $iriLen = strlen($iri);
+
+        foreach ($inversectx as $termIri => $def)
+        {
+            if (isset($def['term']) && ($iriLen > strlen($termIri)) &&  // prevent empty suffixes
+                (0 === substr_compare($iri, $termIri, 0, strlen($termIri))))
+            {
+                $compactIri = $def['term'] . ':' . substr($iri, strlen($termIri));
+                if (false === isset($activectx[$compactIri]))
+                {
+                    return $compactIri;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Compacts a vocabulary relative IRI to a term, compact IRI or property
      * generator
      *
@@ -1221,71 +1337,6 @@ class Processor
         // IRI couldn't be compacted, return as is
         return $iri;
     }
-
-    /**
-     * Queries the inverse context to find the term or property generator(s)
-     * for a given query path (= value profile)
-     *
-     * @param array   $inversectxFrag  The inverse context (or a subtree thereof)
-     * @param array   $path            The query corresponding to the value profile
-     * @param bool    $propGens        Return property generators or not?
-     * @param string  $defaultLanguage If available the default language.
-     * @param integer $level           The recursion depth.
-     *
-     * @return null|string|string[] If the IRI maps to one or more property generators
-     *                              their terms plus (if available) a term matching the
-     *                              IRI that isn't a property generator will be returned;
-     *                              if the IRI doesn't map to a property generator but just
-     *                              to terms, the best matching term will be returned;
-     *                              otherwise null will be returned.
-     */
-    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $defaultLanguage = null, $level = 0)
-    {
-        if (3 === $level)
-        {
-            if ($propGens && isset($inversectxFrag['propGens']))
-            {
-                // TODO Also return first matching term as fallback
-                return $inversectxFrag['propGens'];
-            }
-            elseif (isset($inversectxFrag['term']))
-            {
-                return $inversectxFrag['term'];
-            }
-
-            return null;
-        }
-
-        if (isset($inversectxFrag[$path[$level]]))
-        {
-            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
-            if (null !== $result)
-            {
-                return $result;
-            }
-        }
-
-        // Fall back to @set (for everything but @list) and then @null
-        if ('@null' !== $path[$level])
-        {
-            if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
-            {
-                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $defaultLanguage, $level + 1);
-                if (null !== $result)
-                {
-                    return $result;
-                }
-            }
-
-            if (isset($inversectxFrag['@null']))
-            {
-                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
-            }
-        }
-
-        return null;
-    }
-
 
     /**
      * Calculates a value profile
@@ -1397,119 +1448,67 @@ class Processor
     }
 
     /**
-     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     * Queries the inverse context to find the term or property generator(s)
+     * for a given query path (= value profile)
      *
-     * @param mixed  $iri           The IRI to be compacted.
-     * @param array  $activectx     The active context.
-     * @param array  $inversectx    The inverse context.
-     * @param bool   $toRelativeIri Specifies whether $value should be
-     *                              transformed to a relative IRI as fallback.
+     * @param array   $inversectxFrag  The inverse context (or a subtree thereof)
+     * @param array   $path            The query corresponding to the value profile
+     * @param bool    $propGens        Return property generators or not?
+     * @param string  $defaultLanguage If available the default language.
+     * @param integer $level           The recursion depth.
      *
-     * @return string The compacted IRI.
+     * @return null|string|string[] If the IRI maps to one or more property generators
+     *                              their terms plus (if available) a term matching the
+     *                              IRI that isn't a property generator will be returned;
+     *                              if the IRI doesn't map to a property generator but just
+     *                              to terms, the best matching term will be returned;
+     *                              otherwise null will be returned.
      */
-    private function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
+    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $defaultLanguage = null, $level = 0)
     {
-        // Is there a term defined?
-        if (isset($inversectx[$iri]['term']))
+        if (3 === $level)
         {
-            return $inversectx[$iri]['term'];
-        }
-
-        // ... or can we construct a compact IRI?
-        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
-        {
-            return $result;
-        }
-
-        // ... otherwise return the IRI as is
-        return $iri;
-    }
-
-    /**
-     * Helper function that compacts an absolute IRI to a compact IRI
-     *
-     * @param string $iri        The IRI.
-     * @param array  $activectx  The active context.
-     * @param array  $inversectx The inverse context.
-     *
-     * @return string|null Returns the compact IRI on success; otherwise null.
-     */
-    private function compactIriToCompactIri($iri, $activectx, $inversectx)
-    {
-        $iriLen = strlen($iri);
-
-        foreach ($inversectx as $termIri => $def)
-        {
-            if (isset($def['term']) && ($iriLen > strlen($termIri)) &&  // prevent empty suffixes
-                (0 === substr_compare($iri, $termIri, 0, strlen($termIri))))
+            if ($propGens && isset($inversectxFrag['propGens']))
             {
-                $compactIri = $def['term'] . ':' . substr($iri, strlen($termIri));
-                if (false === isset($activectx[$compactIri]))
+                // TODO Also return first matching term as fallback
+                return $inversectxFrag['propGens'];
+            }
+            elseif (isset($inversectxFrag['term']))
+            {
+                return $inversectxFrag['term'];
+            }
+
+            return null;
+        }
+
+        if (isset($inversectxFrag[$path[$level]]))
+        {
+            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
+            if (null !== $result)
+            {
+                return $result;
+            }
+        }
+
+        // Fall back to @set (for everything but @list) and then @null
+        if ('@null' !== $path[$level])
+        {
+            if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
+            {
+                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $defaultLanguage, $level + 1);
+                if (null !== $result)
                 {
-                    return $compactIri;
+                    return $result;
                 }
+            }
+
+            if (isset($inversectxFrag['@null']))
+            {
+                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
             }
         }
 
         return null;
-    }
-
-    /**
-     * Compacts a value.
-     *
-     * @param mixed  $value      The value to compact (arrays are not allowed!).
-     * @param string $type       The type that applies (or null).
-     * @param string $language   The language that applies (or null).
-     * @param array  $activectx  The active context.
-     * @param array  $inversectx The inverse context.
-     *
-     * @return mixed The compacted value.
-     */
-    private function compactValue($value, $type, $language, $activectx, $inversectx)
-    {
-        // TODO Add support for @annotation
-        $numProperties = count(get_object_vars($value));
-
-        if ((1 === $numProperties) && property_exists($value, '@id') &&
-            ('@id' === $type))
-        {
-            return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
-        }
-
-        if (property_exists($value, '@value'))
-        {
-            $check = (isset($value->{'@type'})) ? 'type' : null;
-            if (isset($value->{'@language'}))
-            {
-                $check = 'language';
-            }
-
-            if (null !== $check)
-            {
-                return ($value->{'@' . $check} === $$check) // $$ is correct
-                    ? $value->{'@value'}
-                    : $value;
-            }
-            else
-            {
-                // the object has just a @value property
-                if (null !== $type)
-                {
-                    return $value;
-                }
-                elseif (null !== $language)
-                {
-                    // language tagging just applies to strings
-                    return (is_string($value->{'@value'}))
-                        ? $value
-                        : $value->{'@value'};
-                }
-
-                return $value->{'@value'};
-            }
-        }
-
-        return $value;
     }
 
     /**
