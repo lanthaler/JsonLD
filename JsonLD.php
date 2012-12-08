@@ -266,7 +266,9 @@ class JsonLD
 
         if (is_array($input) && (1 !== count($input)))
         {
-            $graphKeyword = $processor->compactIri('@graph', $activectx, $inversectx);
+            $graphKeyword = (isset($inversectx['@graph']['term']))
+                ? $inversectx['@graph']['term']
+                : '@graph';
             $compactedDocument->{$graphKeyword} = $input;
         }
         else
@@ -517,7 +519,9 @@ class JsonLD
             $result = array($result);
         }
 
-        $graphKeyword = $processor->compactIri('@graph', $frameActiveContext, $frameInverseContext);
+        $graphKeyword = (isset($frameInverseContext['@graph']['term']))
+            ? $frameInverseContext['@graph']['term']
+            : '@graph';
         $framedDocument->{$graphKeyword} = $result;
 
         return $framedDocument;

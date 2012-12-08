@@ -1206,36 +1206,16 @@ class Processor
         }
 
         // Try to compact to a compact IRI
-        $path = array_fill(0, 3, '@null');
-        $iriLen = strlen($iri);
-
-        foreach ($activectx as $key => $def)
+        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
         {
-            // TODO Store term definitions in subtree!?
-            if (false === isset($def['@id']))
-            {
-                continue;
-            }
-
-            if (($iriLen > strlen($def['@id'])) &&  // prevent empty suffixes
-                (0 === substr_compare($iri, $def['@id'], 0, strlen($def['@id']))))
-            {
-                $compactIri = $key . ':' . substr($iri, strlen($def['@id']));
-                if (false === isset($activectx[$compactIri]))
-                {
-                    return $compactIri;
-                }
-            }
+            return $result;
         }
 
-        // Last resort, use @vocab if set
-        if (isset($activectx['@vocab']))
+        // Last resort, use @vocab if set and the result isn't an empty string
+        if (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
+            (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
         {
-            if ((0 === strpos($iri, $activectx['@vocab'])) &&
-                (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
-            {
-                return $relativeIri;
-            }
+            return $relativeIri;
         }
 
         // IRI couldn't be compacted, return as is
@@ -1427,7 +1407,7 @@ class Processor
      *
      * @return string The compacted IRI.
      */
-    public function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
+    private function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
     {
         // Is there a term defined?
         if (isset($inversectx[$iri]['term']))
@@ -1436,6 +1416,26 @@ class Processor
         }
 
         // ... or can we construct a compact IRI?
+        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
+        {
+            return $result;
+        }
+
+        // ... otherwise return the IRI as is
+        return $iri;
+    }
+
+    /**
+     * Helper function that compacts an absolute IRI to a compact IRI
+     *
+     * @param string $iri        The IRI.
+     * @param array  $activectx  The active context.
+     * @param array  $inversectx The inverse context.
+     *
+     * @return string|null Returns the compact IRI on success; otherwise null.
+     */
+    private function compactIriToCompactIri($iri, $activectx, $inversectx)
+    {
         $iriLen = strlen($iri);
 
         foreach ($inversectx as $termIri => $def)
@@ -1451,8 +1451,7 @@ class Processor
             }
         }
 
-        // ... otherwise return the IRI as is
-        return $iri;
+        return null;
     }
 
     /**
