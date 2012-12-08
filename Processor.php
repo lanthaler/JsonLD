@@ -1629,17 +1629,17 @@ class Processor
             }
             elseif (is_object($context))
             {
-                if (property_exists($context, '@vocab') && (false == is_null($context->{'@vocab'})))
+                if (isset($context->{'@vocab'}))
                 {
-                    if ((false !== is_null($context->{'@vocab'})) &&
-                        ((false != is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))))
+                    if ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':')))
                     {
                         throw new SyntaxException(
-                            "The value of @vocab must be null or an absolute IRI.",
+                            "The value of @vocab must be an absolute IRI.",
                             $context);
                     }
 
                     $activectx['@vocab'] = $context->{'@vocab'};
+                    unset($context->{'@vocab'});
                 }
 
                 foreach ($context as $key => $value)
