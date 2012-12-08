@@ -1044,7 +1044,7 @@ class Processor
                 {
                     // Keywords can just be aliased but no other settings apply
                     // so we don't need to pass the value
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, null, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx);
 
                     if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
                     {
@@ -1102,7 +1102,7 @@ class Processor
                 // Make sure that empty arrays are preserved
                 if (0 === count($value))
                 {
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, null, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx);
                     self::mergeIntoProperty($element, $activeprty, $value);
 
                     // ... continue with next property
@@ -1113,7 +1113,7 @@ class Processor
                 // Compact every item in value separately as they could map to different terms
                 foreach ($value as &$val)
                 {
-                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, $val, false, true);
+                    $activeprty = $this->compactPropertyIri($property, $activectx, $inversectx, $val);
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                     if (is_object($val))
@@ -1166,9 +1166,9 @@ class Processor
      *
      * @return string The compacted IRI.
      */
-    private function compactPropertyIri($iri, $activectx, $inversectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
+    private function compactPropertyIri($iri, $activectx, $inversectx, $value = null)
     {
-        return $this->compactIri($iri, $activectx, $inversectx, $value, $toRelativeIri, $vocabRelative);
+        return $this->compactIri($iri, $activectx, $inversectx, $value, false, true);
 
     }
 
