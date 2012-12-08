@@ -1241,7 +1241,8 @@ class Processor
             }
         }
 
-        if ((true == $vocabRelative) && (true == array_key_exists('@vocab', $activectx)))
+        if ((1 === count($compactIris)) && ($iri === $compactIris[0]) &&
+           (true == $vocabRelative) && (true == array_key_exists('@vocab', $activectx)))
         {
             if ((0 === strpos($iri, $activectx['@vocab'])) &&
                 (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
