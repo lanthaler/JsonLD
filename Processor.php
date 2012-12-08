@@ -1113,6 +1113,21 @@ class Processor
                     $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
+                    if ('@language' === $def['@container'])
+                    {
+                        if (false === property_exists($element, $activeprty))
+                        {
+                            $element->{$activeprty} = new \stdClass();
+                        }
+
+                        $language = $val->{'@language'};
+                        $val = $this->compactValue($val, null, $language, $activectx, $inversectx);
+
+                        self::mergeIntoProperty($element->{$activeprty}, $language, $val);
+
+                        continue;
+                    }
+
                     if (is_object($val))
                     {
                         if (property_exists($val, '@list'))
@@ -1270,10 +1285,22 @@ class Processor
             }
         }
 
-        if (('@null' !== $path[$level]) && (isset($inversectxFrag['@null'])))
+        // Fall back to @set (for everything but @list) and then @null
+        if ('@null' !== $path[$level])
         {
-            // fallback
-            return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
+            if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
+            {
+                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $defaultLanguage, $level + 1);
+                if (null !== $result)
+                {
+                    return $result;
+                }
+            }
+
+            if (isset($inversectxFrag['@null']))
+            {
+                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
+            }
         }
 
         return null;
