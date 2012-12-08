@@ -1042,14 +1042,15 @@ class Processor
             {
                 if (in_array($property, self::$keywords))
                 {
-                    // Keywords can just be aliased but no other settings apply
-                    // so we don't need to pass the value
-                    $activeprty = $this->compactIri($property, $activectx, $inversectx);
+                    // Get the keyword alias from the inverse context if available
+                    $activeprty = (isset($inversectx[$property]['term']))
+                        ? $inversectx[$property]['term']
+                        : $property;
 
                     if ('@id' == $property)
                     {
                         // TODO Transform @id to relative IRIs by default??
-                        $value = $this->compactIri($value, $activectx, $inversectx, null, $this->optimize);
+                        $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
                     }
                     elseif ('@type' == $property)
                     {
@@ -1164,10 +1165,228 @@ class Processor
      *
      * @return string The compacted IRI.
      */
-    private function compactVocabularyIri($iri, $activectx, $inversectx, $value = null, $propGens = false)
+    private function compactVocabularyIri($iri, $activectx, $inversectx, $value = null, $propGens = true)
     {
-        return $this->compactIri($iri, $activectx, $inversectx, $value, false, true);
+        $result = null;
 
+        if (array_key_exists($iri, $inversectx))
+        {
+            $defaultLanguage = isset($activectx['@language']) ? $activectx['@language'] : null;
+
+            // TODO Replace value profile with path in general!?
+            $valueProfile = $this->getValueProfile($value);
+
+            $path = array(
+                $valueProfile['@container'],
+                ($defaultLanguage && ('@null' === $valueProfile['typeLang'])) ? '@language': $valueProfile['typeLang'],
+                ('@null' === $valueProfile['typeLang']) ? '@null' : $valueProfile[$valueProfile['typeLang']]
+            );
+
+            $result = $this->queryInverseContext($inversectx[$iri], $path, $defaultLanguage, $propGens);
+
+            if (null !== $result)
+            {
+                return $result;
+            }
+        }
+
+        // Try to compact to a compact IRI
+        $path = array_fill(0, 3, '@null');
+        $iriLen = strlen($iri);
+
+        foreach ($activectx as $key => $def)
+        {
+            // TODO Store term definitions in subtree!?
+            if (false === isset($def['@id']))
+            {
+                continue;
+            }
+
+            if (($iriLen > strlen($def['@id'])) &&  // prevent empty suffixes
+                (0 === substr_compare($iri, $def['@id'], 0, strlen($def['@id']))))
+            {
+                $compactIri = $key . ':' . substr($iri, strlen($def['@id']));
+                if (false === isset($activectx[$compactIri]))
+                {
+                    return $compactIri;
+                }
+            }
+        }
+
+        // Last resort, use @vocab if set
+        if (isset($activectx['@vocab']))
+        {
+            if ((0 === strpos($iri, $activectx['@vocab'])) &&
+                (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
+            {
+                return $relativeIri;
+            }
+        }
+
+        // IRI couldn't be compacted, return as is
+        return $iri;
+    }
+
+    /**
+     * Queries the inverse context to find the term or property generator(s)
+     * for a given query path (= value profile)
+     *
+     * @param array   $inversectxFrag  The inverse context (or a subtree thereof)
+     * @param array   $path            The query corresponding to the value profile
+     * @param bool    $propGens        Return property generators or not?
+     * @param string  $defaultLanguage If available the default language.
+     * @param integer $level           The recursion depth.
+     *
+     * @return null|string|string[] If the IRI maps to one or more property generators
+     *                              their terms plus (if available) a term matching the
+     *                              IRI that isn't a property generator will be returned;
+     *                              if the IRI doesn't map to a property generator but just
+     *                              to terms, the best matching term will be returned;
+     *                              otherwise null will be returned.
+     */
+    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $defaultLanguage = null, $level = 0)
+    {
+        if (3 === $level)
+        {
+            if ($propGens && isset($inversectxFrag['propGens']))
+            {
+                // TODO Also return first matching term as fallback
+                return $inversectxFrag['propGens'];
+            }
+            elseif (isset($inversectxFrag['term']))
+            {
+                return $inversectxFrag['term'];
+            }
+        }
+
+        if (isset($inversectxFrag[$path[$level]]))
+        {
+            // If there's no perfect match for the language and there's a default
+            // language, try that one first
+            if ((1 === $level) && ('@language' === $path[1]) && (null !== $defaultLanguage) &&
+                (false === isset($inversectxFrag[$path[1]][$path[2]]) && isset($inversectxFrag['@null'])))
+            {
+                $result = $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
+
+                if ($result)
+                {
+                    return $result;
+                }
+            }
+            return $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
+        }
+        elseif (('@null' !== $path[$level]) && (isset($inversectxFrag['@null'])))
+        {
+            // fallback
+            return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Calculates a value profile
+     *
+     * A value profile represent the schema of the value ignoring the
+     * concrete value. It is an associative array containing the following
+     * keys-value pairs:
+     *
+     *   * `@container`: the container, defaults to `@set`
+     *   * `@type`: the datatype IRI for typed values, `@id` for IRIs and
+     *     blank nodes, or `null` for native types and language-tagged strings
+     *   * `@language`: for language-tagged strings the language-code; for
+     *     all other values `null`
+     *   * `typeLang`: is set to `@type` or `@language` unless they are null;
+     *     in that case it is set to `@null`
+     *
+     * @param mixed $value The value.
+     *
+     * @return array The value profile.
+     */
+    private function getValueProfile($value)
+    {
+        $valueProfile = array(
+            '@container' => '@set',
+            '@type' => null,
+            '@language' => null,
+            'typeLang' => '@null'
+        );
+
+        if (null === $value)
+        {
+            return $valueProfile;
+        }
+
+        if (property_exists($value, '@id'))
+        {
+            $valueProfile['@type'] = '@id';
+            $valueProfile['typeLang'] = '@type';
+
+            return $valueProfile;
+        }
+
+        if (property_exists($value, '@value'))
+        {
+            $valueProfile['@type'] = null;
+            $valueProfile['typeLang'] = '@null';
+
+            if (property_exists($value, '@type'))
+            {
+                $valueProfile['@type'] = $value->{'@type'};
+                $valueProfile['typeLang'] = '@type';
+
+                if (property_exists($value, '@annotation'))
+                {
+                    $valueProfile['@container'] = '@annotation';
+                }
+            }
+            elseif (property_exists($value, '@language'))
+            {
+                $valueProfile['@language'] = $value->{'@language'};
+                $valueProfile['typeLang'] = '@language';
+                $valueProfile['@type'] = null;
+
+                $valueProfile['@container'] = (property_exists($value, '@annotation'))
+                    ? '@annotation'
+                    : '@language';
+            }
+
+            return $valueProfile;
+        }
+
+        if (property_exists($value, '@list'))
+        {
+            // It will only recurse one level deep as list of lists are not allowed
+            $len = count($value->{'@list'});
+
+            if ($len > 0)
+            {
+                $valueProfile = $this->getValueProfile($value->{'@list'}[0]);
+            }
+
+            $valueProfile['@container'] = (property_exists($value, '@annotation'))
+                ? '@annotation'
+                : '@list';
+
+
+            for ($i = $len - 1; $i > 0; $i--)
+            {
+                $profile = $this->getValueProfile($value->{'@list'}[$i]);
+
+                if (($valueProfile['@type'] !== $profile['@type']) ||
+                    ($valueProfile['@language'] !== $profile['@language']))
+                {
+                    $valueProfile['@type'] = null;
+                    $valueProfile['@language'] = null;
+                    $valueProfile['typeLang'] = '@null';
+
+                    return $valueProfile;
+                }
+            }
+        }
+
+        return $valueProfile;
     }
 
     /**
@@ -1176,165 +1395,37 @@ class Processor
      * @param mixed  $iri           The IRI to be compacted.
      * @param array  $activectx     The active context.
      * @param array  $inversectx    The inverse context.
-     * @param mixed  $value         The value of the property to compact.
      * @param bool   $toRelativeIri Specifies whether $value should be
      *                              transformed to a relative IRI as fallback.
-     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
-     *                              if set or not.
      *
      * @return string The compacted IRI.
      */
-    public function compactIri($iri, $activectx, $inversectx, $value = null, $toRelativeIri = false, $vocabRelative = false)
+    public function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
     {
-        // TODO Handle $toRelativeIri or remove it
-        $compactIris = array($iri);
-
-        // Calculate rank of full IRI
-        $highestRank = $this->calculateTermRank($iri, $value, $activectx);
-
-        $highestRank = (false === $highestRank) ? 0 : $highestRank;
-
-        foreach ($activectx as $term => $definition)
+        // Is there a term defined?
+        if (isset($inversectx[$iri]['term']))
         {
-            if (isset($definition['@id']))  // TODO Will anything else ever be in the context??
+            return $inversectx[$iri]['term'];
+        }
+
+        // ... or can we construct a compact IRI?
+        $iriLen = strlen($iri);
+
+        foreach ($inversectx as $termIri => $def)
+        {
+            if (isset($def['term']) && ($iriLen > strlen($termIri)) &&  // prevent empty suffixes
+                (0 === substr_compare($iri, $termIri, 0, strlen($termIri))))
             {
-                if ($iri == $definition['@id'])
+                $compactIri = $def['term'] . ':' . substr($iri, strlen($termIri));
+                if (false === isset($activectx[$compactIri]))
                 {
-                    $rank = 1;  // a term is always preferred to (compact) IRIs
-
-                    if (false == is_null($value))
-                    {
-                        $rank = $this->calculateTermRank($term, $value, $activectx);
-                    }
-
-                    if ($rank > $highestRank)
-                    {
-                        $compactIris = array();
-                        $highestRank = $rank;
-                    }
-
-                    if ((false !== $rank) && ($rank == $highestRank))
-                    {
-                        $compactIris[] = $term;
-                    }
-                }
-
-                // If no matching terms have been found yet, store compact IRI if it doesn't exist as term at the same time
-                if ((strlen($iri) > strlen($definition['@id'])) &&
-                    (0 === substr_compare($iri, $definition['@id'], 0, strlen($definition['@id']))))
-                {
-                    $compactIri = $term . ':' . substr($iri, strlen($definition['@id']));
-
-                    if (false == isset($activectx[$compactIri]))
-                    {
-                        $rank = $this->calculateTermRank($compactIri, $value, $activectx);
-                        if ($rank > $highestRank)
-                        {
-                            $compactIris = array();
-                            $highestRank = $rank;
-                        }
-
-                        if ((false !== $rank) && ($rank == $highestRank))
-                        {
-                            $compactIris[] = $compactIri;
-                        }
-                    }
+                    return $compactIri;
                 }
             }
         }
 
-        if ((1 === count($compactIris)) && ($iri === $compactIris[0]) &&
-           (true == $vocabRelative) && (true == array_key_exists('@vocab', $activectx)))
-        {
-            if ((0 === strpos($iri, $activectx['@vocab'])) &&
-                (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
-            {
-                $rank = $this->calculateTermRank($relativeIri, $value, $activectx);
-
-                if ($rank > $highestRank)
-                {
-                    $compactIris = array();
-                    $highestRank = $rank;
-                }
-
-                if ((false !== $rank) && ($rank == $highestRank))
-                {
-                    $compactIris[] = $relativeIri;
-                }
-            }
-        }
-
-        // Sort matches
-        usort($compactIris, array($this, 'compare'));
-
-        return $compactIris[0];  // there is always at least one entry: the passed IRI
-    }
-
-    /**
-     * Checks whether the value matches the passed type and language.
-     *
-     * @param mixed  $value    The value to check (arrays are not allowed!).
-     * @param string $type     The type it should match or null for no type.
-     * @param string $language The language it should match or null for no language.
-     *
-     * @return bool Returns true if the tpye and language match the value, otherwise false.
-     */
-    private function checkValueTypeLanguageMatch($value, $type, $language)
-    {
-        if (is_object($value))
-        {
-            // Check @value objects
-            if (property_exists($value, '@value'))
-            {
-                if (isset($value->{'@type'}))
-                {
-                    return ($value->{'@type'} === $type);
-                }
-                elseif (isset($value->{'@language'}))
-                {
-                    return ($value->{'@language'} === $language);
-                }
-                else
-                {
-                    // the object has just a @value property (or @type/@language equal null)
-                    if (isset($type))
-                    {
-                        return false;
-                    }
-                    elseif (isset($language))
-                    {
-                        // language tagging just applies to strings
-                        return (false == is_string($value->{'@value'}));
-                    }
-
-                    return true;
-                }
-            }
-
-            // Check @id objects
-            if (property_exists($value, '@id'))
-            {
-                return ('@id' == $type);
-            }
-
-            // an arbitrary object, doesn't match any type or language (TODO Check this!)
-            return ((false == isset($type)) && (false == isset($language)));
-        }
-
-        // It is a scalar with no type and language mapping
-        if (isset($type))
-        {
-            return false;
-        }
-        elseif (is_string($value) && isset($language))
-        {
-            return false;
-        }
-        else
-        {
-            return true;
-        }
-
+        // ... otherwise return the IRI as is
+        return $iri;
     }
 
     /**
@@ -1393,96 +1484,6 @@ class Processor
         }
 
         return $value;
-    }
-
-    /**
-     * Calculate term rank
-     *
-     * When selecting among multiple possible terms for a given property it
-     * is possible that multiple terms match but differ in their @type,
-     * @container, or @language settings. The purpose of this method is to
-     * take a term (or IRI) and a value and calculate a rank to find the
-     * best matching term, i.e., the one that minimizes the need for the
-     * expanded object form.
-     *
-     * @param string $term       The term whose rank should be calculated.
-     * @param mixed  $value      The value of the property to rank the term for.
-     * @param array  $activectx  The active context.
-     *
-     * @return int|false Returns the term rank or false if the term isn't usable.
-     */
-    private function calculateTermRank($term, $value, $activectx)
-    {
-        $rank = 0;
-
-        $def = $this->getPropertyDefinition($activectx, $term);
-
-        if (array_key_exists($term, $activectx))
-        {
-            $rank++;   // a term is preferred to (constructed) IRIs/compact IRIs
-        }
-        elseif (array_key_exists('@vocab', $activectx) && (false !== strpos($term, ':')))
-        {
-            $rank--;   // relative IRIs to @vocab are preferred over absolute and compact IRIs
-        }
-
-        // If it's a @list object, calculate the rank by first checking if the
-        // term has a list-container and then checking the number of type/language
-        // matches
-        if (is_object($value) && property_exists($value, '@list'))
-        {
-            if ('@list' == $def['@container'])
-            {
-                $rank++;
-            }
-
-            foreach ($value->{'@list'} as $item)
-            {
-                if ($this->checkValueTypeLanguageMatch($item, $def['@type'], $def['@language']))
-                {
-                    $rank++;
-                }
-                else
-                {
-                    $rank--;
-                }
-            }
-        }
-        else
-        {
-            if ('@list' == $def['@container'])
-            {
-                // For non-list values, a term with a list-container should never be chosen!
-                return false;
-            }
-            elseif ('@set' == $def['@container'])
-            {
-                // ... but we prefer terms with a set-container
-                $rank++;
-            }
-
-            // If a non-null value was passed, check if the type/language matches
-            if (false == is_null($value))
-            {
-                if ($this->checkValueTypeLanguageMatch($value, $def['@type'], $def['@language']))
-                {
-                    $rank++;
-                }
-                else
-                {
-                    $rank--;
-
-                    // .. a term with a mismatching type/language definition should not be chosen
-                    if (array_key_exists($term, $activectx) &&
-                        (isset($activectx[$term]['@type']) || isset($activectx[$term]['@language'])))
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return $rank;
     }
 
     /**
