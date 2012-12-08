@@ -619,9 +619,6 @@ class Processor
      * @param array   $activectx  The active context.
      * @param boolean $frame      True if a frame is being expanded, otherwise false.
      *
-     * @return boolean Returns true if the value was expanded; otherwise false
-     *                 so that it can be further processed.
-     *
      * @throws SyntaxException If the JSON-LD document contains syntax errors.
      */
     private function expandKeywordValue(&$element, $activeprty, $keyword, $value, $activectx, $frame)
@@ -630,7 +627,7 @@ class Processor
         // needed to determine what @type means
         if (is_null($value) && ('@value' !== $keyword))
         {
-            return true;
+            return;
         }
 
         if ('@id' == $keyword)
@@ -647,7 +644,7 @@ class Processor
                     $element);
             }
 
-            return true;
+            return;
         }
 
         if ('@type' == $keyword)
@@ -707,7 +704,7 @@ class Processor
                 }
             }
 
-            return true;
+            return;
         }
 
         if (('@value' == $keyword) || ('@language' == $keyword) || ('@annotation' == $keyword))
@@ -740,7 +737,7 @@ class Processor
 
             self::setProperty($element, $keyword, $value);
 
-            return true;
+            return;
         }
 
 
@@ -749,7 +746,7 @@ class Processor
             $this->expand($value, $activectx, $activeprty, $frame);
             self::mergeIntoProperty($element, $keyword, $value, true);
 
-            return true;
+            return;
         }
 
         if ('@graph' === $keyword)
@@ -757,11 +754,8 @@ class Processor
             $this->expand($value, $activectx, $keyword, $frame);
             self::mergeIntoProperty($element, $keyword, $value, true);
 
-            return true;
+            return;
         }
-
-        // The keyword wasn't handled
-        return false;
     }
 
     /**
