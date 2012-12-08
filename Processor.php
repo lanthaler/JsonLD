@@ -1777,7 +1777,7 @@ class Processor
      * following shape:
      *
      * <code>
-     * [container|@null]
+     * [container|@null|term]
      *   [@type|@language][typeIRI|languageCode]
      *   [@null][@null]
      *       [term|propGen]
@@ -1791,6 +1791,7 @@ class Processor
     public function createInverseContext($activectx)
     {
         $inverseContext = array();
+
         $propertyGenerators = isset($activectx['@propertyGenerators']) ? $activectx['@propertyGenerators'] : array();
 
         unset($activectx['@vocab']);
@@ -1808,8 +1809,10 @@ class Processor
 
             if (false === is_array($def['@id']))
             {
-                $def['@id'] = array($def['@id']);
                 $propertyGenerator = 'term';  // no
+                $inverseContext[$def['@id']]['term'][] = $term;
+
+                $def['@id'] = array($def['@id']);
             }
 
             foreach ($def['@id'] as $iri)
@@ -1834,10 +1837,18 @@ class Processor
         // Then sort the terms and eliminate all except the lexicographically least;
         // do the same for property generators but only eliminate those expanding
         // to the same IRIs
-        foreach ($inverseContext as &$container)
+        foreach ($inverseContext as &$containerBucket)
         {
-            foreach ($container as &$typeLangBucket)
+            foreach ($containerBucket as $container => &$typeLangBucket)
             {
+                if ('term' === $container)
+                {
+                    usort($typeLangBucket, array($this, 'compare'));
+                    $typeLangBucket = $typeLangBucket[0];
+
+                    continue;
+                }
+
                 foreach ($typeLangBucket as $key => &$values)
                 {
                     foreach ($values as &$termBuckets)
@@ -1870,7 +1881,7 @@ class Processor
                 }
             }
         }
-        ksort($inverseContext);
+        uksort($inverseContext, array($this, 'compare'));
         $inverseContext = array_reverse($inverseContext);
 
         return $inverseContext;
