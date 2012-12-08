@@ -1348,37 +1348,49 @@ class Processor
      */
     private function compactValue($value, $type, $language, $activectx, $inversectx)
     {
-        if ($this->checkValueTypeLanguageMatch($value, $type, $language))
+        // TODO Add support for @annotation
+        $numProperties = count(get_object_vars($value));
+
+        if ((1 === $numProperties) && property_exists($value, '@id') &&
+            ('@id' === $type))
         {
-            if (is_object($value))
+            return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
+        }
+
+        if (property_exists($value, '@value'))
+        {
+            $check = (isset($value->{'@type'})) ? 'type' : null;
+            if (isset($value->{'@language'}))
             {
-                if (property_exists($value, '@value'))
-                {
-                    // TODO If type == @id, do IRI compaction
-                    return $value->{'@value'};
-                }
-                elseif (property_exists($value, '@id') && (1 == count(get_object_vars($value))))
-                {
-                    return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
-                }
+                $check = 'language';
             }
 
-            return $value;
-        }
-        else
-        {
-            if (is_object($value))
+            if (null !== $check)
             {
-                return $value;
+                return ($value->{'@' . $check} === $$check) // $$ is correct
+                    ? $value->{'@value'}
+                    : $value;
             }
             else
             {
-                $result = new \stdClass();
-                $result->{'@value'} = $value;
+                // the object has just a @value property
+                if (null !== $type)
+                {
+                    return $value;
+                }
+                elseif (null !== $language)
+                {
+                    // language tagging just applies to strings
+                    return (is_string($value->{'@value'}))
+                        ? $value
+                        : $value->{'@value'};
+                }
 
-                return $result;
+                return $value->{'@value'};
             }
         }
+
+        return $value;
     }
 
     /**
