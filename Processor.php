@@ -1178,7 +1178,7 @@ class Processor
 
             $path = array(
                 $valueProfile['@container'],
-                ($defaultLanguage && ('@null' === $valueProfile['typeLang'])) ? '@language': $valueProfile['typeLang'],
+                $valueProfile['typeLang'],
                 ('@null' === $valueProfile['typeLang']) ? '@null' : $valueProfile[$valueProfile['typeLang']]
             );
 
@@ -1257,25 +1257,20 @@ class Processor
             {
                 return $inversectxFrag['term'];
             }
+
+            return null;
         }
 
         if (isset($inversectxFrag[$path[$level]]))
         {
-            // If there's no perfect match for the language and there's a default
-            // language, try that one first
-            if ((1 === $level) && ('@language' === $path[1]) && (null !== $defaultLanguage) &&
-                (false === isset($inversectxFrag[$path[1]][$path[2]]) && isset($inversectxFrag['@null'])))
+            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
+            if (null !== $result)
             {
-                $result = $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
-
-                if ($result)
-                {
-                    return $result;
-                }
+                return $result;
             }
-            return $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
         }
-        elseif (('@null' !== $path[$level]) && (isset($inversectxFrag['@null'])))
+
+        if (('@null' !== $path[$level]) && (isset($inversectxFrag['@null'])))
         {
             // fallback
             return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
@@ -1350,6 +1345,11 @@ class Processor
                 $valueProfile['@container'] = (property_exists($value, '@annotation'))
                     ? '@annotation'
                     : '@language';
+            }
+            elseif (is_string($value->{'@value'}))
+            {
+                $valueProfile['@language'] = '@null';
+                $valueProfile['typeLang'] = '@language';
             }
 
             return $valueProfile;
@@ -1804,6 +1804,7 @@ class Processor
     {
         $inverseContext = array();
 
+        $defaultLanguage = isset($activectx['@language']) ? $activectx['@language'] : '@null';
         $propertyGenerators = isset($activectx['@propertyGenerators']) ? $activectx['@propertyGenerators'] : array();
 
         unset($activectx['@vocab']);
@@ -1841,6 +1842,9 @@ class Processor
                 }
                 else
                 {
+                    // Every untyped term is implicitly set to the default language
+                    $inverseContext[$iri][$container]['@language'][$defaultLanguage][$propertyGenerator][] = $term;
+
                     $inverseContext[$iri][$container]['@null']['@null'][$propertyGenerator][] = $term;
                 }
             }
