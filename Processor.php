@@ -632,17 +632,15 @@ class Processor
 
         if ('@id' == $keyword)
         {
-            if (is_string($value))
-            {
-                $value = $this->expandIri($value, $activectx, true);
-                self::setProperty($element, $keyword, $value);
-            }
-            else
+            if (false === is_string($value))
             {
                 throw new SyntaxException(
                     'Invalid value for @id detected (must be a string).',
                     $element);
             }
+
+            $value = $this->expandIri($value, $activectx, true);
+            self::setProperty($element, $keyword, $value);
 
             return;
         }
@@ -655,56 +653,52 @@ class Processor
             {
                 $value = $this->expandIri($value, $activectx, true, true);
                 self::setProperty($element, $keyword, $value);
+
+                return;
             }
-            else
+
+            if (false === is_array($value))
             {
-                if (false == is_array($value))
+                $value = array($value);
+            }
+
+            $result = array();
+
+            foreach ($value as $item)
+            {
+                // This is an automatic recovery for @type values being node references
+                if (is_object($item) && (1 === count(get_object_vars($item))))
                 {
-                    $value = array($value);
+                    foreach ($item as $itemKey => $itemValue)
+                    {
+                        if ('@id' == $this->expandIri($itemKey, $activectx, false, true))
+                        {
+                            $item = $itemValue;
+                        }
+                    }
                 }
 
-                $result = array();
-
-                foreach ($value as $item)
+                if (is_string($item))
                 {
-                    // This is an automatic recovery for @type values being node references
-                    if (is_object($item) && (1 === count(get_object_vars($item))))
+                    $result[] = $this->expandIri($item, $activectx, true, true);
+                }
+                else
+                {
+                    // TODO Check if this is enough!!
+                    if (false === $frame)
                     {
-                        foreach ($item as $itemKey => $itemValue)
-                        {
-                            if ('@id' == $this->expandIri($itemKey, $activectx, false, true))
-                            {
-                                $item = $itemValue;
-                            }
-                        }
-                    }
-
-                    if (is_string($item))
-                    {
-                        $result[] = $this->expandIri($item, $activectx, true, true);
-                    }
-                    else
-                    {
-                        // TODO Check if this is enough!!
-                        if (true == $frame)
-                        {
-                            self::mergeIntoProperty($element, $keyword, $item);
-                            continue;
-                        }
-
                         throw new SyntaxException("Invalid value for $keyword detected.", $value);
                     }
 
-                }
-
-                // Don't keep empty arrays
-                if (count($result) >= 1)
-                {
-                    self::mergeIntoProperty($element, $keyword, $result, true);
+                    self::mergeIntoProperty($element, $keyword, $item);
                 }
             }
 
-            return;
+            // Don't keep empty arrays
+            if (count($result) >= 1)
+            {
+                self::mergeIntoProperty($element, $keyword, $result, true);
+            }
         }
 
         if (('@value' == $keyword) || ('@language' == $keyword) || ('@annotation' == $keyword))
@@ -716,17 +710,20 @@ class Processor
                     $value = $value[0];
                 }
 
-                if ((is_object($value) || is_array($value)))
+                if ('@value' !== $keyword)
                 {
+                    if (false === is_string($value))
+                    {
+                        throw new SyntaxException(
+                            "Invalid value for $keyword detected; must be a string.",
+                            $value);
+                    }
+                }
+                elseif ((null !== $value) && (false === is_scalar($value)))
+                {
+                    // we need to preserve @value: null to distinguish values form nodes
                     throw new SyntaxException(
                         "Invalid value for $keyword detected (must be a scalar).",
-                        $value);
-                }
-
-                if (('@annotation' === $keyword) && (false === is_string($value)))
-                {
-                    throw new SyntaxException(
-                        'Invalid value for @annotation detected; must be a string.',
                         $value);
                 }
             }
