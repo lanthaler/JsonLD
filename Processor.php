@@ -1017,7 +1017,7 @@ class Processor
             elseif (property_exists($element, '@value') || property_exists($element, '@id'))
             {
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
-                $element = $this->compactValue($element, $def['@type'], $def['@language'], $activectx, $inversectx);
+                $element = $this->compactValue($element, $def, $activectx, $inversectx);
 
                 if (false === is_object($element))
                 {
@@ -1104,17 +1104,17 @@ class Processor
                     $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
-                    if ('@language' === $def['@container'])
+                    if (in_array($def['@container'], array('@language', '@annotation')))
                     {
                         if (false === property_exists($element, $activeprty))
                         {
                             $element->{$activeprty} = new \stdClass();
                         }
 
-                        $language = $val->{'@language'};
-                        $val = $this->compactValue($val, null, $language, $activectx, $inversectx);
+                        $def[$def['@container']] = $val->{$def['@container']};
+                        $val = $this->compactValue($val, $def, $activectx, $inversectx);
 
-                        self::mergeIntoProperty($element->{$activeprty}, $language, $val);
+                        self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $val);
 
                         continue;
                     }
@@ -1155,58 +1155,73 @@ class Processor
     }
 
     /**
-     * Compacts a value.
+     * Compacts a value
+     *
+     * The passed property definition must be an associative array
+     * containing the following data:
+     *
+     * <code>
+     *   @type       => type IRI or null
+     *   @language   => language code or null
+     *   @annotation => annotation string or null
+     * </code>
      *
      * @param mixed  $value      The value to compact (arrays are not allowed!).
-     * @param string $type       The type that applies (or null).
-     * @param string $language   The language that applies (or null).
+     * @param array  $definition The active property's definition.
      * @param array  $activectx  The active context.
      * @param array  $inversectx The inverse context.
      *
      * @return mixed The compacted value.
      */
-    private function compactValue($value, $type, $language, $activectx, $inversectx)
+    private function compactValue($value, $definition,$activectx, $inversectx)
     {
-        // TODO Add support for @annotation
+        if (property_exists($value, '@annotation') &&
+            ($value->{'@annotation'} === $definition['@annotation']))
+        {
+            unset($value->{'@annotation'});
+        }
+
         $numProperties = count(get_object_vars($value));
 
-        if ((1 === $numProperties) && property_exists($value, '@id') &&
-            ('@id' === $type))
+        if (property_exists($value, '@id') && (1 === $numProperties) &&
+            ('@id' === $definition['@type']))
         {
             return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
         }
 
         if (property_exists($value, '@value'))
         {
-            $check = (isset($value->{'@type'})) ? 'type' : null;
-            if (isset($value->{'@language'}))
-            {
-                $check = 'language';
-            }
+            $criterion = (isset($value->{'@type'})) ? '@type' : null;
+            $criterion = (isset($value->{'@language'})) ? '@language' : $criterion;
 
-            if (null !== $check)
+            if (null !== $criterion)
             {
-                return ($value->{'@' . $check} === $$check) // $$ is correct
-                    ? $value->{'@value'}
-                    : $value;
-            }
-            else
-            {
-                // the object has just a @value property
-                if (null !== $type)
+                if ($value->{$criterion} !== $definition[$criterion])
                 {
                     return $value;
                 }
-                elseif (null !== $language)
-                {
-                    // language tagging just applies to strings
-                    return (is_string($value->{'@value'}))
-                        ? $value
-                        : $value->{'@value'};
-                }
 
-                return $value->{'@value'};
+                unset($value->{$criterion});
+
+                return (2 === $numProperties) ? $value->{'@value'} : $value;
             }
+
+            // the object has neither a @type nor a @language property
+            // check the active property's definition
+            if (null !== $definition['@type'])
+            {
+                // if the property is type coerced, we can't compact the value
+                return $value;
+            }
+            elseif ((null !== $definition['@language']) && is_string($value->{'@value'}))
+            {
+                // if the property is language tagged, we can't compact
+                // the value if it is a string
+                return $value;
+            }
+
+            // we can compact the value
+            return (1 === $numProperties) ? $value->{'@value'} : $value;
         }
 
         return $value;
@@ -1362,6 +1377,11 @@ class Processor
             return $valueProfile;
         }
 
+        if (property_exists($value, '@annotation'))
+        {
+            $valueProfile['@container'] = '@annotation';
+        }
+
         if (property_exists($value, '@id'))
         {
             $valueProfile['@type'] = '@id';
@@ -1379,11 +1399,6 @@ class Processor
             {
                 $valueProfile['@type'] = $value->{'@type'};
                 $valueProfile['typeLang'] = '@type';
-
-                if (property_exists($value, '@annotation'))
-                {
-                    $valueProfile['@container'] = '@annotation';
-                }
             }
             elseif (property_exists($value, '@language'))
             {
@@ -1391,9 +1406,10 @@ class Processor
                 $valueProfile['typeLang'] = '@language';
                 $valueProfile['@type'] = null;
 
-                $valueProfile['@container'] = (property_exists($value, '@annotation'))
-                    ? '@annotation'
-                    : '@language';
+                if (false === property_exists($value, '@annotation'))
+                {
+                    $valueProfile['@container'] = '@language';
+                }
             }
             elseif (is_string($value->{'@value'}))
             {
@@ -1414,9 +1430,10 @@ class Processor
                 $valueProfile = $this->getValueProfile($value->{'@list'}[0]);
             }
 
-            $valueProfile['@container'] = (property_exists($value, '@annotation'))
-                ? '@annotation'
-                : '@list';
+            if (false === property_exists($value, '@annotation'))
+            {
+                $valueProfile['@container'] = '@list';
+            }
 
 
             for ($i = $len - 1; $i > 0; $i--)
@@ -1535,6 +1552,7 @@ class Processor
             }
 
             $result['@language'] = null;
+            $result['@annotation'] = null;
             $result['@container'] = null;
             $result['isKeyword'] = true;
 
@@ -1546,6 +1564,7 @@ class Processor
                         '@language'  => (isset($activectx['@language']))
                             ? $activectx['@language']
                             : null,
+                        '@annotation' => null,
                         '@container' => null,
                         'isKeyword'  => false);
         $def = null;
