@@ -1320,7 +1320,7 @@ class Processor
                 ('@null' === $valueProfile['typeLang']) ? '@null' : $valueProfile[$valueProfile['typeLang']]
             );
 
-            $result = $this->queryInverseContext($inversectx[$iri], $path, $defaultLanguage, $propGens);
+            $result = $this->queryInverseContext($inversectx[$iri], $path, $propGens);
 
             if (null !== $result)
             {
@@ -1463,7 +1463,6 @@ class Processor
      * @param array   $inversectxFrag  The inverse context (or a subtree thereof)
      * @param array   $path            The query corresponding to the value profile
      * @param bool    $propGens        Return property generators or not?
-     * @param string  $defaultLanguage If available the default language.
      * @param integer $level           The recursion depth.
      *
      * @return null|string|string[] If the IRI maps to one or more property generators
@@ -1473,7 +1472,7 @@ class Processor
      *                              to terms, the best matching term will be returned;
      *                              otherwise null will be returned.
      */
-    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $defaultLanguage = null, $level = 0)
+    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $level = 0)
     {
         if (3 === $level)
         {
@@ -1492,7 +1491,7 @@ class Processor
 
         if (isset($inversectxFrag[$path[$level]]))
         {
-            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $defaultLanguage, $level + 1);
+            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $level + 1);
             if (null !== $result)
             {
                 return $result;
@@ -1504,7 +1503,7 @@ class Processor
         {
             if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
             {
-                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $defaultLanguage, $level + 1);
+                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $level + 1);
                 if (null !== $result)
                 {
                     return $result;
@@ -1513,7 +1512,7 @@ class Processor
 
             if (isset($inversectxFrag['@null']))
             {
-                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $defaultLanguage, $level + 1);
+                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $level + 1);
             }
         }
 
