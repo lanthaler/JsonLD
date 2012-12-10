@@ -871,7 +871,7 @@ class Processor
      */
     private function doExpandIri($value, $activectx, $relativeIri = false, $vocabRelative = false, $localctx = null, $path = array())
     {
-        if (in_array($value, self::$keywords))
+        if ((null === $value) || in_array($value, self::$keywords))
         {
             return $value;
         }
@@ -1815,12 +1815,14 @@ class Processor
                     if (is_null($value))
                     {
                         unset($activectx[$key]);
+                        $activectx[$key]['@id'] = null;
+
                         continue;
                     }
 
                     if ('@language' == $key)
                     {
-                        if (false == is_string($value))
+                        if (false === is_string($value))
                         {
                             throw new SyntaxException(
                                 'The value of @language must be a string.',
@@ -1857,7 +1859,7 @@ class Processor
 
                         $expanded = null;
 
-                        if (isset($value->{'@id'}))
+                        if (property_exists($value, '@id'))
                         {
                             if (is_array($value->{'@id'}))  // is it a property generator?
                             {
@@ -1902,11 +1904,12 @@ class Processor
                             $context->{$key}->{'@id'} = $expanded;
                             $activectxKey = &$activectx[$key];
 
-                            if (in_array($expanded, self::$keywords))
+                            if ((null === $expanded) || in_array($expanded, self::$keywords))
                             {
-                                // if it's an aliased keyword, we ignore all other properties
+                                // if it's an aliased keyword or the IRI is null, we ignore all other properties
                                 // TODO Should we throw an exception if there are other properties?
                                 $activectxKey = array('@id' => $expanded);
+
                                 continue;
                             }
                             elseif (false === strpos($expanded, ':'))
@@ -2011,6 +2014,11 @@ class Processor
         // Put every IRI of each term into the inverse context
         foreach ($activectx as $term => $def)
         {
+            if (null === $def['@id'])
+            {
+                continue;
+            }
+
             $container = (isset($def['@container'])) ? $def['@container'] : '@null';
             $propertyGenerator = 'propGens';  // yes
 
