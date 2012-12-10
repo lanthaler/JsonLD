@@ -1894,7 +1894,7 @@ class Processor
             {
                 if ('term' === $container)
                 {
-                    usort($typeLangBucket, array($this, 'compare'));
+                    usort($typeLangBucket, array($this, 'sortTerms'));
                     $typeLangBucket = $typeLangBucket[0];
 
                     continue;
@@ -1906,14 +1906,14 @@ class Processor
                     {
                         if (isset($termBuckets['term']))
                         {
-                            usort($termBuckets['term'], array($this, 'compare'));
+                            usort($termBuckets['term'], array($this, 'sortTerms'));
 
                             $termBuckets['term'] = $termBuckets['term'][0];
                         }
 
                         if (isset($termBuckets['propGens']))
                         {
-                            usort($termBuckets['propGens'], array($this, 'compare'));
+                            usort($termBuckets['propGens'], array($this, 'sortTerms'));
                             $len = count($termBuckets['propGens']);
 
                             for ($j = count($termBuckets['propGens']) - 1; $j > 0; $j--)
@@ -1932,7 +1932,7 @@ class Processor
                 }
             }
         }
-        uksort($inverseContext, array($this, 'compare'));
+        uksort($inverseContext, array($this, 'sortTerms'));
         $inverseContext = array_reverse($inverseContext);
 
         return $inverseContext;
@@ -2983,7 +2983,7 @@ class Processor
      *             returned, if they are equal 0 will be returned, otherwise 1
      *             will be returned.
      */
-    private static function compare($a, $b)
+    private static function sortTerms($a, $b)
     {
         $lenA = strlen($a);
         $lenB = strlen($b);
