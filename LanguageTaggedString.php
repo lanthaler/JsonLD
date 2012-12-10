@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 
 /**
  * A LanguageTaggedString is a string which is tagged with a language.
@@ -71,7 +72,7 @@ final class LanguageTaggedString extends Value
      */
     public function toJsonLd($useNativeTypes = true)
     {
-        $result = new \stdClass();
+        $result = new Object();
         $result->{'@value'} = $this->value;
         $result->{'@language'} = $this->language;
 

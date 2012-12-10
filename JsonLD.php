@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 use ML\JsonLD\Exception\ParseException;
 
 /**
@@ -258,7 +259,7 @@ class JsonLD
         $inversectx = $processor->createInverseContext($activectx);
         $processor->compact($input, $activectx, $inversectx, null);
 
-        $compactedDocument = new \stdClass();
+        $compactedDocument = new Object();
         if (null !== $context)
         {
             $compactedDocument->{'@context'} = $context;
@@ -483,7 +484,7 @@ class JsonLD
         $processor = new Processor($options);
 
         // Prepare result document by saving the frame's context
-        $framedDocument = new \stdClass();
+        $framedDocument = new Object();
         $frameActiveContext = array();
         if (property_exists($frame, '@context'))
         {

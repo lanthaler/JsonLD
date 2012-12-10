@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 
 /**
  * A typed value represents a value with an associated type.
@@ -78,7 +79,7 @@ final class TypedValue extends Value
      */
     public function toJsonLd($useNativeTypes = true)
     {
-        $result = new \stdClass();
+        $result = new Object();
 
         if (true === $useNativeTypes)
         {

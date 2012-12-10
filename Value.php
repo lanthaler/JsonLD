@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 
 /**
  * Value is the abstract base class used for typed values and
@@ -58,11 +59,11 @@ abstract class Value
      * If the passed value element can't be transformed to a language-tagged
      * string or a typed value false is returned.
      *
-     * @param \stdClass $element The JSON-LD element
+     * @param Object $element The JSON-LD element
      *
      * @return false|LanguageTaggedString|TypedValue The parsed object
      */
-    public static function fromJsonLd(\stdClass $element)
+    public static function fromJsonLd(Object $element)
     {
         if (false === property_exists($element, '@value'))
         {
@@ -117,7 +118,7 @@ abstract class Value
      *                                xsd:boolean, otherwise typed strings
      *                                will be used instead.
      *
-     * @return string|integer|float|boolean|\stdClass The JSON-LD element.
+     * @return string|integer|float|boolean|Object The JSON-LD element.
      */
     abstract public function toJsonLd($useNativeTypes = true);
 

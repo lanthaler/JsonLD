@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
@@ -191,7 +192,7 @@ class Processor
     public function getDocument($input)
     {
         // TODO Add support for named graphs
-        $nodeMap = new \stdClass();
+        $nodeMap = new Object();
         $this->createNodeMap($nodeMap, $input);
         $this->mergeNodeMapGraphs($nodeMap);
 
@@ -334,7 +335,7 @@ class Processor
             $properties = get_object_vars($element);
             ksort($properties);
 
-            $element = new \stdClass();
+            $element = new Object();
 
             foreach ($properties as $property => $value)
             {
@@ -456,7 +457,7 @@ class Processor
                             $value = array($value);
                         }
 
-                        $obj = new \stdClass();
+                        $obj = new Object();
                         $obj->{'@list'} = $value;
                         $value = $obj;
                     }
@@ -489,7 +490,7 @@ class Processor
         if (is_scalar($element))
         {
             $def = $this->getPropertyDefinition($activectx, $activeprty);
-            $obj = new \stdClass();
+            $obj = new Object();
 
             if ('@id' === $def['@type'])
             {
@@ -1027,7 +1028,7 @@ class Processor
 
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
-            $element = new \stdClass();
+            $element = new Object();
 
             foreach ($properties as $property => $value)
             {
@@ -1108,7 +1109,7 @@ class Processor
                     {
                         if (false === property_exists($element, $activeprty))
                         {
-                            $element->{$activeprty} = new \stdClass();
+                            $element->{$activeprty} = new Object();
                         }
 
                         $def[$def['@container']] = $val->{$def['@container']};
@@ -1967,7 +1968,7 @@ class Processor
             // Handle lists
             if (property_exists($element, '@list'))
             {
-                $flattenedList = new \stdClass();
+                $flattenedList = new Object();
                 $flattenedList->{'@list'} = array();
 
                 $this->createNodeMap($nodeMap, $element->{'@list'}, $flattenedList->{'@list'}, true, false, $graph);
@@ -1994,7 +1995,7 @@ class Processor
 
             if (null !== $parent)
             {
-                $node = new \stdClass();
+                $node = new Object();
                 $node->{'@id'} = $id;
 
                 // Just add the node reference if it isn't there yet or it is a list
@@ -2015,10 +2016,10 @@ class Processor
             {
                 if (false == isset($nodeMap->{$graph}))
                 {
-                    $nodeMap->{$graph} = new \stdClass();
+                    $nodeMap->{$graph} = new Object();
                 }
 
-                $node = new \stdClass();
+                $node = new Object();
                 $node->{'@id'} = $id;
 
                 $nodeMap->{$graph}->{$id} = $node;
@@ -2149,7 +2150,7 @@ class Processor
      */
     public function flatten($element, $graph = '@merged')
     {
-        $nodeMap = new \stdClass();
+        $nodeMap = new Object();
         $this->createNodeMap($nodeMap, $element);
 
         if ('@merged' === $graph)
@@ -2304,7 +2305,7 @@ class Processor
     public function fromQuads(array $quads)
     {
         $graphs = array();
-        $graphs['@default'] = new \stdClass();
+        $graphs['@default'] = new Object();
         $graphs['@default']->nodeMap = array();
         $graphs['@default']->listMap = array();
 
@@ -2327,7 +2328,7 @@ class Processor
 
             if (false === isset($graphs[$graphName]))
             {
-                $graphs[$graphName] = new \stdClass();
+                $graphs[$graphName] = new Object();
                 $graphs[$graphName]->nodeMap = array();
                 $graphs[$graphName]->listMap = array();
             }
@@ -2344,7 +2345,7 @@ class Processor
             {
                 if (false === isset($graph->listMap[$subject]))
                 {
-                    $graph->listMap[$subject] = new \stdClass();
+                    $graph->listMap[$subject] = new Object();
                 }
 
                 $graph->listMap[$subject]->first =
@@ -2365,7 +2366,7 @@ class Processor
 
                 if (false === isset($graph->listMap[$subject]))
                 {
-                    $graph->listMap[$subject] = new \stdClass();
+                    $graph->listMap[$subject] = new Object();
                 }
 
                 $graph->listMap[$subject]->rest = (string)$object;
@@ -2409,7 +2410,7 @@ class Processor
                     $id = $value->{'@id'};
                     if (false === isset($graph->listMap[$id]))
                     {
-                        $graph->listMap[$id] = new \stdClass();
+                        $graph->listMap[$id] = new Object();
                     }
 
                     $graph->listMap[$id]->head = $value;
@@ -2523,7 +2524,7 @@ class Processor
 
         $frame = $frame[0];
 
-        $options = new \stdClass();
+        $options = new Object();
         $options->{'@embed'} = true;
         $options->{'@embedChildren'} = true;   // TODO Change this as soon as the tests haven been updated
 
@@ -2540,7 +2541,7 @@ class Processor
             }
         }
 
-        $procOptions = new \stdClass();
+        $procOptions = new Object();
         $procOptions->base = (string)$this->baseIri;
         $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
@@ -2549,7 +2550,7 @@ class Processor
 
         $processor = new Processor($procOptions);
 
-        $nodeMap = new \stdClass();
+        $nodeMap = new Object();
         $processor->createNodeMap($nodeMap, $element);
 
         $graph = '@merged';
@@ -2599,7 +2600,7 @@ class Processor
             $filter = get_object_vars($frame);
         }
 
-        $result = new \stdClass();
+        $result = new Object();
 
         // Make sure that @id is always in the result if the node matches the filter
         if (property_exists($node, '@id'))
@@ -2697,7 +2698,7 @@ class Processor
                     {
                         if (is_null($validValue->{'@default'}))
                         {
-                            $result->{$property} = new \stdClass();
+                            $result->{$property} = new Object();
                             $result->{$property}->{'@null'} = true;
                         }
                         else
@@ -2806,7 +2807,7 @@ class Processor
         // Discard subtree if this object should not be embedded
         if ((false == $options->{'@embed'}) && property_exists($node, '@id'))
         {
-            $result = new \stdClass();
+            $result = new Object();
             $result->{'@id'} = $node->{'@id'};
             $parent[] = $result;
 
@@ -3026,7 +3027,7 @@ class Processor
         if ($object instanceof IRI)
         {
             $iri = (string)$object;
-            $result = new \stdClass();
+            $result = new Object();
 
             // rdf:nil represents the end of a list and is at the same
             // time used to represent empty lists
