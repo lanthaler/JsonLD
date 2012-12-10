@@ -1028,10 +1028,20 @@ class Processor
 
             // Otherwise, compact all properties
             $properties = get_object_vars($element);
+            ksort($properties);
+
             $element = new Object();
 
             foreach ($properties as $property => $value)
             {
+                // This is necessary as foreach operates on a copy of the array
+                // and it might have been modified by property generators
+                if (false === array_key_exists($property, $properties))
+                {
+                    continue;
+                }
+                $value = $properties[$property];
+
                 if (in_array($property, self::$keywords))
                 {
                     // Get the keyword alias from the inverse context if available
@@ -1103,6 +1113,25 @@ class Processor
                 foreach ($value as &$val)
                 {
                     $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
+
+                    if (is_array($activeprty))
+                    {
+                        foreach ($activeprty['propGens'] as $propGen)
+                        {
+                            $def = $this->getPropertyDefinition($activectx, $propGen);
+                            if (true === $this->removePropertyGeneratorDuplicates($properties, $property, $val, $def['@id']))
+                            {
+                                $activeprty = $propGen;
+                                break;
+                            }
+                        }
+
+                        if (is_array($activeprty))
+                        {
+                            $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, false);
+                        }
+                    }
+
                     $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                     if (in_array($def['@container'], array('@language', '@annotation')))
@@ -1346,6 +1375,134 @@ class Processor
     }
 
     /**
+     * Removes the duplicate values introduced by property generators
+     *
+     * @param array $properties An associative array containing the
+     *                          property-value pairs of the object using a
+     *                          property generator.
+     * @param string $property  The IRI of the currently being processed
+     *                          property.
+     * @param mixed $value      The currently being processed value for
+     *                          whose duplicates should be removed.
+     * @param array $iris       The IRIs the property generator consists of.
+     *
+     * @return bool Returns true if the duplicates have been found and
+     *              removed for all IRIs
+     */
+    private function removePropertyGeneratorDuplicates(&$properties, $property, $value, $iris)
+    {
+        $valueMap = array();
+
+        foreach ($iris as $iri)
+        {
+            if (($iri === $property) || (false === isset($properties[$iri])))
+            {
+                continue;
+            }
+
+            foreach ($properties[$iri] as $key => &$val)
+            {
+                if ($this->subtreeEquals($value, $val))
+                {
+                    $valueMap[$iri] = $key;
+                }
+            }
+        }
+
+        if (count($valueMap) !== (count($iris) - 1))
+        {
+            // value wasn't found for all of the property generator's IRIs
+            return false;
+        }
+
+        foreach ($valueMap as $iri => $key)
+        {
+            if (1 === count($properties[$iri]))
+            {
+                unset($properties[$iri]);
+            }
+            else
+            {
+                unset($properties[$iri][$key]);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Verifies whether two JSON-LD subtrees are equal not
+     *
+     * Please note that two unlabeled blank nodes will never be equal by
+     * definition.
+     *
+     * @param  mixed $a The first subtree.
+     * @param  mixed $b The second subree.
+     *
+     * @return bool Returns true if the two subtrees are equal; otherwise
+     *              false.
+     */
+    private function subtreeEquals($a, $b)
+    {
+        if (gettype($a) !== gettype($b))
+        {
+            return false;
+        }
+
+        if (is_scalar($a))
+        {
+            return ($a === $b);
+        }
+
+        if (is_array($a))
+        {
+            $len = count($a);
+
+            if ($len !== count($b))
+            {
+                return false;
+            }
+
+            // TODO Ignore order for sets?
+            for ($i = 0; $i < $len; $i++)
+            {
+                if (false === $this->subtreeEquals($a[$i], $b[$i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (!property_exists($a, '@id') &&
+            !property_exists($a, '@value') &&
+            !property_exists($a, '@list'))
+        {
+            // Blank nodes can never match as they can't be identified
+            return false;
+        }
+
+        $properties = array_keys(get_object_vars($a));
+
+        if (count($properties) !== count(get_object_vars($b)))
+        {
+            return false;
+        }
+
+        foreach ($properties as $property)
+        {
+            if ((false === property_exists($b, $property)) ||
+                (false === $this->subtreeEquals($a->{$property}, $b->{$property})))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Calculates a value profile
      *
      * A value profile represent the schema of the value ignoring the
@@ -1478,8 +1635,8 @@ class Processor
         {
             if ($propGens && isset($inversectxFrag['propGens']))
             {
-                // TODO Also return first matching term as fallback
-                return $inversectxFrag['propGens'];
+                // TODO Also return less specific property generators?
+                return array('propGens' => $inversectxFrag['propGens']);
             }
             elseif (isset($inversectxFrag['term']))
             {
@@ -1581,6 +1738,8 @@ class Processor
         {
             return $result;
         }
+
+        $result['@id'] = $def['@id'];
 
         if (isset($def['@type']))
         {
