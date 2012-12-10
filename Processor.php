@@ -1523,12 +1523,12 @@ class Processor
      * Returns a property's definition
      *
      * The result will be in the form
-     * <pre>
+     * <code>
      *   array('@type'      => type or null,
      *         '@language'  => language or null,
      *         '@container' => container or null,
      *         'isKeyword'  => true or false)
-     * </pre>
+     * </code>
      *
      * If {@link $only} is set, only the value of that key of the array
      * above will be returned.
@@ -1986,7 +1986,7 @@ class Processor
             }
 
             // if no @id was found or if it was a blank node and we are not currently
-            // merging graphs, assign a new identifier to avoid collissions
+            // merging graphs, assign a new identifier to avoid collisions
             if ((null === $id) || (('@merged' != $graph) && (0 === strncmp($id, '_:', 2))))
             {
                 $id = $this->getBlankNodeId($id);
@@ -2071,7 +2071,7 @@ class Processor
         else
         {
             // If it's the value is for a keyword which is interpreted as an IRI and the value
-            // is a string representing a blank node, re-map it to prevent collissions
+            // is a string representing a blank node, re-map it to prevent collisions
             if ((true === $iriKeyword) && is_string($element) && ('@merged' != $graph) && (0 === strncmp($element, '_:', 2)))
             {
                 $element = $this->getBlankNodeId($element);
@@ -2970,15 +2970,15 @@ class Processor
     /**
      * Compares two values by their length and then lexicographically
      *
-     * If two strings have different lenghts, the shorter one will be
-     * considered less than the other. If they have the same lenght, they
+     * If two strings have different lengths, the shorter one will be
+     * considered less than the other. If they have the same length, they
      * are compared lexicographically.
      *
      * @param mixed $a Value A.
      * @param mixed $b Value B.
      *
      * @return int If value A is shorter than value B, -1 will be returned; if it's
-     *             longer 1 will be returned. If both values have the same lenght
+     *             longer 1 will be returned. If both values have the same length
      *             and value A is considered lexicographically less, -1 will be
      *             returned, if they are equal 0 will be returned, otherwise 1
      *             will be returned.
