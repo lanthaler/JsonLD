@@ -1125,7 +1125,8 @@ class Processor
 
                         if (is_array($activeprty))
                         {
-                            $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, false);
+                            // fall back to term or IRI if no property generator matches
+                            $activeprty = $activeprty['term'];
                         }
                     }
 
@@ -1348,15 +1349,22 @@ class Processor
 
             $result = $this->queryInverseContext($inversectx[$iri], $path, $propGens);
 
-            if (null !== $result)
+            if (is_string($result) || isset($result['term']))
             {
                 return $result;
             }
         }
 
         // Try to compact to a compact IRI
-        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
+        if (null !== ($compactIri = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
         {
+            if (is_null($result))
+            {
+                return $compactIri;
+            }
+
+            $result['term'] = $compactIri;
+
             return $result;
         }
 
@@ -1364,11 +1372,25 @@ class Processor
         if (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
         {
-            return $relativeIri;
+            if (is_null($result))
+            {
+                return $relativeIri;
+            }
+
+            $result['term'] = $relativeIri;
+
+            return $result;
         }
 
         // IRI couldn't be compacted, return as is
-        return $iri;
+        if (is_null($result))
+        {
+            return $iri;
+        }
+
+        $result['term'] = $iri;
+
+        return $result;
     }
 
     /**
@@ -1628,25 +1650,32 @@ class Processor
      */
     private function queryInverseContext($inversectxFrag, $path, $propGens = true, $level = 0)
     {
+        $result = null;
+
         if (3 === $level)
         {
             if ($propGens && isset($inversectxFrag['propGens']))
             {
                 // TODO Also return less specific property generators?
-                return array('propGens' => $inversectxFrag['propGens']);
-            }
-            elseif (isset($inversectxFrag['term']))
-            {
-                return $inversectxFrag['term'];
+                $result = array('propGens' => $inversectxFrag['propGens']);
             }
 
-            return null;
+            if (isset($inversectxFrag['term']))
+            {
+                if (null === $result) {
+                    return $inversectxFrag['term'];
+                }
+
+                $result['term'] = $inversectxFrag['term'];
+            }
+
+            return $result;
         }
 
         if (isset($inversectxFrag[$path[$level]]))
         {
             $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $level + 1);
-            if (null !== $result)
+            if (is_string($result))
             {
                 return $result;
             }
@@ -1657,20 +1686,82 @@ class Processor
         {
             if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
             {
-                $result = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $level + 1);
-                if (null !== $result)
+                $tmpResult = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $level + 1);
+
+                if (is_string($tmpResult))
                 {
-                    return $result;
+                    if (null === $result)
+                    {
+                        return $tmpResult;
+                    }
+
+                    $tmpResult = array(
+                        'propGens' => array(),
+                        'term' => $tmpResult
+                    );
+                }
+
+                if (null === $result)
+                {
+                    $result = $tmpResult;
+                }
+                else
+                {
+                    foreach ($tmpResult['propGens'] as $propGen)
+                    {
+                        if (false === in_array($propGen, $result['propGens']))
+                        {
+                            $result['propGens'][] = $propGen;
+                        }
+                    }
+                    if ((false === isset($result['term'])) && isset($tmpResult['term']))
+                    {
+                        $result['term'] = $tmpResult['term'];
+                    }
                 }
             }
 
             if (isset($inversectxFrag['@null']))
             {
-                return $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $level + 1);
+                $tmpResult = $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $level + 1);
+
+                // 1:1 copy of the code above
+                // TODO Refactor this!
+                if (is_string($tmpResult))
+                {
+                    if (null === $result)
+                    {
+                        return $tmpResult;
+                    }
+
+                    $tmpResult = array(
+                        'propGens' => array(),
+                        'term' => $tmpResult
+                    );
+                }
+
+                if (null === $result)
+                {
+                    $result = $tmpResult;
+                }
+                else
+                {
+                    foreach ($tmpResult['propGens'] as $propGen)
+                    {
+                        if (false === in_array($propGen, $result['propGens']))
+                        {
+                            $result['propGens'][] = $propGen;
+                        }
+                    }
+                    if ((false === isset($result['term'])) && isset($tmpResult['term']))
+                    {
+                        $result['term'] = $tmpResult['term'];
+                    }
+                }
             }
         }
 
-        return null;
+        return $result;
     }
 
     /**
