@@ -130,19 +130,19 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Tests conversion to quads.
+     * Tests conversion to RDF quads.
      *
      * @param string $name    The test name.
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
-     * @dataProvider toQuadsProvider
+     * @dataProvider toRdfProvider
      */
-    public function testToQuads($name, $test, $options)
+    public function testToRdf($name, $test, $options)
     {
         $expected = file_get_contents($this->basedir . $test->{'expect'});
-        $quads = JsonLD::toQuads($this->basedir . $test->{'input'},
-                                 $options);
+        $quads = JsonLD::toRdf($this->basedir . $test->{'input'},
+                               $options);
 
         $serializer = new NQuads();
         $result = $serializer->serialize($quads);
@@ -152,9 +152,9 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
 
 
     /**
-     * Provides conversion to quads test cases.
+     * Provides conversion to RDF quads test cases.
      */
-    public function toQuadsProvider()
+    public function toRdfProvider()
     {
         return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
     }
@@ -167,16 +167,16 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
-     * @dataProvider fromQuadsProvider
+     * @dataProvider fromRdfProvider
      */
-    public function testFromQuads($name, $test, $options)
+    public function testFromRdf($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
 
         $parser = new NQuads();
         $quads = $parser->parse(file_get_contents($this->basedir . $test->{'input'}));
 
-        $result = JsonLD::fromQuads($quads, $options);
+        $result = JsonLD::fromRdf($quads, $options);
 
         $this->assertEquals($expected, $result);
     }
@@ -185,7 +185,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     /**
      * Provides conversion to quads test cases.
      */
-    public function fromQuadsProvider()
+    public function fromRdfProvider()
     {
         return new TestManifestIterator($this->basedir . 'fromRdf-manifest.jsonld');
     }

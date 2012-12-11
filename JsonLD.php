@@ -336,14 +336,14 @@ class JsonLD
     }
 
     /**
-     * Converts a JSON-LD document to quads
+     * Converts a JSON-LD document to RDF quads
      *
      * The document can be supplied directly as a string or by passing a
      * file path or an IRI.
      *
      * Usage:
      *  <code>
-     *    $quads = JsonLD::toQuads('document.jsonld');
+     *    $quads = JsonLD::toRdf('document.jsonld');
      *    print_r($expanded);
      *  </code>
      *
@@ -370,7 +370,7 @@ class JsonLD
      *                          contains syntax errors.
      * @throws ProcessException If converting the JSON-LD document to quads failed.
      */
-    public static function toQuads($input, $options = null)
+    public static function toRdf($input, $options = null)
     {
         $options = self::mergeOptions($options);
 
@@ -379,17 +379,17 @@ class JsonLD
         $processor = new Processor($options);
 
         $quads = array();
-        $processor->toQuads($input, $quads);
+        $processor->toRdf($input, $quads);
 
         return $quads;
     }
 
     /**
-     * Converts an array of quads to a JSON-LD document
+     * Converts an array of RDF quads to a JSON-LD document
      *
      * Usage:
      *  <code>
-     *    $document = JsonLD::fromQuads($quads);
+     *    $document = JsonLD::fromRdf($quads);
      *    JsonLD::toString($document, true);
      *  </code>
      *
@@ -415,13 +415,13 @@ class JsonLD
      * @throws InvalidQuadException If an invalid quad was detected.
      * @throws ProcessException If converting the quads to a JSON-LD document failed.
      */
-    public static function fromQuads(array $quads, $options = null)
+    public static function fromRdf(array $quads, $options = null)
     {
         $options = self::mergeOptions($options);
 
         $processor = new Processor($options);
 
-        return $processor->fromQuads($quads);
+        return $processor->fromRdf($quads);
     }
 
     /**

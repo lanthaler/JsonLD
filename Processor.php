@@ -2335,7 +2335,7 @@ class Processor
     }
 
     /**
-     * Converts a JSON-LD document to quads
+     * Converts a JSON-LD document to RDF quads
      *
      * The result is an array of arrays each containing a quad:
      *
@@ -2353,13 +2353,13 @@ class Processor
      *
      * @return array The extracted quads.
      */
-    public function toQuads(&$element, &$result, $activesubj = null, $activeprty = null, $graph = null)
+    public function toRdf(&$element, &$result, $activesubj = null, $activeprty = null, $graph = null)
     {
         if (is_array($element))
         {
             foreach ($element as &$item)
             {
-                $this->toQuads($item, $result, $activesubj, $activeprty, $graph);
+                $this->toRdf($item, $result, $activesubj, $activeprty, $graph);
             }
 
             return;
@@ -2387,7 +2387,7 @@ class Processor
             $i = 0;
             while ($i < $len)
             {
-                $this->toQuads($element->{'@list'}[$i], $result, $first_bn, new IRI(RdfConstants::RDF_FIRST), $graph);
+                $this->toRdf($element->{'@list'}[$i], $result, $first_bn, new IRI(RdfConstants::RDF_FIRST), $graph);
 
                 $i++;
                 $rest_bn = ($i < $len)
@@ -2440,7 +2440,7 @@ class Processor
             }
             elseif ('@graph' === $property)
             {
-                $this->toQuads($value, $result, null, null, $activesubj);
+                $this->toRdf($value, $result, null, null, $activesubj);
                 continue;
             }
             elseif (in_array($property, self::$keywords))
@@ -2450,12 +2450,12 @@ class Processor
 
             $activeprty = new IRI($property);
 
-            $this->toQuads($value, $result, $activesubj, $activeprty, $graph);
+            $this->toRdf($value, $result, $activesubj, $activeprty, $graph);
         }
     }
 
     /**
-     * Converts an array of quads to a JSON-LD document
+     * Converts an array of RDF quads to a JSON-LD document
      *
      * The resulting JSON-LD document will be in expanded form.
      *
@@ -2465,7 +2465,7 @@ class Processor
      *
      * @throws InvalidQuadException If the quad is invalid.
      */
-    public function fromQuads(array $quads)
+    public function fromRdf(array $quads)
     {
         $graphs = array();
         $graphs['@default'] = new Object();
