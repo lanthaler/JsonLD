@@ -380,10 +380,15 @@ class Processor
                 {
                     $result = array();
 
+                    $value = (array) $value;  // makes it easier to order the key-value pairs
+                    ksort($value);
+
                     if ('@language' === $propertyContainer)
                     {
                         foreach ($value as $key => $val)
                         {
+                            // TODO Make sure key is a valid language tag
+
                             if (false === is_array($val))
                             {
                                 $val = array($val);
