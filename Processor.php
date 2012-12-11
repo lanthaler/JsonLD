@@ -376,16 +376,8 @@ class Processor
 
                 $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
 
-                if (in_array($propertyContainer, array('@language', '@annotation')))
+                if (is_object($value) && in_array($propertyContainer, array('@language', '@annotation')))
                 {
-                    // Expand language and annotation maps
-                    if (false === is_object($value))
-                    {
-                        throw new SyntaxException(
-                            "Invalid value for \"$property\" detected. It must be an object as it is a @language or @annotation container.",
-                            $value);
-                    }
-
                     $result = array();
 
                     if ('@language' === $propertyContainer)
