@@ -11,6 +11,9 @@ namespace ML\JsonLD;
 
 use stdClass as Object;
 use ML\JsonLD\Exception\ParseException;
+use ML\JsonLD\Exception\SyntaxException;
+use ML\JsonLD\Exception\ProcessException;
+use ML\JsonLD\Exception\InvalidQuadException;
 
 /**
  * JsonLD offers convenience methods to load, process, and dump JSON-LD.
@@ -147,9 +150,9 @@ class JsonLD
      *
      * @return array The expanded JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document or context
+     * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
-     * @throws SyntaxException If the JSON-LD input document or context
+     * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If expanding the JSON-LD document failed.
      */
@@ -218,9 +221,9 @@ class JsonLD
      *
      * @return mixed The compacted JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document or context
+     * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
-     * @throws SyntaxException If the JSON-LD input document or context
+     * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If compacting the JSON-LD document failed.
      */
@@ -281,31 +284,32 @@ class JsonLD
      * It is possible to configure the flattening process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>     The base IRI of the input document.
+     *   - <em>base</em>          The base IRI of the input document.
      *   - <em>expandContext</em> An optional context to use additionally
      *                            to the context embedded in input when
      *                            expanding the input.
+     *   - <em>graph</em>         The graph whose flattened representation
+     *                            should be returned. The default graph is
+     *                            identified by `@default` and the merged
+     *                            graph by `@merged`. If `null` is passed,
+     *                            all graphs will be returned.
      *
      * The options parameter might be passed as an associative array or an
      * object.
      *
      * @param string|array|object $input The JSON-LD document to flatten.
-     * @param string              $graph The graph whose flattened node definitions should
-     *                                    be returned. The default graph is identified by
-     *                                    <code>@default</code> and the merged graph by
-     *                                    <code>@merged</code>.
      * @param null|array|object $options Options to configure the expansion
-     *                                    process.
+     *                                   process.
      *
      * @return array The flattened JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document or context
+     * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
-     * @throws SyntaxException If the JSON-LD input document or context
+     * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If flattening the JSON-LD document failed.
      */
-    public static function flatten($input, $graph = '@merged', $options = null)
+    public static function flatten($input, $options = null)
     {
         $options = self::mergeOptions($options);
 
@@ -313,7 +317,7 @@ class JsonLD
 
         $processor = new Processor($options);
 
-        return $processor->flatten($input, $graph);
+        return $processor->flatten($input, $options->graph);
     }
 
     /**
@@ -345,9 +349,9 @@ class JsonLD
      *
      * @return array The extracted quads.
      *
-     * @throws ParseException If the JSON-LD input document or context
+     * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
-     * @throws SyntaxException If the JSON-LD input document or context
+     * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If converting the JSON-LD document to quads failed.
      */
@@ -438,13 +442,13 @@ class JsonLD
      * @param string|array|object $input   The JSON-LD document to compact.
      * @param string|object       $frame   The frame.
      * @param null|array|object   $options Options to configure the framing
-     *                                    process.
+     *                                     process.
      *
      * @return mixed The resulting JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document or context
+     * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
-     * @throws SyntaxException If the JSON-LD input document or context
+     * @throws SyntaxException  If the JSON-LD input document or context
      *                          contains syntax errors.
      * @throws ProcessException If framing the JSON-LD document failed.
      */
@@ -555,6 +559,7 @@ class JsonLD
             'expandContext' => null,
             'compactArrays' => true,
             'optimize' => false,
+            'graph' => null,
             'useNativeTypes' => true,
             'useRdfType' => false
         );
@@ -576,6 +581,9 @@ class JsonLD
             }
             if (property_exists($options, 'optimize') && is_bool($options->optimize)) {
                 $result->optimize = $options->optimize;
+            }
+            if (property_exists($options, 'graph') && is_string($options->graph)) {
+                $result->graph = $options->graph;
             }
             if (property_exists($options, 'useNativeTypes') && is_bool($options->useNativeTypes)) {
                 $result->useNativeTypes = $options->useNativeTypes;

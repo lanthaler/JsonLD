@@ -95,6 +95,31 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * Tests flattening.
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @dataProvider flattenProvider
+     */
+    public function testFlatten($name, $test, $options)
+    {
+        $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
+        $result = JsonLD::flatten($this->basedir . $test->{'input'}, $options);
+
+        $this->assertJsonEquals($expected, $result);
+    }
+
+    /**
+     * Provides flattening test cases.
+     */
+    public function flattenProvider()
+    {
+        return new TestManifestIterator($this->basedir . 'flatten-manifest.jsonld');
+    }
+
+    /**
      * Tests framing.
      *
      * @param string $name    The test name.

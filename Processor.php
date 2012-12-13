@@ -1451,6 +1451,7 @@ class Processor
      * Returns a property's definition
      *
      * The result will be in the form
+     *
      * <code>
      *   array('@type'      => type or null,
      *         '@language'  => language or null,
@@ -1928,7 +1929,7 @@ class Processor
 
     /**
      * Merges the node maps of all graphs in the passed node map into a new
-     * <code>@merged</code> node map.
+     * `@merged` node map
      *
      * @param object $nodeMap The node map whose different graphs should be
      *                        merged into one.
@@ -1975,12 +1976,12 @@ class Processor
      * @param mixed  $element A JSON-LD element to be flattened.
      * @param string $graph   The graph whose flattened node definitions should
      *                        be returned. The default graph is identified by
-     *                        <code>@default</code> and the merged graph by
-     *                        <code>@merged</code>.
+     *                        `@default` and the merged graph by `@merged`.
+     *                        If `null` is passed, all graphs will be returned.
      *
      * @return array An array of the flattened node definitions of the specified graph.
      */
-    public function flatten($element, $graph = '@merged')
+    public function flatten($element, $graph = null)
     {
         $nodeMap = new Object();
         $this->createNodeMap($nodeMap, $element);
@@ -1991,10 +1992,26 @@ class Processor
 
         $flattened = array();
 
-        if (property_exists($nodeMap, $graph)) {
-            foreach ($nodeMap->{$graph} as $value) {
-                $flattened[] = $value;
+        if (null === $graph) {
+            $defaultGraph = $nodeMap->{'@default'};
+            unset($nodeMap->{'@default'});
+
+            foreach ($nodeMap as $graphName => $graph) {
+                if (!isset($defaultGraph->{$graphName})) {
+                    $defaultGraph->{$graphName} = new Object();
+                    $defaultGraph->{$graphName}->{'@id'} = $graphName;
+                }
+
+                $defaultGraph->{$graphName}->{'@graph'} = array_values(get_object_vars($graph));
             }
+
+            $nodeMap = new Object();
+            $nodeMap->{'@default'} = $defaultGraph;
+            $graph = '@default';
+        }
+
+        if (property_exists($nodeMap, $graph)) {
+            $flattened = array_values(get_object_vars($nodeMap->{$graph}));
         }
 
         return $flattened;
