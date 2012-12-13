@@ -11,7 +11,6 @@ namespace ML\JsonLD\Exception;
 
 use ML\JsonLD\JsonLD;
 
-
 /**
  * Exception class thrown when an error occurs during processing.
  *
@@ -39,7 +38,6 @@ class ProcessException extends \RuntimeException
      * @var string
      */
     private $rawMessage;
-
 
     /**
      * Constructor.

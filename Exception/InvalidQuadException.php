@@ -11,7 +11,6 @@ namespace ML\JsonLD\Exception;
 
 use ML\JsonLD\Quad;
 
-
 /**
  * Exception that is thrown when an invalid quad is detected.
  *
@@ -25,7 +24,6 @@ class InvalidQuadException extends \RuntimeException
      * @var Quad
      */
     private $quad;
-
 
     /**
      * Constructor.

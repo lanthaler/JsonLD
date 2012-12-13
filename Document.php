@@ -49,7 +49,6 @@ class Document
      */
     private $blankNodeCounter = 0;
 
-
     /**
      * Parses a JSON-LD document and returns it as a {@link Document}.
      *
@@ -70,7 +69,7 @@ class Document
      *   - <em>base</em>     The base IRI of the input document.
      *
      * @param string|array|object $document The JSON-LD document to process.
-     * @param null|array|object $options Options to configure the processing.
+     * @param null|array|object   $options  Options to configure the processing.
      *
      * @return Document The parsed JSON-LD document.
      *
@@ -102,20 +101,17 @@ class Document
      * that node will be returned instead of creating a new one.
      *
      * @param null|string $id The ID of the node.
+     *
      * @return Node The newly created node.
      */
     public function createNode($id = null)
     {
-        if (!is_string($id) || ('_:' === substr($id, 0, 2)))
-        {
+        if (!is_string($id) || ('_:' === substr($id, 0, 2))) {
             $id = $this->createBlankNodeId();
             $abs_id = $id;
-        }
-        else
-        {
+        } else {
             $id = (string) $this->baseIri->resolve($id);
-            if (isset($this->nodes[$id]))
-            {
+            if (isset($this->nodes[$id])) {
                 return $this->nodes[$id];
             }
         }
@@ -133,15 +129,13 @@ class Document
      */
     public function remove(Node $node)
     {
-        if ($node->getDocument() === $this)
-        {
+        if ($node->getDocument() === $this) {
             $node->removeFromDocument();
         }
 
         $id = $node->getId();
 
-        if (!$node->isBlankNode())
-        {
+        if (!$node->isBlankNode()) {
             $id = (string) $this->baseIri->resolve($id);
         }
 
@@ -168,8 +162,7 @@ class Document
      */
     public function getNode($id)
     {
-        if (!((strlen($id) >= 2) && ('_:' === substr($id, 0, 2))))
-        {
+        if (!((strlen($id) >= 2) && ('_:' === substr($id, 0, 2)))) {
             $id = (string) $this->baseIri->resolve($id);
         }
 
@@ -188,10 +181,8 @@ class Document
      */
     public function getNodesByType($type)
     {
-        if (is_string($type))
-        {
-            if (null === ($type = $this->getNode($type)))
-            {
+        if (is_string($type)) {
+            if (null === ($type = $this->getNode($type))) {
                 return array();
             }
         }
@@ -207,6 +198,7 @@ class Document
      *                        will always return false except a node instance
      *                        which is part of the document will be passed
      *                        instead of a string.
+     *
      * @return bool Returns true if the document contains a node with the
      *              specified ID; false otherwise.
      */
@@ -214,20 +206,16 @@ class Document
     {
         $node = $id;
 
-        if ($node instanceof Node)
-        {
+        if ($node instanceof Node) {
             $id = $node->getId();
         }
 
-        if ((null === $id) || !is_string($id))
-        {
+        if ((null === $id) || !is_string($id)) {
             return false;
         }
 
-        if ((strlen($id) >= 2) && ('_:' === substr($id, 0, 2)))
-        {
-            if (isset($this->nodes[$id]) && ($node === $this->nodes[$id]))
-            {
+        if ((strlen($id) >= 2) && ('_:' === substr($id, 0, 2))) {
+            if (isset($this->nodes[$id]) && ($node === $this->nodes[$id])) {
                 return true;
             }
 

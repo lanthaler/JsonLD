@@ -9,8 +9,6 @@
 
 namespace ML\JsonLD;
 
-use ML\JsonLD\Exception\ParseException;
-
 /**
  * Quad serializer interface
  *

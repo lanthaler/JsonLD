@@ -35,8 +35,7 @@ abstract class Value
      */
     public function setValue($value)
     {
-        if (!is_string($value))
-        {
+        if (!is_string($value)) {
             throw new \InvalidArgumentException('value must be a string.');
         }
 
@@ -65,8 +64,7 @@ abstract class Value
      */
     public static function fromJsonLd(Object $element)
     {
-        if (false === property_exists($element, '@value'))
-        {
+        if (false === property_exists($element, '@value')) {
             return false;
         }
 
@@ -78,32 +76,23 @@ abstract class Value
             ? $element->{'@language'}
             : null;
 
-        if (is_int($value) || is_float($value))
-        {
-            if ($value == (int)$value)
-            {
+        if (is_int($value) || is_float($value)) {
+            if ($value == (int) $value) {
                 return new TypedValue(sprintf('%d', $value), RdfConstants::XSD_INTEGER);
-            }
-            else
-            {
+            } else {
                 return new TypedValue(
                     preg_replace('/(0{0,14})E(\+?)/', 'E', sprintf('%1.15E', $value)),
                     RdfConstants::XSD_DOUBLE
                 );
             }
-        }
-        elseif (is_bool($value))
-        {
+        } elseif (is_bool($value)) {
             return new TypedValue(($value) ? 'true' : 'false', RdfConstants::XSD_BOOLEAN);
-        }
-        elseif (false === is_string($value))
-        {
+        } elseif (false === is_string($value)) {
             return false;
         }
 
         // @type gets precedence
-        if ((null === $type) && (null !== $language))
-        {
+        if ((null === $type) && (null !== $language)) {
             return new LanguageTaggedString($value, $language);
         }
 
@@ -126,6 +115,7 @@ abstract class Value
      * Compares this instance to the specified value.
      *
      * @param mixed $other The value this instance should be compared to.
+     *
      * @return bool Returns true if the passed value is the same as this
      *              instance; false otherwise.
      */

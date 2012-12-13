@@ -12,7 +12,6 @@ namespace ML\JsonLD\Test;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 
-
 /**
  * Test LanguageTaggedString and TypedValue
  *

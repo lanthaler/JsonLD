@@ -46,7 +46,6 @@ class Quad
      */
     private $graph;
 
-
     /**
      * Constructor
      *
@@ -114,8 +113,7 @@ class Quad
      */
     public function setObject($object)
     {
-        if (!($object instanceof IRI) && !($object instanceof Value))
-        {
+        if (!($object instanceof IRI) && !($object instanceof Value)) {
             throw new \InvalidArgumentException('Object must be an IRI or Value object');
         }
 

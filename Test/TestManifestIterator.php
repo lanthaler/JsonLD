@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD\Test;
 
-
 /**
  * TestManifestIterator reads a test manifest and returns the contained test
  * definitions.
@@ -27,7 +26,6 @@ class TestManifestIterator implements \Iterator
     /** The total number of tests. */
     private $numberTests = 0;
 
-
     /**
      * Constructor
      *
@@ -35,15 +33,12 @@ class TestManifestIterator implements \Iterator
      */
     public function __construct($file)
     {
-        try
-        {
-           $this->manifest = json_decode(file_get_contents($file));
-           $this->numberTests = count($this->manifest->{'sequence'});
-        }
-        catch(Exception $e)
-        {
-           echo "Exception while parsing file: '$file'";
-           throw $e;
+        try {
+            $this->manifest = json_decode(file_get_contents($file));
+            $this->numberTests = count($this->manifest->{'sequence'});
+        } catch (Exception $e) {
+            echo "Exception while parsing file: '$file'";
+            throw $e;
         }
     }
 
@@ -84,18 +79,17 @@ class TestManifestIterator implements \Iterator
     public function current()
     {
         $options = new \stdClass();
-        if (property_exists($this->manifest, 'baseIri'))
-        {
+        if (property_exists($this->manifest, 'baseIri')) {
             $options->base = $this->manifest->baseIri . $this->manifest->{'sequence'}[$this->key]->input;
-        }
-        else
-        {
+        } else {
             $options->base = $this->manifest->{'sequence'}[$this->key]->input;
         }
 
-        $test = array('name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
-                      'test'    => $this->manifest->{'sequence'}[$this->key],
-                      'options' => $options);
+        $test = array(
+            'name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
+            'test'    => $this->manifest->{'sequence'}[$this->key],
+            'options' => $options
+        );
 
         return $test;
     }

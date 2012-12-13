@@ -13,7 +13,6 @@ use ML\JsonLD\JsonLD;
 use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
-
 /**
  * The offical JSON-LD test suite.
  *
@@ -26,7 +25,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * files should be read.
      */
     private $basedir;
-
 
     /**
      * Constructs a test case with the given name.
@@ -53,8 +51,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testExpansion($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::expand($this->basedir . $test->{'input'},
-                                 $options);
+        $result = JsonLD::expand($this->basedir . $test->{'input'}, $options);
 
         $this->assertJsonEquals($expected, $result);
     }
@@ -79,9 +76,11 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testCompaction($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::compact($this->basedir . $test->{'input'},
-                                  $this->basedir . $test->{'context'},
-                                  $options);
+        $result = JsonLD::compact(
+            $this->basedir . $test->{'input'},
+            $this->basedir . $test->{'context'},
+            $options
+        );
 
         $this->assertJsonEquals($expected, $result);
     }
@@ -106,20 +105,29 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testFraming($name, $test, $options)
     {
-        if (in_array($test->{'input'}, array('frame-0005-in.jsonld', 'frame-0009-in.jsonld', 'frame-0010-in.jsonld',
-                                             'frame-0012-in.jsonld', 'frame-0013-in.jsonld')))
-        {
-            $this->markTestSkipped('This implementation uses deep value matching and aggressive "re-embedding". See ISSUE-110 and ISSUE-119');
+        $ignoredTests = array(
+            'frame-0005-in.jsonld',
+            'frame-0009-in.jsonld',
+            'frame-0010-in.jsonld',
+            'frame-0012-in.jsonld',
+            'frame-0013-in.jsonld'
+        );
+
+        if (in_array($test->{'input'}, $ignoredTests)) {
+            $this->markTestSkipped(
+                'This implementation uses deep value matching and aggressive re-embedding. See ISSUE-110 and ISSUE-119.'
+            );
         }
 
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::frame($this->basedir . $test->{'input'},
-                                $this->basedir . $test->{'frame'},
-                                $options);
+        $result = JsonLD::frame(
+            $this->basedir . $test->{'input'},
+            $this->basedir . $test->{'frame'},
+            $options
+        );
 
         $this->assertJsonEquals($expected, $result);
     }
-
 
     /**
      * Provides framing test cases.
@@ -141,15 +149,13 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testToRdf($name, $test, $options)
     {
         $expected = file_get_contents($this->basedir . $test->{'expect'});
-        $quads = JsonLD::toRdf($this->basedir . $test->{'input'},
-                               $options);
+        $quads = JsonLD::toRdf($this->basedir . $test->{'input'}, $options);
 
         $serializer = new NQuads();
         $result = $serializer->serialize($quads);
 
         $this->assertEquals($expected, $result);
     }
-
 
     /**
      * Provides conversion to RDF quads test cases.
@@ -158,7 +164,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
     }
-
 
     /**
      * Tests conversion from quads.
@@ -181,7 +186,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($expected, $result);
     }
 
-
     /**
      * Provides conversion to quads test cases.
      */
@@ -189,7 +193,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         return new TestManifestIterator($this->basedir . 'fromRdf-manifest.jsonld');
     }
-
 
     /**
      * Asserts that two JSON structures are equal.
@@ -206,7 +209,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         self::assertEquals($expected, $actual, $message);
     }
 
-
     /**
      * Brings the keys of objects to a deterministic order to enable
      * comparison of JSON structures
@@ -218,21 +220,16 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     private static function normalizeJson($element)
     {
-        if (is_array($element))
-        {
-            foreach ($element as &$item)
-            {
+        if (is_array($element)) {
+            foreach ($element as &$item) {
                 $item = self::normalizeJson($item);
             }
-        }
-        elseif (is_object($element))
-        {
+        } elseif (is_object($element)) {
             $element = (array) $element;
             ksort($element);
             $element = (object) $element;
 
-            foreach ($element as $key => &$item)
-            {
+            foreach ($element as $key => &$item) {
                 $item = self::normalizeJson($item);
             }
         }

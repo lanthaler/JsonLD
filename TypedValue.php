@@ -25,12 +25,11 @@ final class TypedValue extends Value
      */
     private $type;
 
-
     /**
      * Constructor
      *
      * @param string $value The value.
-     * @param string $type The type.
+     * @param string $type  The type.
      */
     public function __construct($value, $type)
     {
@@ -52,8 +51,7 @@ final class TypedValue extends Value
      */
     public function setType($type)
     {
-        if (!is_string($type))
-        {
+        if (!is_string($type)) {
             throw new \InvalidArgumentException('type must be a string.');
         }
 
@@ -81,44 +79,31 @@ final class TypedValue extends Value
     {
         $result = new Object();
 
-        if (true === $useNativeTypes)
-        {
-            if (RdfConstants::XSD_STRING === $this->type)
-            {
+        if (true === $useNativeTypes) {
+            if (RdfConstants::XSD_STRING === $this->type) {
                 $result->{'@value'} = $this->value;
 
                 return $result;
-            }
-            elseif (RdfConstants::XSD_BOOLEAN === $this->type)
-            {
-                if ('true' === $this->value)
-                {
+            } elseif (RdfConstants::XSD_BOOLEAN === $this->type) {
+                if ('true' === $this->value) {
                     $result->{'@value'} = true;
 
                     return $result;
-                }
-                elseif ('false' === $this->value)
-                {
+                } elseif ('false' === $this->value) {
                     $result->{'@value'} = false;
 
                     return $result;
                 }
 
-            }
-            elseif (RdfConstants::XSD_INTEGER === $this->type)
-            {
-                if (preg_match('/^[\+|-]?\d+$/', trim($this->value)))
-                {
+            } elseif (RdfConstants::XSD_INTEGER === $this->type) {
+                if (preg_match('/^[\+|-]?\d+$/', trim($this->value))) {
                     $result->{'@value'} = intval($this->value);
 
                     return $result;
                 }
-            }
-            elseif (RdfConstants::XSD_DOUBLE === $this->type)
-            {
+            } elseif (RdfConstants::XSD_DOUBLE === $this->type) {
                 // TODO Need to handle +/-INF and NaN as well?
-                if (preg_match('/^[\+|-]?\d+(?:\.\d*)?(?:[eE][\+|-]?\d+)?$/', trim($this->value)))
-                {
+                if (preg_match('/^[\+|-]?\d+(?:\.\d*)?(?:[eE][\+|-]?\d+)?$/', trim($this->value))) {
                     $result->{'@value'} = floatval($this->value);
 
                     return $result;
@@ -138,8 +123,7 @@ final class TypedValue extends Value
      */
     public function equals($other)
     {
-        if (get_class($this) !== get_class($other))
-        {
+        if (get_class($this) !== get_class($other)) {
             return false;
         }
 

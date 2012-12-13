@@ -16,7 +16,6 @@ use ML\JsonLD\Node;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 
-
 /**
  * Test the parsing of a JSON-LD document into a Document.
  *
@@ -231,7 +230,11 @@ JSON_LD_DOCUMENT;
 
         $revProperties = $node2->getReverseProperties();
         $this->assertCount(1, $revProperties, 'Check number of node2\'s reverse properties');
-        $this->assertSame(array('http://vocab.com/link' => array($node1)), $revProperties, 'Check node2\'s reverse properties');
+        $this->assertSame(
+            array('http://vocab.com/link' => array($node1)),
+            $revProperties,
+            'Check node2\'s reverse properties'
+        );
 
         $node1->setProperty('http://vocab.com/link', null);
         $this->assertNull($node1->getProperty('http://vocab.com/link'), 'n1 -link-> n2 removed');

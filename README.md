@@ -1,11 +1,13 @@
 JsonLD [![Build Status](https://secure.travis-ci.org/lanthaler/JsonLD.png?branch=master)](http://travis-ci.org/lanthaler/JsonLD)
 ==============
 
-JsonLD is a [PSR-0](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md) compliant
+JsonLD is a [PSR-0](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md),
+[PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1.md), and
+[PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2.md) compliant
 JSON-LD processor. It is extensively tested and passes the
 [official JSON-LD test suite](https://github.com/json-ld/json-ld.org/tree/master/test-suite).
 
-There's also an [online playground](http://www.markus-lanthaler.com/jsonld/playground/) where you can evaluate the
+There's an [online playground](http://www.markus-lanthaler.com/jsonld/playground/) where you can evaluate the
 processor's basic functionality.
 
 **All the features of the official specification plus a few more are supported:**
@@ -20,9 +22,6 @@ processor's basic functionality.
   * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-to-rdf-algorithm)
   * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
   * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
-
-In the coming weeks I also plan to make the code [PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
-and [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md) compliant.
 
 
 Installation
@@ -60,7 +59,7 @@ The library supports the official [JSON-LD API](http://www.w3.org/TR/json-ld-api
 well as a node-centric API (still a work in progress, see [issue #15](https://github.com/lanthaler/JsonLD/issues/15)
 for details).
 
-All classes are extensively documented. Please look at the source code.
+All classes are extensively documented. Please have a look at the source code.
 
 ```php
 // Official JSON-LD API

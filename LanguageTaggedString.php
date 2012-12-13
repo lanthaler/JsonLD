@@ -26,7 +26,6 @@ final class LanguageTaggedString extends Value
      */
     private $language;
 
-
     /**
      * Constructor
      *
@@ -49,8 +48,7 @@ final class LanguageTaggedString extends Value
      */
     public function setLanguage($language)
     {
-        if (!is_string($language))
-        {
+        if (!is_string($language)) {
             throw new \InvalidArgumentException('language must be a string.');
         }
 
@@ -84,8 +82,7 @@ final class LanguageTaggedString extends Value
      */
     public function equals($other)
     {
-        if (get_class($this) !== get_class($other))
-        {
+        if (get_class($this) !== get_class($other)) {
             return false;
         }
 

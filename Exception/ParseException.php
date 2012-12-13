@@ -30,7 +30,6 @@ class ParseException extends \RuntimeException
      */
     private $rawMessage;
 
-
     /**
      * Constructor.
      *
