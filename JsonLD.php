@@ -40,7 +40,7 @@ class JsonLD
      */
     public static function parse($input)
     {
-        if (false == is_string($input))
+        if (false === is_string($input))
         {
             // Return as is, is already in processable form
             return $input;
@@ -179,7 +179,7 @@ class JsonLD
 
         // optimize away default graph (@graph as the only property at the top-level object)
         if (is_object($input) && property_exists($input, '@graph') &&
-            (1 == count(get_object_vars($input))))
+            (1 === count(get_object_vars($input))))
         {
             $input = $input->{'@graph'};
         }
@@ -243,7 +243,7 @@ class JsonLD
         $input = self::expand($input, $options);
         $context = self::parse($context);
 
-        if (false == is_object($context) || (false == property_exists($context, '@context')))
+        if (false === is_object($context) || (false === property_exists($context, '@context')))
         {
             $context = null;
         }
@@ -475,7 +475,7 @@ class JsonLD
         $input = self::expand($input, $options);
         $frame = self::parse($frame);
 
-        if (false == is_object($frame))
+        if (false === is_object($frame))
         {
             throw new SyntaxException('Invalid frame detected. It must be an object.',
                                       $frame);
@@ -498,7 +498,7 @@ class JsonLD
 
         // and optimize away default graph (@graph as the only property at the top-level object)
         if (is_object($frame) && property_exists($frame, '@graph') &&
-            (1 == count(get_object_vars($frame))))
+            (1 === count(get_object_vars($frame))))
         {
             $frame = $frame->{'@graph'};
         }
@@ -515,7 +515,7 @@ class JsonLD
         $processor->compact($result, $frameActiveContext, $frameInverseContext);
 
         // Make that the result is always an array
-        if (false == is_array($result))
+        if (false === is_array($result))
         {
             $result = array($result);
         }

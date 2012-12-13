@@ -297,7 +297,7 @@ class Processor
 
                 // Check for lists of lists
                 if (('@list' === $this->getPropertyDefinition($activectx, $activeprty, '@container')) ||
-                    ('@list' == $activeprty))
+                    ('@list' === $activeprty))
                 {
                     if (is_array($item) || (is_object($item) && property_exists($item, '@list')))
                     {
@@ -306,16 +306,14 @@ class Processor
                             $element);
                     }
                 }
-                if (false == is_null($item))
+
+                if (is_array($item))
                 {
-                    if (is_array($item))
-                    {
-                        $result = array_merge($result, $item);
-                    }
-                    else
-                    {
-                        $result[] = $item;
-                    }
+                    $result = array_merge($result, $item);
+                }
+                elseif (null !== $item)
+                {
+                    $result[] = $item;
                 }
             }
 
@@ -344,7 +342,7 @@ class Processor
                 if (false === is_array($expProperty))
                 {
                     // Make sure to keep framing keywords if a frame is being expanded
-                    if ((true == $frame) && in_array($expProperty, self::$framingKeywords))
+                    if ($frame && in_array($expProperty, self::$framingKeywords))
                     {
                         self::setProperty($element, $expProperty, $value);
                         continue;
@@ -369,7 +367,7 @@ class Processor
                 }
 
                 // Remove properties with null values
-                if (is_null($value))
+                if (null === $value)
                 {
                     continue;
                 }
@@ -442,14 +440,14 @@ class Processor
                 }
 
                 // Store the expanded value unless it is null
-                if (false == is_null($value))
+                if (null !== $value)
                 {
                     // If property has an @list container and value is not yet an
                     // expanded @list-object, transform it to one
-                    if (('@list' == $propertyContainer) &&
-                        ((false == is_object($value) || (false == property_exists($value, '@list')))))
+                    if (('@list' === $propertyContainer) &&
+                        ((false === is_object($value) || (false === property_exists($value, '@list')))))
                     {
-                        if (false == is_array($value))
+                        if (false === is_array($value))
                         {
                             $value = array($value);
                         }
@@ -483,7 +481,7 @@ class Processor
         }
 
 
-        // Expand scalars (scalars != null) to @value objects
+        // Expand scalars (scalars !== null) to @value objects
         if (is_scalar($element))
         {
             $def = $this->getPropertyDefinition($activectx, $activeprty);
@@ -518,7 +516,7 @@ class Processor
 
             return;  // nothing more to do.. completely expanded
         }
-        elseif (is_null($element))
+        elseif (null === $element)
         {
             return;
         }
@@ -574,7 +572,7 @@ class Processor
                     'Detected an invalid @value object.',
                     $element);
             }
-            elseif (is_null($element->{'@value'}))
+            elseif (null === $element->{'@value'})
             {
                 // object has just an @value property that is null, can be replaced with that value
                 $element = $element->{'@value'};
@@ -584,7 +582,7 @@ class Processor
         }
 
         // Not an @value object, make sure @type is an array
-        if (property_exists($element, '@type') && (false == is_array($element->{'@type'})))
+        if (property_exists($element, '@type') && (false === is_array($element->{'@type'})))
         {
             $element->{'@type'} = array($element->{'@type'});
         }
@@ -600,7 +598,7 @@ class Processor
             // @set objects can be optimized away as they are just syntactic sugar
             $element = $element->{'@set'};
         }
-        elseif (($numProps == 1) && (false == $frame) && property_exists($element, '@language'))
+        elseif (($numProps === 1) && (false === $frame) && property_exists($element, '@language'))
         {
             // if there's just @language and nothing else and we are not expanding a frame, drop whole object
             $element = null;
@@ -623,12 +621,12 @@ class Processor
     {
         // Ignore all null values except for @value as in that case it is
         // needed to determine what @type means
-        if (is_null($value) && ('@value' !== $keyword))
+        if ((null === $value) && ('@value' !== $keyword))
         {
             return;
         }
 
-        if ('@id' == $keyword)
+        if ('@id' === $keyword)
         {
             if (false === is_string($value))
             {
@@ -643,7 +641,7 @@ class Processor
             return;
         }
 
-        if ('@type' == $keyword)
+        if ('@type' === $keyword)
         {
             if (is_string($value))
             {
@@ -684,11 +682,11 @@ class Processor
             }
         }
 
-        if (('@value' == $keyword) || ('@language' == $keyword) || ('@annotation' == $keyword))
+        if (('@value' === $keyword) || ('@language' === $keyword) || ('@annotation' === $keyword))
         {
-            if (false == $frame)
+            if (false === $frame)
             {
-                if (is_array($value) && (1 == count($value)))
+                if (is_array($value) && (1 === count($value)))
                 {
                     $value = $value[0];
                 }
@@ -710,7 +708,7 @@ class Processor
                         $value);
                 }
             }
-            elseif (false == is_array($value))
+            elseif (false === is_array($value))
             {
                 $value = array($value);
             }
@@ -908,13 +906,13 @@ class Processor
         {
             list($prefix, $suffix) = explode(':', $value, 2);
 
-            if ('//' == substr($suffix, 0, 2))  // TODO Check this
+            if ('//' === substr($suffix, 0, 2))  // TODO Check this
             {
                 // Safety measure to prevent reassigned of, e.g., http://
                 return $value;
             }
 
-            if ('_' == $prefix)
+            if ('_' === $prefix)
             {
                 // it is a named blank node
                 return $value;
@@ -935,13 +933,13 @@ class Processor
                 return $activectx[$prefix]['@id'] . $suffix;
             }
         }
-        elseif (false == in_array($value, self::$keywords))
+        elseif (false === in_array($value, self::$keywords))
         {
-            if ((true == $vocabRelative) && array_key_exists('@vocab', $activectx))
+            if ($vocabRelative && array_key_exists('@vocab', $activectx))
             {
                 return $activectx['@vocab'] . $value;
             }
-            elseif (true == $relativeIri)
+            elseif ($relativeIri)
             {
                 return (string)$this->baseIri->resolve($value);
             }
@@ -972,7 +970,7 @@ class Processor
             foreach ($element as &$item)
             {
                 $this->compact($item, $activectx, $inversectx, $activeprty);
-                if (false == is_null($item))
+                if (null !== $item)
                 {
                     $result[] = $item;
                 }
@@ -981,7 +979,7 @@ class Processor
 
             // If there's just one entry and the active property is not an
             // @list container, optimize the array away
-            if ((true === $this->compactArrays) && (1 == count($element)) &&
+            if ($this->compactArrays && (1 === count($element)) &&
                 ('@list' !== $this->getPropertyDefinition($activectx, $activeprty, '@container')))
             {
                 $element = $element[0];
@@ -1029,12 +1027,12 @@ class Processor
                         ? $inversectx[$property]['term']
                         : $property;
 
-                    if ('@id' == $property)
+                    if ('@id' === $property)
                     {
                         // TODO Transform @id to relative IRIs by default??
                         $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
                     }
-                    elseif ('@type' == $property)
+                    elseif ('@type' === $property)
                     {
                         if (is_string($value))
                         {
@@ -1048,20 +1046,17 @@ class Processor
                                 $iri = $this->compactVocabularyIri($iri, $activectx, $inversectx);
                             }
 
-                            if ((true === $this->compactArrays) && (1 === count($value)))
+                            if ($this->compactArrays && (1 === count($value)))
                             {
                                 $value = $value[0];
                             }
                         }
                     }
-                    elseif ('@graph' == $property)
+                    elseif ('@graph' === $property)
                     {
-                        if ('@graph' == $property)
+                        foreach ($value as $key => &$item)
                         {
-                            foreach ($value as $key => &$item)
-                            {
-                                $this->compact($item, $activectx, $inversectx, null);
-                            }
+                            $this->compact($item, $activectx, $inversectx, null);
                         }
                     }
                     else
@@ -1134,7 +1129,7 @@ class Processor
                         {
                             $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
 
-                            if ('@list' == $def['@container'])
+                            if ('@list' === $def['@container'])
                             {
                                 $val = $val->{'@list'};
 
@@ -1333,7 +1328,7 @@ class Processor
         // Try to compact to a compact IRI
         if (null !== ($compactIri = $this->compactIriToCompactIri($iri, $activectx, $inversectx)))
         {
-            if (is_null($result))
+            if (null === $result)
             {
                 return $compactIri;
             }
@@ -1347,7 +1342,7 @@ class Processor
         if (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))))
         {
-            if (is_null($result))
+            if (null === $result)
             {
                 return $relativeIri;
             }
@@ -1358,7 +1353,7 @@ class Processor
         }
 
         // IRI couldn't be compacted, return as is
-        if (is_null($result))
+        if (null === $result)
         {
             return $iri;
         }
@@ -1718,7 +1713,7 @@ class Processor
         if (in_array($property, self::$keywords))
         {
             $result = array();
-            if (('@id' == $property) || ('@type' == $property) || ('@graph' == $property))
+            if (('@id' === $property) || ('@type' === $property) || ('@graph' === $property))
             {
                 $result['@type'] = '@id';
             }
@@ -1799,14 +1794,14 @@ class Processor
             $loclctx = clone $loclctx;
         }
 
-        if (false == is_array($loclctx))
+        if (false === is_array($loclctx))
         {
             $loclctx = array($loclctx);
         }
 
         foreach ($loclctx as $context)
         {
-            if (is_null($context))
+            if (null === $context)
             {
                 $activectx = array();
             }
@@ -1827,7 +1822,7 @@ class Processor
 
                 foreach ($context as $key => $value)
                 {
-                    if (is_null($value))
+                    if (null === $value)
                     {
                         unset($activectx[$key]);
                         $activectx[$key]['@id'] = null;
@@ -1835,7 +1830,7 @@ class Processor
                         continue;
                     }
 
-                    if ('@language' == $key)
+                    if ('@language' === $key)
                     {
                         if (false === is_string($value))
                         {
@@ -1940,7 +1935,7 @@ class Processor
                         {
                             $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
 
-                            if (('@id' != $expanded) && (false === strpos($expanded, ':')))
+                            if (('@id' !== $expanded) && (false === strpos($expanded, ':')))
                             {
                                 throw new SyntaxException("Failed to expand $expanded to an absolute IRI.",
                                                           $loclctx);
@@ -1954,7 +1949,7 @@ class Processor
                         }
                         elseif (property_exists($value, '@language'))
                         {
-                            if ((false == is_string($value->{'@language'})) && (false == is_null($value->{'@language'})))
+                            if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'}))
                             {
                                 throw new SyntaxException(
                                     'The value of @language must be a string.',
@@ -2165,7 +2160,7 @@ class Processor
 
             // if no @id was found or if it was a blank node and we are not currently
             // merging graphs, assign a new identifier to avoid collisions
-            if ((null === $id) || (('@merged' != $graph) && (0 === strncmp($id, '_:', 2))))
+            if ((null === $id) || (('@merged' !== $graph) && (0 === strncmp($id, '_:', 2))))
             {
                 $id = $this->getBlankNodeId($id);
             }
@@ -2176,7 +2171,7 @@ class Processor
                 $node->{'@id'} = $id;
 
                 // Just add the node reference if it isn't there yet or it is a list
-                if ((true === $list) || (false == in_array($node, $parent)))
+                if ((true === $list) || (false === in_array($node, $parent)))
                 {
                     // TODO In array is not enough as the comparison is not strict enough
                     // "1" and 1 are considered to be the same.
@@ -2191,7 +2186,7 @@ class Processor
             }
             else
             {
-                if (false == isset($nodeMap->{$graph}))
+                if (false === isset($nodeMap->{$graph}))
                 {
                     $nodeMap->{$graph} = new Object();
                 }
@@ -2250,13 +2245,13 @@ class Processor
         {
             // If it's the value is for a keyword which is interpreted as an IRI and the value
             // is a string representing a blank node, re-map it to prevent collisions
-            if ((true === $iriKeyword) && is_string($element) && ('@merged' != $graph) && (0 === strncmp($element, '_:', 2)))
+            if ((true === $iriKeyword) && is_string($element) && ('@merged' !== $graph) && (0 === strncmp($element, '_:', 2)))
             {
                 $element = $this->getBlankNodeId($element);
             }
 
             // If it's not a list, make sure that the value is unique
-            if ((false === $list) && (true == in_array($element, $parent)))
+            if ((false === $list) && (true === in_array($element, $parent)))
             {
                 // TODO In array is not enough as the comparison is not strict enough
                 // "1" and 1 are considered to be the same.
@@ -2693,7 +2688,7 @@ class Processor
      */
     public function frame($element, $frame)
     {
-        if ((false == is_array($frame)) || (1 != count($frame)) || (false == is_object($frame[0])))
+        if ((false === is_array($frame)) || (1 !== count($frame)) || (false === is_object($frame[0])))
         {
             throw new SyntaxException('The frame is invalid. It must be a single object.',
                                       $frame);
@@ -2712,7 +2707,7 @@ class Processor
                 $options->{$keyword} = $frame->{$keyword};
                 unset($frame->{$keyword});
             }
-            elseif (false == property_exists($options, $keyword))
+            elseif (false === property_exists($options, $keyword))
             {
                 $options->{$keyword} = false;
             }
@@ -2772,7 +2767,7 @@ class Processor
         // https://github.com/json-ld/json-ld.org/issues/110
         // TODO Add support for '@omitDefault'?
         $filter = null;
-        if (false == is_null($frame))
+        if (null !== $frame)
         {
             $filter = get_object_vars($frame);
         }
@@ -2784,7 +2779,7 @@ class Processor
         {
             $result->{'@id'} = $node->{'@id'};
 
-            if (is_null($filter) && in_array($node->{'@id'}, $path))
+            if ((null === $filter) && in_array($node->{'@id'}, $path))
             {
                 $parent[] = $result;
 
@@ -2795,12 +2790,12 @@ class Processor
         }
 
         // If no filter is specified, simply return the passed node - {} is a wildcard
-        if (is_null($filter) || (0 === count($filter)))
+        if ((null === $filter) || (0 === count($filter)))
         {
             // TODO What effect should @explicit have with a wildcard match?
             if (is_object($node))
             {
-                if ((true == $options->{'@embed'}) || (false == property_exists($node, '@id')))
+                if ((true === $options->{'@embed'}) || (false === property_exists($node, '@id')))
                 {
                     $this->addMissingNodeProperties($node, $options, $nodeMap, $graph, $result, $path);
                 }
@@ -2820,7 +2815,7 @@ class Processor
             if (is_array($validValues) && (0 === count($validValues)))
             {
                 if (property_exists($node, $property) ||
-                    (('@graph' == $property) && isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})))
+                    (('@graph' === $property) && isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})))
                 {
                     return false;  // [] says that the property must not exist but it does
                 }
@@ -2828,10 +2823,10 @@ class Processor
                 continue;
             }
 
-            if (false == property_exists($node, $property))
+            if (false === property_exists($node, $property))
             {
                 // The property does not exist, check if it's @graph and the referenced graph exists
-                if ('@graph' == $property)
+                if ('@graph' === $property)
                 {
                     if (isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'}))
                     {
@@ -2846,7 +2841,7 @@ class Processor
                             }
                         }
 
-                        if (false == $match)
+                        if (false === $match)
                         {
                             return false;
                         }
@@ -2863,7 +2858,7 @@ class Processor
                 }
 
                 // otherwise, look if we have a default value for it
-                if (false == is_array($validValues))
+                if (false === is_array($validValues))
                 {
                     $validValues = array($validValues);
                 }
@@ -2873,7 +2868,7 @@ class Processor
                 {
                     if (is_object($validValue) && property_exists($validValue, '@default'))
                     {
-                        if (is_null($validValue->{'@default'}))
+                        if (null === $validValue->{'@default'})
                         {
                             $result->{$property} = new Object();
                             $result->{$property}->{'@null'} = true;
@@ -2887,7 +2882,7 @@ class Processor
                     }
                 }
 
-                if (true == $defaultFound)
+                if (true === $defaultFound)
                 {
                     continue;
                 }
@@ -2899,7 +2894,7 @@ class Processor
             $match = false;
             $result->{$property} = array();
 
-            if (false == is_array($validValues))
+            if (false === is_array($validValues))
             {
                 if ($node->{$property} === $validValues)
                 {
@@ -2930,7 +2925,7 @@ class Processor
                     }
 
                     $nodeValues = $node->{$property};
-                    if (false == is_array($nodeValues))
+                    if (false === is_array($nodeValues))
                     {
                         $nodeValues = array($nodeValues);
                     }
@@ -2962,7 +2957,7 @@ class Processor
                 {
                     // This will just catch non-expanded IRIs for @id and @type
                     $nodeValues = $node->{$property};
-                    if (false == is_array($nodeValues))
+                    if (false === is_array($nodeValues))
                     {
                         $nodeValues = array($nodeValues);
                     }
@@ -2975,14 +2970,14 @@ class Processor
                 }
             }
 
-            if (false == $match)
+            if (false === $match)
             {
                 return false;
             }
         }
 
         // Discard subtree if this object should not be embedded
-        if ((false == $options->{'@embed'}) && property_exists($node, '@id'))
+        if ((false === $options->{'@embed'}) && property_exists($node, '@id'))
         {
             $result = new Object();
             $result->{'@id'} = $node->{'@id'};
@@ -2993,7 +2988,7 @@ class Processor
 
         // all properties matched the filter, add the properties of the
         // node which haven't been added yet
-        if (false == $options->{'@explicit'})
+        if (false === $options->{'@explicit'})
         {
             $this->addMissingNodeProperties($node, $options, $nodeMap, $graph, $result, $path);
         }
@@ -3022,9 +3017,9 @@ class Processor
                 continue; // property has already been added
             }
 
-            if (true == $options->{'@embedChildren'})
+            if (true === $options->{'@embedChildren'})
             {
-                if (false == is_array($value))
+                if (false === is_array($value))
                 {
                     $result->{$property} = $value;
                     continue;
@@ -3095,7 +3090,7 @@ class Processor
         if (property_exists($object, $property))
         {
             // No need to add a null value
-            if (is_null($value))
+            if (null === $value)
             {
                 return;
             }
@@ -3116,7 +3111,7 @@ class Processor
                 }
             }
 
-            if (false == is_array($value))
+            if (false === is_array($value))
             {
                 $object->{$property}[] = $value;
             }
@@ -3127,11 +3122,11 @@ class Processor
         }
         else
         {
-            if ((true == $alwaysArray) && (false == is_array($value)))
+            if ($alwaysArray && (false === is_array($value)))
             {
                 $object->{$property} = array();
 
-                if (false == is_null($value))
+                if (null !== $value)
                 {
                     $object->{$property}[] = $value;
                 }
@@ -3168,9 +3163,9 @@ class Processor
         {
             return -1;
         }
-        elseif ($lenA == $lenB)
+        elseif ($lenA === $lenB)
         {
-            if ($a == $b)
+            if ($a === $b)
             {
                 return 0;
             }
