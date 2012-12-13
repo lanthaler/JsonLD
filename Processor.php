@@ -900,7 +900,7 @@ class Processor
                             }
                         }
                     } elseif ('@graph' === $property) {
-                        foreach ($value as $key => &$item) {
+                        foreach ($value as &$item) {
                             $this->compact($item, $activectx, $inversectx, null);
                         }
                     } else {
@@ -1498,15 +1498,16 @@ class Processor
             return $result;
         }
 
-
-        $result = array('@type'      => null,
-                        '@language'  => (isset($activectx['@language']))
-                            ? $activectx['@language']
-                            : null,
-                        '@annotation' => null,
-                        '@container' => null,
-                        'isKeyword'  => false);
         $def = null;
+        $result = array(
+            '@type' => null,
+            '@language' => (isset($activectx['@language']))
+                ? $activectx['@language']
+                : null,
+            '@annotation' => null,
+            '@container' => null,
+            'isKeyword' => false
+        );
 
         if (isset($activectx['@propertyGenerators'][$property])) {
             $def = $activectx['@propertyGenerators'][$property];
@@ -1528,7 +1529,6 @@ class Processor
         if (isset($def['@container'])) {
             $result['@container'] = $def['@container'];
         }
-
 
         if ($only) {
             return (isset($result[$only])) ? $result[$only] : null;
@@ -1586,6 +1586,7 @@ class Processor
                         }
 
                         $activectx[$key] = $value;
+
                         continue;
                     }
 
