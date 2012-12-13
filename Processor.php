@@ -1342,9 +1342,9 @@ class Processor
             $valueProfile = $this->getValueProfile($value);
 
             $path = array(
-                $valueProfile['@container'],
-                $valueProfile['typeLang'],
-                ('@null' === $valueProfile['typeLang']) ? '@null' : $valueProfile[$valueProfile['typeLang']]
+                ('@list' === $valueProfile['@container']) ? array('@list', '@null') : array($valueProfile['@container'], '@set', '@null'),
+                ('@null' === $valueProfile['typeLang']) ? array('@null') : array($valueProfile['typeLang'], '@null'),
+                ('@null' === $valueProfile['typeLang']) ? array('@null') : array($valueProfile[$valueProfile['typeLang']], '@null')  // check this!
             );
 
             $result = $this->queryInverseContext($inversectx[$iri], $path, $propGens);
@@ -1672,91 +1672,44 @@ class Processor
             return $result;
         }
 
-        if (isset($inversectxFrag[$path[$level]]))
+        foreach ($path[$level] as $entry)
         {
-            $result = $this->queryInverseContext($inversectxFrag[$path[$level]], $path, $propGens, $level + 1);
-            if (is_string($result))
+            if (false === isset($inversectxFrag[$entry]))
             {
-                return $result;
-            }
-        }
-
-        // Fall back to @set (for everything but @list) and then @null
-        if ('@null' !== $path[$level])
-        {
-            if ((0 === $level) && ('@list' !== $path[$level]) && isset($inversectxFrag['@set']))
-            {
-                $tmpResult = $this->queryInverseContext($inversectxFrag['@set'], $path, $propGens, $level + 1);
-
-                if (is_string($tmpResult))
-                {
-                    if (null === $result)
-                    {
-                        return $tmpResult;
-                    }
-
-                    $tmpResult = array(
-                        'propGens' => array(),
-                        'term' => $tmpResult
-                    );
-                }
-
-                if (null === $result)
-                {
-                    $result = $tmpResult;
-                }
-                else
-                {
-                    foreach ($tmpResult['propGens'] as $propGen)
-                    {
-                        if (false === in_array($propGen, $result['propGens']))
-                        {
-                            $result['propGens'][] = $propGen;
-                        }
-                    }
-                    if ((false === isset($result['term'])) && isset($tmpResult['term']))
-                    {
-                        $result['term'] = $tmpResult['term'];
-                    }
-                }
+                continue;
             }
 
-            if (isset($inversectxFrag['@null']))
+            $tmpResult = $this->queryInverseContext($inversectxFrag[$entry], $path, $propGens, $level + 1);
+
+            if (is_string($tmpResult))
             {
-                $tmpResult = $this->queryInverseContext($inversectxFrag['@null'], $path, $propGens, $level + 1);
-
-                // 1:1 copy of the code above
-                // TODO Refactor this!
-                if (is_string($tmpResult))
-                {
-                    if (null === $result)
-                    {
-                        return $tmpResult;
-                    }
-
-                    $tmpResult = array(
-                        'propGens' => array(),
-                        'term' => $tmpResult
-                    );
-                }
-
                 if (null === $result)
                 {
-                    $result = $tmpResult;
+                    return $tmpResult;
                 }
-                else
+
+                $tmpResult = array(
+                    'propGens' => array(),
+                    'term' => $tmpResult
+                );
+            }
+
+            if (null === $result)
+            {
+                $result = $tmpResult;
+            }
+            else
+            {
+                foreach ($tmpResult['propGens'] as $propGen)
                 {
-                    foreach ($tmpResult['propGens'] as $propGen)
+                    if (false === in_array($propGen, $result['propGens']))
                     {
-                        if (false === in_array($propGen, $result['propGens']))
-                        {
-                            $result['propGens'][] = $propGen;
-                        }
+                        $result['propGens'][] = $propGen;
                     }
-                    if ((false === isset($result['term'])) && isset($tmpResult['term']))
-                    {
-                        $result['term'] = $tmpResult['term'];
-                    }
+                }
+                if ((false === isset($result['term'])) && isset($tmpResult['term']))
+                {
+                    $result['term'] = $tmpResult['term'];
                 }
             }
         }
