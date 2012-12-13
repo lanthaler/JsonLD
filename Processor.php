@@ -1198,7 +1198,7 @@ class Processor
             }
 
             foreach ($properties[$iri] as $key => &$val) {
-                if ($this->subtreeEquals($value, $val)) {
+                if (self::subtreeEquals($value, $val)) {
                     $valueMap[$iri] = $key;
                 }
             }
