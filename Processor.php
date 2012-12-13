@@ -3109,8 +3109,7 @@ class Processor
             {
                 foreach ($object->{$property} as $item)
                 {
-                    // TODO Check if this check is enough to check equivalence
-                    if ($value == $item)
+                    if ($this->subtreeEquals($item, $value))
                     {
                         return;
                     }
