@@ -178,7 +178,7 @@ class Processor
     }
 
     /**
-     * Parses a JSON-LD document and returns it as a {@link Document}
+     * Parses a JSON-LD document and returns it as a Document
      *
      * @param array|object $input The JSON-LD document to process.
      *
@@ -1461,7 +1461,7 @@ class Processor
      *         'isKeyword'  => true or false)
      * </code>
      *
-     * If {@link $only} is set, only the value of that key of the array
+     * If `$only` is set, only the value of that key of the array
      * above will be returned.
      *
      * @param array  $activectx The active context.
@@ -2729,7 +2729,7 @@ class Processor
     /**
      * Converts an object to a JSON-LD representation
      *
-     * Only {@link IRI IRIs}, {@LanguageTaggedString language-tagged strings},
+     * Only {@link IRI IRIs}, {@link LanguageTaggedString language-tagged strings},
      * and {@link TypedValue typed values} are converted by this method. All
      * other objects are returned as-is.
      *

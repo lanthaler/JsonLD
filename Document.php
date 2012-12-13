@@ -50,7 +50,7 @@ class Document
     private $blankNodeCounter = 0;
 
     /**
-     * Parses a JSON-LD document and returns it as a {@link Document}.
+     * Parses a JSON-LD document and returns it as a Document
      *
      * The document can be supplied directly as a string or by passing a
      * file path or an IRI.
