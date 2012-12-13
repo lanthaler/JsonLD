@@ -896,7 +896,6 @@ class Processor
                             $localctx);
                     }
 
-                    // TODO PropGen Make sure it's not a property generator
                     return $this->doExpandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
                 }
             }
@@ -1224,12 +1223,7 @@ class Processor
 
             // the object has neither a @type nor a @language property
             // check the active property's definition
-            if (null !== $definition['@type'])
-            {
-                // if the property is type coerced, we can't compact the value
-                return $value;
-            }
-            elseif ((null !== $definition['@language']) && is_string($value->{'@value'}))
+            if ((null !== $definition['@language']) && is_string($value->{'@value'}))
             {
                 // if the property is language tagged, we can't compact
                 // the value if it is a string
