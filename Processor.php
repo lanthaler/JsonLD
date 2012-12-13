@@ -1230,7 +1230,7 @@ class Processor
      * @return bool Returns true if the two subtrees are equal; otherwise
      *              false.
      */
-    private function subtreeEquals($a, $b)
+    private static function subtreeEquals($a, $b)
     {
         if (gettype($a) !== gettype($b)) {
             return false;
@@ -2666,7 +2666,7 @@ class Processor
 
             if ($unique) {
                 foreach ($object->{$property} as $item) {
-                    if ($this->subtreeEquals($item, $value)) {
+                    if (self::subtreeEquals($item, $value)) {
                         return;
                     }
                 }
