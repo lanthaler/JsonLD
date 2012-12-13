@@ -941,6 +941,8 @@ class Processor
                         $def[$def['@container']] = $val->{$def['@container']};
                         $val = $this->compactValue($val, $def, $activectx, $inversectx);
 
+                        $this->compact($val, $activectx, $inversectx, $activeprty);
+
                         self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $val);
 
                         continue;
@@ -1249,7 +1251,7 @@ class Processor
 
             // TODO Ignore order for sets?
             for ($i = 0; $i < $len; $i++) {
-                if (false === $this->subtreeEquals($a[$i], $b[$i])) {
+                if (false === self::subtreeEquals($a[$i], $b[$i])) {
                     return false;
                 }
             }
@@ -1272,7 +1274,7 @@ class Processor
 
         foreach ($properties as $property) {
             if ((false === property_exists($b, $property)) ||
-                (false === $this->subtreeEquals($a->{$property}, $b->{$property}))) {
+                (false === self::subtreeEquals($a->{$property}, $b->{$property}))) {
                 return false;
             }
         }
