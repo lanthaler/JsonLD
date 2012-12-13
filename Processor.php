@@ -2716,11 +2716,7 @@ class Processor
         if ($lenA < $lenB) {
             return -1;
         } elseif ($lenA === $lenB) {
-            if ($a === $b) {
-                return 0;
-            }
-
-            return ($a < $b) ? -1 : 1;
+            return strcmp($a, $b);
         } else {
             return 1;
         }
