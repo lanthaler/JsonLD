@@ -270,6 +270,16 @@ class Processor
      */
     public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
     {
+        if (is_scalar($element)) {
+            $element = $this->expandValue($element, $activectx, $activeprty);
+
+            return;
+        }
+
+        if (null === $element) {
+            return;
+        }
+
         if (is_array($element)) {
             $result = array();
             foreach ($element as &$item) {
@@ -295,163 +305,129 @@ class Processor
             return;
         }
 
-        if (is_object($element)) {
-            // Try to process local context
-            if (property_exists($element, '@context')) {
-                $this->processContext($element->{'@context'}, $activectx);
-                unset($element->{'@context'});
-            }
+        // Otherwise it's an object. Process its local context if available
+        if (property_exists($element, '@context')) {
+            $this->processContext($element->{'@context'}, $activectx);
+            unset($element->{'@context'});
+        }
 
-            $properties = get_object_vars($element);
-            ksort($properties);
+        $properties = get_object_vars($element);
+        ksort($properties);
 
-            $element = new Object();
+        $element = new Object();
 
-            foreach ($properties as $property => $value) {
-                $expProperty = $this->expandProperty($property, $activectx);
+        foreach ($properties as $property => $value) {
+            $expProperty = $this->expandProperty($property, $activectx);
 
-                if (false === is_array($expProperty)) {
-                    // Make sure to keep framing keywords if a frame is being expanded
-                    if ($frame && in_array($expProperty, self::$framingKeywords)) {
-                        self::setProperty($element, $expProperty, $value);
-                        continue;
-                    }
-
-                    if (in_array($expProperty, self::$keywords)) {
-                        // we don't allow overwriting the behavior of keywords,
-                        // so if the property expands to one, we treat it as the
-                        // keyword itself
-                        $property = $expProperty;
-
-                        $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
-
-                        continue;
-                    } elseif (false === strpos($expProperty, ':')) {
-                        // the expanded property is neither a keyword nor an IRI
-                        continue;
-                    }
-                }
-
-                // Remove properties with null values
-                if (null === $value) {
+            if (false === is_array($expProperty)) {
+                // Make sure to keep framing keywords if a frame is being expanded
+                if ($frame && in_array($expProperty, self::$framingKeywords)) {
+                    self::setProperty($element, $expProperty, $value);
                     continue;
                 }
 
-                $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
+                if (in_array($expProperty, self::$keywords)) {
+                    // we don't allow overwriting the behavior of keywords,
+                    // so if the property expands to one, we treat it as the
+                    // keyword itself
+                    $property = $expProperty;
 
-                if (is_object($value) && in_array($propertyContainer, array('@language', '@annotation'))) {
-                    $result = array();
+                    $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
 
-                    $value = (array) $value;  // makes it easier to order the key-value pairs
-                    ksort($value);
+                    continue;
+                } elseif (false === strpos($expProperty, ':')) {
+                    // the expanded property is neither a keyword nor an IRI
+                    continue;
+                }
+            }
 
-                    if ('@language' === $propertyContainer) {
-                        foreach ($value as $key => $val) {
-                            // TODO Make sure key is a valid language tag
+            $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
 
-                            if (false === is_array($val)) {
-                                $val = array($val);
-                            }
+            if (is_object($value) && in_array($propertyContainer, array('@language', '@annotation'))) {
+                $result = array();
 
-                            foreach ($val as $item) {
-                                if (false === is_string($item)) {
-                                    throw new SyntaxException(
-                                        "Detected invalid value in $property->$key: it must be a string as it " .
-                                        "is part of a language map.",
-                                        $item
-                                    );
-                                }
+                $value = (array) $value;  // makes it easier to order the key-value pairs
+                ksort($value);
 
-                                $result[] = (object) array(
-                                    '@value' => $item,
-                                    '@language' => strtolower($key)
+                if ('@language' === $propertyContainer) {
+                    foreach ($value as $key => $val) {
+                        // TODO Make sure key is a valid language tag
+
+                        if (false === is_array($val)) {
+                            $val = array($val);
+                        }
+
+                        foreach ($val as $item) {
+                            if (false === is_string($item)) {
+                                throw new SyntaxException(
+                                    "Detected invalid value in $property->$key: it must be a string as it " .
+                                    "is part of a language map.",
+                                    $item
                                 );
                             }
-                        }
-                    } else {
-                        // @container: @annotation
-                        foreach ($value as $key => $val) {
-                            if (false === is_array($val)) {
-                                $val = array($val);
-                            }
 
-                            $this->expand($val, $activectx, $activeprty, $frame);
-
-                            foreach ($val as $item) {
-                                if (false === property_exists($item, '@annotation')) {
-                                    $item->{'@annotation'} = $key;
-                                }
-
-                                $result[] = $item;
-                            }
+                            $result[] = (object) array(
+                                '@value' => $item,
+                                '@language' => strtolower($key)
+                            );
                         }
                     }
-
-                    $value = $result;
                 } else {
-                    // .. and all other values
-                    $this->expand($value, $activectx, $property, $frame);
-                }
-
-                // Store the expanded value unless it is null
-                if (null !== $value) {
-                    // If property has an @list container and value is not yet an
-                    // expanded @list-object, transform it to one
-                    if (('@list' === $propertyContainer) &&
-                        ((false === is_object($value) || (false === property_exists($value, '@list'))))) {
-                        if (false === is_array($value)) {
-                            $value = array($value);
+                    // @container: @annotation
+                    foreach ($value as $key => $val) {
+                        if (false === is_array($val)) {
+                            $val = array($val);
                         }
 
-                        $obj = new Object();
-                        $obj->{'@list'} = $value;
-                        $value = $obj;
-                    }
+                        $this->expand($val, $activectx, $activeprty, $frame);
 
-                    if (is_array($expProperty)) {
-                        // Label all blank nodes to connect duplicates
-                        $this->labelBlankNodes($value);
+                        foreach ($val as $item) {
+                            if (false === property_exists($item, '@annotation')) {
+                                $item->{'@annotation'} = $key;
+                            }
 
-                        // Create deep copies of the value for each property
-                        $serialized = serialize($value);
-
-                        foreach ($expProperty['@id'] as $item) {
-                            $value = unserialize($serialized);
-                            self::mergeIntoProperty($element, $item, $value, true);
+                            $result[] = $item;
                         }
-                    } else {
-                        self::mergeIntoProperty($element, $expProperty, $value, true);
                     }
                 }
-            }
-        }
 
-        // Expand scalars (scalars !== null) to @value objects
-        if (is_scalar($element)) {
-            $def = $this->getPropertyDefinition($activectx, $activeprty);
-            $obj = new Object();
-
-            if ('@id' === $def['@type']) {
-                $obj->{'@id'} = $this->expandIri($element, $activectx, true);
+                $value = $result;
             } else {
-                $obj->{'@value'} = $element;
-
-                if (isset($def['@type'])) {
-                    if ('_:' === substr($def['@type'], 0, 2)) {
-                        $obj->{'@type'} = $this->getBlankNodeId($def['@type']);
-                    } else {
-                        $obj->{'@type'} = $def['@type'];
-                    }
-                } elseif (isset($def['@language']) && is_string($obj->{'@value'})) {
-                    $obj->{'@language'} = $def['@language'];
-                }
+                $this->expand($value, $activectx, $property, $frame);
             }
 
-            $element = $obj;
+            // Remove properties with null values
+            if (null === $value) {
+                continue;
+            }
 
-            return;  // nothing more to do.. completely expanded
-        } elseif (null === $element) {
-            return;
+            // If property has an @list container and value is not yet an
+            // expanded @list-object, transform it to one
+            if (('@list' === $propertyContainer) &&
+                ((false === is_object($value) || (false === property_exists($value, '@list'))))) {
+                if (false === is_array($value)) {
+                    $value = array($value);
+                }
+
+                $obj = new Object();
+                $obj->{'@list'} = $value;
+                $value = $obj;
+            }
+
+            if (is_array($expProperty)) {
+                // Label all blank nodes to connect duplicates
+                $this->labelBlankNodes($value);
+
+                // Create deep copies of the value for each property
+                $serialized = serialize($value);
+
+                foreach ($expProperty['@id'] as $item) {
+                    $value = unserialize($serialized);
+                    self::mergeIntoProperty($element, $item, $value, true);
+                }
+            } else {
+                self::mergeIntoProperty($element, $expProperty, $value, true);
+            }
         }
 
         // All properties have been processed. Make sure the result is valid
@@ -619,6 +595,40 @@ class Processor
 
             return;
         }
+    }
+
+    /**
+     * Expands a scalar value
+     *
+     * @param mixed  $value      The value to expand.
+     * @param array  $activectx  The active context.
+     * @param string $activeprty The active property.
+     *
+     * @return Object The expanded value.
+     */
+    private function expandValue($value, $activectx, $activeprty)
+    {
+        $def = $this->getPropertyDefinition($activectx, $activeprty);
+
+        $result = new Object();
+
+        if ('@id' === $def['@type']) {
+            $result->{'@id'} = $this->expandIri($value, $activectx, true);
+        } else {
+            $result->{'@value'} = $value;
+
+            if (isset($def['@type'])) {
+                if ('_:' === substr($def['@type'], 0, 2)) {
+                    $result->{'@type'} = $this->getBlankNodeId($def['@type']);
+                } else {
+                    $result->{'@type'} = $def['@type'];
+                }
+            } elseif (isset($def['@language']) && is_string($result->{'@value'})) {
+                $result->{'@language'} = $def['@language'];
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -2656,12 +2666,12 @@ class Processor
      */
     private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false, $unique = false)
     {
-        if (property_exists($object, $property)) {
-            // No need to add a null value
-            if (null === $value) {
-                return;
-            }
+        // No need to add a null value
+        if (null === $value) {
+            return;
+        }
 
+        if (property_exists($object, $property)) {
             if (false === is_array($object->{$property})) {
                 $object->{$property} = array($object->{$property});
             }
@@ -2681,11 +2691,7 @@ class Processor
             }
         } else {
             if ($alwaysArray && (false === is_array($value))) {
-                $object->{$property} = array();
-
-                if (null !== $value) {
-                    $object->{$property}[] = $value;
-                }
+                $object->{$property} = array($value);
             } else {
                 $object->{$property} = $value;
             }
