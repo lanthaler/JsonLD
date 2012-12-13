@@ -645,8 +645,6 @@ class Processor
 
         if ('@type' == $keyword)
         {
-            // TODO Check value space once agreed (see ISSUE-114)
-
             if (is_string($value))
             {
                 $value = $this->expandIri($value, $activectx, true, true);
@@ -670,7 +668,6 @@ class Processor
                 }
                 else
                 {
-                    // TODO Check if this is enough!!
                     if (false === $frame)
                     {
                         throw new SyntaxException("Invalid value for $keyword detected.", $value);
@@ -942,7 +939,6 @@ class Processor
         {
             if ((true == $vocabRelative) && array_key_exists('@vocab', $activectx))
             {
-                // TODO Handle relative IRIs properly??
                 return $activectx['@vocab'] . $value;
             }
             elseif (true == $relativeIri)
@@ -1067,8 +1063,6 @@ class Processor
                                 $this->compact($item, $activectx, $inversectx, null);
                             }
                         }
-
-                        // TODO Should arrays with just one item be compacted for @graph
                     }
                     else
                     {
@@ -1320,7 +1314,6 @@ class Processor
         {
             $defaultLanguage = isset($activectx['@language']) ? $activectx['@language'] : null;
 
-            // TODO Replace value profile with path in general!?
             $valueProfile = $this->getValueProfile($value);
 
             $path = array(
@@ -1638,7 +1631,6 @@ class Processor
         {
             if ($propGens && isset($inversectxFrag['propGens']))
             {
-                // TODO Also return less specific property generators?
                 $result = array('propGens' => $inversectxFrag['propGens']);
             }
 
@@ -1959,8 +1951,6 @@ class Processor
                                 $context->{$key}->{'@type'} = $expanded;
                             }
                             $activectxKey['@type'] = $expanded;
-
-                            // TODO Throw exception if language is set as well?
                         }
                         elseif (property_exists($value, '@language'))
                         {
@@ -2166,8 +2156,6 @@ class Processor
 
                 return;
             }
-
-            // TODO: Really create bnode for empty objects??
 
             $id = null;
             if (property_exists($element, '@id'))
@@ -3038,7 +3026,6 @@ class Processor
             {
                 if (false == is_array($value))
                 {
-                    // TODO In @type this could be node reference, how should that be handled?
                     $result->{$property} = $value;
                     continue;
                 }
