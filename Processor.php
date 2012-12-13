@@ -664,18 +664,6 @@ class Processor
 
             foreach ($value as $item)
             {
-                // This is an automatic recovery for @type values being node references
-                if (is_object($item) && (1 === count(get_object_vars($item))))
-                {
-                    foreach ($item as $itemKey => $itemValue)
-                    {
-                        if ('@id' == $this->expandIri($itemKey, $activectx, false, true))
-                        {
-                            $item = $itemValue;
-                        }
-                    }
-                }
-
                 if (is_string($item))
                 {
                     $result[] = $this->expandIri($item, $activectx, true, true);
