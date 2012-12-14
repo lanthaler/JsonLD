@@ -658,6 +658,7 @@ class Processor
             }
 
             $properties = array_keys(get_object_vars($element));
+            sort($properties);
 
             if (false === property_exists($element, '@id')) {
                 $element->{'@id'} = $this->getBlankNodeId();
