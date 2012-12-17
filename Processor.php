@@ -1573,26 +1573,25 @@ class Processor
                     unset($context->{'@vocab'});
                 }
 
+                if (property_exists($context, '@language')) {
+                    if ((null !== $context->{'@language'}) && (false === is_string($context->{'@language'}))) {
+                        throw new SyntaxException('The value of @language must be a string.', $context);
+                    }
+
+                    $activectx['@language'] = $context->{'@language'};
+                    unset($context->{'@language'});
+                }
+
                 foreach ($context as $key => $value) {
+                    if (in_array($key, self::$keywords)) {
+                        // Keywords can't be altered
+                        continue;
+                    }
+
                     if (null === $value) {
                         unset($activectx[$key]);
                         $activectx[$key]['@id'] = null;
 
-                        continue;
-                    }
-
-                    if ('@language' === $key) {
-                        if (false === is_string($value)) {
-                            throw new SyntaxException('The value of @language must be a string.', $context);
-                        }
-
-                        $activectx[$key] = $value;
-
-                        continue;
-                    }
-
-                    if (in_array($key, self::$keywords)) {
-                        // Keywords can't be altered
                         continue;
                     }
 
