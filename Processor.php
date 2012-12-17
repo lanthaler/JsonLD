@@ -1564,6 +1564,9 @@ class Processor
             if (null === $context) {
                 $activectx = array();
             } elseif (is_object($context)) {
+                // make sure we don't modify the passed context
+                $context = clone $context;
+
                 if (isset($context->{'@vocab'})) {
                     if ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
                         throw new SyntaxException("The value of @vocab must be an absolute IRI.", $context);
@@ -1583,6 +1586,8 @@ class Processor
                 }
 
                 foreach ($context as $key => $value) {
+                    unset($context->{$key});
+
                     if (in_array($key, self::$keywords)) {
                         // Keywords can't be altered
                         continue;
@@ -1602,11 +1607,9 @@ class Processor
                             throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                         }
 
-                        $context->{$key} = $expanded;
                         $activectx[$key] = array('@id' => $expanded);
                     } elseif (is_object($value)) {
                         unset($activectx[$key]);  // delete previous definition
-                        $context->{$key} = clone $context->{$key};  // make sure we don't modify the passed context
 
                         $expanded = null;
 
@@ -1641,10 +1644,8 @@ class Processor
                         if (is_array($expanded)) {
                             // and are removed from the local context as they can't be used
                             // in other term definitions
-                            unset($context->{$key});
                             $activectxKey = &$activectx['@propertyGenerators'][$key];
                         } else {
-                            $context->{$key}->{'@id'} = $expanded;
                             $activectxKey = &$activectx[$key];
 
                             if ((null === $expanded) || in_array($expanded, self::$keywords)) {
@@ -1667,9 +1668,6 @@ class Processor
                                 throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                             }
 
-                            if (property_exists($context, $key)) {
-                                $context->{$key}->{'@type'} = $expanded;
-                            }
                             $activectxKey['@type'] = $expanded;
                         } elseif (property_exists($value, '@language')) {
                             if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
