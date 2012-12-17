@@ -1541,13 +1541,14 @@ class Processor
     /**
      * Processes a local context to update the active context
      *
-     * @param mixed $loclctx   The local context.
-     * @param array $activectx The active context.
+     * @param mixed $loclctx    The local context.
+     * @param array $activectx  The active context.
+     * @param array $remotectxs The already included remote contexts.
      *
      * @throws ProcessException If processing of the context failed.
      * @throws ParseException   If a remote context couldn't be processed.
      */
-    public function processContext($loclctx, &$activectx)
+    public function processContext($loclctx, &$activectx, $remotectxs = array())
     {
         // Initialize variable
         $activectxKey = null;
@@ -1686,11 +1687,20 @@ class Processor
                     }
                 }
             } else {
-                // TODO Detect recursive context imports
-                $remoteContext = JsonLD::parse((string) $this->baseIri->resolve($context));
+                $remoteContext = (string) $this->baseIri->resolve($context);
+                if (in_array($remoteContext, $remotectxs)) {
+                    throw new ProcessException(
+                        'Recursive inclusion of remote context: ' . join(' -> ', $remotectxs) . ' -> ' .
+                        $remoteContext
+                    );
+                }
+                $remotectxs[] = $remoteContext;
+
+                $remoteContext = JsonLD::parse($remoteContext);
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context')) {
-                    $this->processContext($remoteContext->{'@context'}, $activectx);
+                    // TODO Use the context's IRI as base IRI when processing remote contexts (ISSUE-24)
+                    $this->processContext($remoteContext->{'@context'}, $activectx, $remotectxs);
                 } else {
                     throw new ProcessException('Remote context "' . $context . '" is invalid.', $remoteContext);
                 }
