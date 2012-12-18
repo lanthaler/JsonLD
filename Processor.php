@@ -806,7 +806,7 @@ class Processor
                 // compact IRI
                 return $activectx[$prefix]['@id'] . $suffix;
             }
-        } elseif (false === in_array($value, self::$keywords)) {
+        } else {
             if ($vocabRelative && array_key_exists('@vocab', $activectx)) {
                 return $activectx['@vocab'] . $value;
             } elseif ($relativeIri) {
