@@ -787,15 +787,13 @@ class Processor
         if (false !== strpos($value, ':')) {
             list($prefix, $suffix) = explode(':', $value, 2);
 
-            if ('//' === substr($suffix, 0, 2)) {
+            if (('_' === $prefix) || ('//' === substr($suffix, 0, 2))) {
                 // Safety measure to prevent reassigned of, e.g., http://
+                // the "_" prefix is reserved for blank nodes and can't be expanded
                 return $value;
             }
 
-            if ('_' === $prefix) {
-                // it is a named blank node
-                return $value;
-            } elseif ($localctx) {
+            if ($localctx) {
                 $prefix = $this->doExpandIri($prefix, $activectx, false, true, $localctx, $path);
 
                 // If prefix contains a colon, we have successfully expanded it
