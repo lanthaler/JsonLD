@@ -699,12 +699,12 @@ class Processor
      * This method is nothing else than a wrapper around {@link doExpandIri}
      * ensuring that all blank nodes are relabeled.
      *
-     * @param mixed $value       The value to be expanded to an absolute IRI.
-     * @param array $activectx   The active context.
-     * @param bool  $relativeIri Specifies whether $value should be treated as
-     *                           relative IRI as fallback or not.
-     * @param bool $vocabRelative Specifies whether $value is relative to @vocab
-     *                            if set or not.
+     * @param mixed $value         The value to be expanded to an absolute IRI.
+     * @param array $activectx     The active context.
+     * @param bool  $relativeIri   Specifies whether $value should be treated as
+     *                             relative IRI against the base IRI or not.
+     * @param bool  $vocabRelative Specifies whether $value is relative to @vocab
+     *                             if set or not.
      *
      * @return string The expanded IRI.
      */
@@ -725,7 +725,7 @@ class Processor
      * @param mixed  $value         The value to be expanded to an absolute IRI.
      * @param array  $activectx     The active context.
      * @param bool   $relativeIri   Specifies whether $value should be treated as
-     *                              relative IRI as fallback or not.
+     *                              relative IRI against the base IRI or not.
      * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
      *                              if set or not.
      * @param object $localctx      If the IRI is being expanded as part of context
