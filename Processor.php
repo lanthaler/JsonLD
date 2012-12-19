@@ -1170,7 +1170,8 @@ class Processor
 
         // Last resort, use @vocab if set and the result isn't an empty string
         if (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
-            (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab']))))) {
+            (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))) &&
+            (false === isset($activectx[$relativeIri]))) {
             if (null === $result) {
                 return $relativeIri;
             }
