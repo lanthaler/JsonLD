@@ -840,10 +840,8 @@ class Processor
                 }
             }
 
-            // If there's just one entry and the active property is not an
-            // @list container, optimize the array away
-            if ($this->compactArrays && (1 === count($result)) &&
-                ('@list' !== $this->getPropertyDefinition($activectx, $activeprty, '@container'))) {
+            // Optimize array away if there's just one entry unless the optimization is disabled
+            if ($this->compactArrays && (1 === count($result))) {
                 $element = $result[0];
             } else {
                 $element = $result;
