@@ -839,13 +839,14 @@ class Processor
                     $result[] = $item;
                 }
             }
-            $element = $result;
 
             // If there's just one entry and the active property is not an
             // @list container, optimize the array away
-            if ($this->compactArrays && (1 === count($element)) &&
+            if ($this->compactArrays && (1 === count($result)) &&
                 ('@list' !== $this->getPropertyDefinition($activectx, $activeprty, '@container'))) {
-                $element = $element[0];
+                $element = $result[0];
+            } else {
+                $element = $result;
             }
 
             return;
