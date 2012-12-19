@@ -983,9 +983,9 @@ class Processor
 
                             continue;  // ... continue with next value
                         }
-                    } else {
-                        $this->compact($item, $activectx, $inversectx, $activeprty);
                     }
+
+                    $this->compact($item, $activectx, $inversectx, $activeprty);
                 }
 
                 // Merge value back into resulting object making sure that value is always
