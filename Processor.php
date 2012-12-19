@@ -931,13 +931,13 @@ class Processor
             }
 
             // Compact every item in value separately as they could map to different terms
-            foreach ($value as &$val) {
-                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
+            foreach ($value as $item) {
+                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $item, true);
 
                 if (is_array($activeprty)) {
                     foreach ($activeprty['propGens'] as $propGen) {
                         $def = $this->getPropertyDefinition($activectx, $propGen);
-                        if ($this->removePropertyGeneratorDuplicates($properties, $property, $val, $def['@id'])) {
+                        if ($this->removePropertyGeneratorDuplicates($properties, $property, $item, $def['@id'])) {
                             $activeprty = $propGen;
                             break;
                         }
@@ -956,35 +956,35 @@ class Processor
                         $element->{$activeprty} = new Object();
                     }
 
-                    $def[$def['@container']] = $val->{$def['@container']};
-                    $val = $this->compactValue($val, $def, $activectx, $inversectx);
+                    $def[$def['@container']] = $item->{$def['@container']};
+                    $item = $this->compactValue($item, $def, $activectx, $inversectx);
 
-                    $this->compact($val, $activectx, $inversectx, $activeprty);
+                    $this->compact($item, $activectx, $inversectx, $activeprty);
 
-                    self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $val);
+                    self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $item);
 
                     continue;
                 }
 
-                if (is_object($val)) {
-                    if (property_exists($val, '@list')) {
-                        $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
+                if (is_object($item)) {
+                    if (property_exists($item, '@list')) {
+                        $this->compact($item->{'@list'}, $activectx, $inversectx, $activeprty);
 
-                        if (false === is_array($val->{'@list'})) {
-                            $val->{'@list'} = array($val->{'@list'});
+                        if (false === is_array($item->{'@list'})) {
+                            $item->{'@list'} = array($item->{'@list'});
                         }
 
                         if ('@list' === $def['@container']) {
-                            $val = $val->{'@list'};
+                            $item = $item->{'@list'};
 
                             // a term can just hold one list if it has a @list container
                             // (we don't support lists of lists)
-                            self::setProperty($element, $activeprty, $val);
+                            self::setProperty($element, $activeprty, $item);
 
                             continue;  // ... continue with next value
                         }
                     } else {
-                        $this->compact($val, $activectx, $inversectx, $activeprty);
+                        $this->compact($item, $activectx, $inversectx, $activeprty);
                     }
                 }
 
@@ -996,7 +996,7 @@ class Processor
                     array('@list', '@set')
                 );
 
-                self::mergeIntoProperty($element, $activeprty, $val, $asArray);
+                self::mergeIntoProperty($element, $activeprty, $item, $asArray);
             }
         }
     }
