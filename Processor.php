@@ -847,144 +847,151 @@ class Processor
                 ('@list' !== $this->getPropertyDefinition($activectx, $activeprty, '@container'))) {
                 $element = $element[0];
             }
-        } elseif (is_object($element)) {
-            // Handle @null objects as used in framing
-            if (property_exists($element, '@null')) {
-                $element = null;
 
+            return;
+        }
+
+        if (false === is_object($element)) {
+            // element is already in compact form, nothing else to do
+            return;
+        }
+
+        // element is an object; handle @null objects as used in framing
+        if (property_exists($element, '@null')) {
+            $element = null;
+
+            return;
+        } elseif (property_exists($element, '@value') || property_exists($element, '@id')) {
+            $def = $this->getPropertyDefinition($activectx, $activeprty);
+            $element = $this->compactValue($element, $def, $activectx, $inversectx);
+
+            if (false === is_object($element)) {
                 return;
-            } elseif (property_exists($element, '@value') || property_exists($element, '@id')) {
-                $def = $this->getPropertyDefinition($activectx, $activeprty);
-                $element = $this->compactValue($element, $def, $activectx, $inversectx);
+            }
+        }
 
-                if (false === is_object($element)) {
-                    return;
+        // Otherwise, compact all properties
+        $properties = get_object_vars($element);
+        ksort($properties);
+
+        $element = new Object();
+
+        foreach ($properties as $property => $value) {
+            // This is necessary as foreach operates on a copy of the array
+            // and it might have been modified by property generators
+            if (false === array_key_exists($property, $properties)) {
+                continue;
+            }
+            $value = $properties[$property];
+
+            if (in_array($property, self::$keywords)) {
+                // Get the keyword alias from the inverse context if available
+                $activeprty = (isset($inversectx[$property]['term']))
+                    ? $inversectx[$property]['term']
+                    : $property;
+
+                if ('@id' === $property) {
+                    // TODO Transform @id to relative IRIs by default??
+                    $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
+                } elseif ('@type' === $property) {
+                    if (is_string($value)) {
+                        $value = $this->compactVocabularyIri($value, $activectx, $inversectx);
+                    } else {
+                        foreach ($value as $key => &$iri) {
+                            // TODO Transform to relative IRIs by default??
+                            $iri = $this->compactVocabularyIri($iri, $activectx, $inversectx);
+                        }
+
+                        if ($this->compactArrays && (1 === count($value))) {
+                            $value = $value[0];
+                        }
+                    }
+                } elseif ('@graph' === $property) {
+                    foreach ($value as &$item) {
+                        $this->compact($item, $activectx, $inversectx, null);
+                    }
+                } else {
+                    $this->compact($value, $activectx, $inversectx, $activeprty);
                 }
+
+                self::setProperty($element, $activeprty, $value);
+
+                // ... continue with next property
+                continue;
             }
 
-            // Otherwise, compact all properties
-            $properties = get_object_vars($element);
-            ksort($properties);
+            // Make sure that empty arrays are preserved
+            if (0 === count($value)) {
+                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, null, true);
+                self::mergeIntoProperty($element, $activeprty, $value);
 
-            $element = new Object();
+                // ... continue with next property
+                continue;
+            }
 
-            foreach ($properties as $property => $value) {
-                // This is necessary as foreach operates on a copy of the array
-                // and it might have been modified by property generators
-                if (false === array_key_exists($property, $properties)) {
-                    continue;
-                }
-                $value = $properties[$property];
+            // Compact every item in value separately as they could map to different terms
+            foreach ($value as &$val) {
+                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
 
-                if (in_array($property, self::$keywords)) {
-                    // Get the keyword alias from the inverse context if available
-                    $activeprty = (isset($inversectx[$property]['term']))
-                        ? $inversectx[$property]['term']
-                        : $property;
-
-                    if ('@id' === $property) {
-                        // TODO Transform @id to relative IRIs by default??
-                        $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
-                    } elseif ('@type' === $property) {
-                        if (is_string($value)) {
-                            $value = $this->compactVocabularyIri($value, $activectx, $inversectx);
-                        } else {
-                            foreach ($value as $key => &$iri) {
-                                // TODO Transform to relative IRIs by default??
-                                $iri = $this->compactVocabularyIri($iri, $activectx, $inversectx);
-                            }
-
-                            if ($this->compactArrays && (1 === count($value))) {
-                                $value = $value[0];
-                            }
+                if (is_array($activeprty)) {
+                    foreach ($activeprty['propGens'] as $propGen) {
+                        $def = $this->getPropertyDefinition($activectx, $propGen);
+                        if ($this->removePropertyGeneratorDuplicates($properties, $property, $val, $def['@id'])) {
+                            $activeprty = $propGen;
+                            break;
                         }
-                    } elseif ('@graph' === $property) {
-                        foreach ($value as &$item) {
-                            $this->compact($item, $activectx, $inversectx, null);
-                        }
-                    } else {
-                        $this->compact($value, $activectx, $inversectx, $activeprty);
                     }
-
-                    self::setProperty($element, $activeprty, $value);
-
-                    // ... continue with next property
-                    continue;
-                }
-
-                // Make sure that empty arrays are preserved
-                if (0 === count($value)) {
-                    $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, null, true);
-                    self::mergeIntoProperty($element, $activeprty, $value);
-
-                    // ... continue with next property
-                    continue;
-                }
-
-                // Compact every item in value separately as they could map to different terms
-                foreach ($value as &$val) {
-                    $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $val, true);
 
                     if (is_array($activeprty)) {
-                        foreach ($activeprty['propGens'] as $propGen) {
-                            $def = $this->getPropertyDefinition($activectx, $propGen);
-                            if ($this->removePropertyGeneratorDuplicates($properties, $property, $val, $def['@id'])) {
-                                $activeprty = $propGen;
-                                break;
-                            }
-                        }
-
-                        if (is_array($activeprty)) {
-                            // fall back to term or IRI if no property generator matches
-                            $activeprty = $activeprty['term'];
-                        }
+                        // fall back to term or IRI if no property generator matches
+                        $activeprty = $activeprty['term'];
                     }
-
-                    $def = $this->getPropertyDefinition($activectx, $activeprty);
-
-                    if (in_array($def['@container'], array('@language', '@annotation'))) {
-                        if (false === property_exists($element, $activeprty)) {
-                            $element->{$activeprty} = new Object();
-                        }
-
-                        $def[$def['@container']] = $val->{$def['@container']};
-                        $val = $this->compactValue($val, $def, $activectx, $inversectx);
-
-                        $this->compact($val, $activectx, $inversectx, $activeprty);
-
-                        self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $val);
-
-                        continue;
-                    }
-
-                    if (is_object($val)) {
-                        if (property_exists($val, '@list')) {
-                            $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
-
-                            if ('@list' === $def['@container']) {
-                                $val = $val->{'@list'};
-
-                                // a term can just hold one list if it has a @list container
-                                // (we don't support lists of lists)
-                                self::setProperty($element, $activeprty, $val);
-
-                                continue;  // ... continue with next value
-                            }
-                        } else {
-                            $this->compact($val, $activectx, $inversectx, $activeprty);
-                        }
-                    }
-
-                    // Merge value back into resulting object making sure that value is always
-                    // an array if a container is set or compactArrays is set to false
-                    $asArray = (false === $this->compactArrays);
-                    $asArray |= in_array(
-                        $this->getPropertyDefinition($activectx, $activeprty, '@container'),
-                        array('@list', '@set')
-                    );
-
-                    self::mergeIntoProperty($element, $activeprty, $val, $asArray);
                 }
+
+                $def = $this->getPropertyDefinition($activectx, $activeprty);
+
+                if (in_array($def['@container'], array('@language', '@annotation'))) {
+                    if (false === property_exists($element, $activeprty)) {
+                        $element->{$activeprty} = new Object();
+                    }
+
+                    $def[$def['@container']] = $val->{$def['@container']};
+                    $val = $this->compactValue($val, $def, $activectx, $inversectx);
+
+                    $this->compact($val, $activectx, $inversectx, $activeprty);
+
+                    self::mergeIntoProperty($element->{$activeprty}, $def[$def['@container']], $val);
+
+                    continue;
+                }
+
+                if (is_object($val)) {
+                    if (property_exists($val, '@list')) {
+                        $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
+
+                        if ('@list' === $def['@container']) {
+                            $val = $val->{'@list'};
+
+                            // a term can just hold one list if it has a @list container
+                            // (we don't support lists of lists)
+                            self::setProperty($element, $activeprty, $val);
+
+                            continue;  // ... continue with next value
+                        }
+                    } else {
+                        $this->compact($val, $activectx, $inversectx, $activeprty);
+                    }
+                }
+
+                // Merge value back into resulting object making sure that value is always
+                // an array if a container is set or compactArrays is set to false
+                $asArray = (false === $this->compactArrays);
+                $asArray |= in_array(
+                    $this->getPropertyDefinition($activectx, $activeprty, '@container'),
+                    array('@list', '@set')
+                );
+
+                self::mergeIntoProperty($element, $activeprty, $val, $asArray);
             }
         }
     }
