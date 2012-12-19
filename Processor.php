@@ -840,7 +840,6 @@ class Processor
                 }
             }
 
-            // Optimize array away if there's just one entry unless the optimization is disabled
             if ($this->compactArrays && (1 === count($result))) {
                 $element = $result[0];
             } else {
@@ -887,11 +886,6 @@ class Processor
             $value = $properties[$property];
 
             if (in_array($property, self::$keywords)) {
-                // Get the keyword alias from the inverse context if available
-                $activeprty = (isset($inversectx[$property]['term']))
-                    ? $inversectx[$property]['term']
-                    : $property;
-
                 if ('@id' === $property) {
                     // TODO Transform @id to relative IRIs by default??
                     $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
@@ -909,12 +903,17 @@ class Processor
                         }
                     }
                 } elseif ('@graph' === $property) {
-                    foreach ($value as &$item) {
-                        $this->compact($item, $activectx, $inversectx, null);
+                    $this->compact($value, $activectx, $inversectx, $property);
+
+                    if (false === is_array($value)) {
+                        $value = array($value);
                     }
-                } else {
-                    $this->compact($value, $activectx, $inversectx, $activeprty);
                 }
+
+                // Get the keyword alias from the inverse context if available
+                $activeprty = (isset($inversectx[$property]['term']))
+                    ? $inversectx[$property]['term']
+                    : $property;
 
                 self::setProperty($element, $activeprty, $value);
 
@@ -970,6 +969,10 @@ class Processor
                 if (is_object($val)) {
                     if (property_exists($val, '@list')) {
                         $this->compact($val->{'@list'}, $activectx, $inversectx, $activeprty);
+
+                        if (false === is_array($val->{'@list'})) {
+                            $val->{'@list'} = array($val->{'@list'});
+                        }
 
                         if ('@list' === $def['@container']) {
                             $val = $val->{'@list'};
