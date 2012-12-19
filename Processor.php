@@ -990,11 +990,7 @@ class Processor
 
                 // Merge value back into resulting object making sure that value is always
                 // an array if a container is set or compactArrays is set to false
-                $asArray = (false === $this->compactArrays);
-                $asArray |= in_array(
-                    $this->getPropertyDefinition($activectx, $activeprty, '@container'),
-                    array('@list', '@set')
-                );
+                $asArray = ((false === $this->compactArrays) || (false === $def['compactArrays']));
 
                 self::mergeIntoProperty($element, $activeprty, $item, $asArray);
             }
