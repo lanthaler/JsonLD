@@ -855,12 +855,15 @@ class Processor
             return;
         }
 
-        // element is an object; handle @null objects as used in framing
+        // element is an object
         if (property_exists($element, '@null')) {
+            // @null objects are used in framing
             $element = null;
 
             return;
-        } elseif (property_exists($element, '@value') || property_exists($element, '@id')) {
+        }
+
+        if (property_exists($element, '@value') || property_exists($element, '@id')) {
             $def = $this->getPropertyDefinition($activectx, $activeprty);
             $element = $this->compactValue($element, $def, $activectx, $inversectx);
 
