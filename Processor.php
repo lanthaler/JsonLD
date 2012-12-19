@@ -1492,21 +1492,6 @@ class Processor
      */
     private function getPropertyDefinition($activectx, $property, $only = null)
     {
-        if (in_array($property, self::$keywords)) {
-            $result = array();
-            if (('@id' === $property) || ('@type' === $property) || ('@graph' === $property)) {
-                $result['@type'] = '@id';
-            }
-
-            $result['@language'] = null;
-            $result['@annotation'] = null;
-            $result['@container'] = null;
-            $result['isKeyword'] = true;
-
-            return $result;
-        }
-
-        $def = null;
         $result = array(
             '@type' => null,
             '@language' => (isset($activectx['@language']))
@@ -1514,28 +1499,44 @@ class Processor
                 : null,
             '@annotation' => null,
             '@container' => null,
-            'isKeyword' => false
+            'isKeyword' => false,
+            'compactArrays' => true
         );
 
-        if (isset($activectx['@propertyGenerators'][$property])) {
-            $def = $activectx['@propertyGenerators'][$property];
-        } elseif (isset($activectx[$property])) {
-            $def = $activectx[$property];
-        } else {
-            return $result;
-        }
-
-        $result['@id'] = $def['@id'];
-
-        if (isset($def['@type'])) {
-            $result['@type'] = $def['@type'];
+        if (in_array($property, self::$keywords)) {
+            $result['@type'] = (('@id' === $property) || ('@type' === $property))
+                ? '@id'
+                : null;
             $result['@language'] = null;
-        } elseif (array_key_exists('@language', $def)) {  // could be null
-            $result['@language'] = $def['@language'];
-        }
+            $result['isKeyword'] = true;
+            $result['compactArrays'] = (bool) (('@list' !== $property) && ('@graph' !== $property));
+        } else {
+            $def = null;
 
-        if (isset($def['@container'])) {
-            $result['@container'] = $def['@container'];
+            if (isset($activectx['@propertyGenerators'][$property])) {
+                $def = $activectx['@propertyGenerators'][$property];
+            } elseif (isset($activectx[$property])) {
+                $def = $activectx[$property];
+            }
+
+            if (null !== $def) {
+                $result['@id'] = $def['@id'];
+
+                if (isset($def['@type'])) {
+                    $result['@type'] = $def['@type'];
+                    $result['@language'] = null;
+                } elseif (array_key_exists('@language', $def)) {  // could be null
+                    $result['@language'] = $def['@language'];
+                }
+
+                if (isset($def['@container'])) {
+                    $result['@container'] = $def['@container'];
+
+                    if (('@list' === $def['@container']) || ('@set' === $def['@container'])) {
+                        $result['compactArrays'] = false;
+                    }
+                }
+            }
         }
 
         if ($only) {
