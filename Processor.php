@@ -1097,9 +1097,9 @@ class Processor
                     ('@null' === $valueProfile['typeLang'])
                         ? array('@null')
                         : array($valueProfile['typeLang'], '@null'),
-                    ('@null' === $valueProfile['typeLang'])
+                    (null === $valueProfile['typeLang'])
                         ? array('@null')
-                        : array($valueProfile[$valueProfile['typeLang']], '@null')  // check this!
+                        : array($valueProfile['typeLangValue'], '@null')  // check this!
                 );
 
                 $result = $this->queryInverseContext($inversectx[$iri], $path);
@@ -1289,7 +1289,8 @@ class Processor
             '@container' => '@set',
             '@type' => null,
             '@language' => null,
-            'typeLang' => '@null'
+            'typeLang' => null,
+            'typeLangValue' => null
         );
 
         if (false === is_object($value)) {
@@ -1301,30 +1302,33 @@ class Processor
         }
 
         if (property_exists($value, '@id')) {
-            $valueProfile['@type'] = '@id';
             $valueProfile['typeLang'] = '@type';
+            $valueProfile['@type'] = '@id';
+            $valueProfile['typeLangValue'] = '@id';
 
             return $valueProfile;
         }
 
         if (property_exists($value, '@value')) {
             $valueProfile['@type'] = null;
-            $valueProfile['typeLang'] = '@null';
 
             if (property_exists($value, '@type')) {
-                $valueProfile['@type'] = $value->{'@type'};
                 $valueProfile['typeLang'] = '@type';
+                $valueProfile['@type'] = $value->{'@type'};
             } elseif (property_exists($value, '@language')) {
-                $valueProfile['@language'] = $value->{'@language'};
                 $valueProfile['typeLang'] = '@language';
-                $valueProfile['@type'] = null;
+                $valueProfile['@language'] = $value->{'@language'};
 
                 if (false === property_exists($value, '@annotation')) {
                     $valueProfile['@container'] = '@language';
                 }
             } elseif (is_string($value->{'@value'})) {
-                $valueProfile['@language'] = '@null';
                 $valueProfile['typeLang'] = '@language';
+                $valueProfile['@language'] = '@null';
+            }
+
+            if (null !== $valueProfile['typeLang']) {
+                $valueProfile['typeLangValue'] = $valueProfile[$valueProfile['typeLang']];
             }
 
             return $valueProfile;
@@ -1350,7 +1354,8 @@ class Processor
                     ($valueProfile['@language'] !== $profile['@language'])) {
                     $valueProfile['@type'] = null;
                     $valueProfile['@language'] = null;
-                    $valueProfile['typeLang'] = '@null';
+                    $valueProfile['typeLang'] = null;
+                    $valueProfile['typeLangValue'] = null;
 
                     return $valueProfile;
                 }
