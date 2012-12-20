@@ -926,18 +926,7 @@ class Processor
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
 
                 if (is_array($activeprty)) {
-                    foreach ($activeprty['propGens'] as $propGen) {
-                        $def = $this->getPropertyDefinition($activectx, $propGen);
-                        if ($this->removePropertyGeneratorDuplicates($properties, $property, null, $def['@id'])) {
-                            $activeprty = $propGen;
-                            break;
-                        }
-                    }
-
-                    if (is_array($activeprty)) {
-                        // fall back to term or IRI if no property generator matches
-                        $activeprty = $activeprty['term'];
-                    }
+                    $activeprty = $this->removePropertyGeneratorDuplicates($properties, $property, null, $activectx, $activeprty);
                 }
 
                 self::mergeIntoProperty($element, $activeprty, $value);
@@ -951,18 +940,7 @@ class Processor
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true);
 
                 if (is_array($activeprty)) {
-                    foreach ($activeprty['propGens'] as $propGen) {
-                        $def = $this->getPropertyDefinition($activectx, $propGen);
-                        if ($this->removePropertyGeneratorDuplicates($properties, $property, $item, $def['@id'])) {
-                            $activeprty = $propGen;
-                            break;
-                        }
-                    }
-
-                    if (is_array($activeprty)) {
-                        // fall back to term or IRI if no property generator matches
-                        $activeprty = $activeprty['term'];
-                    }
+                    $activeprty = $this->removePropertyGeneratorDuplicates($properties, $property, $item, $activectx, $activeprty);
                 }
 
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
@@ -1190,47 +1168,55 @@ class Processor
      * @return bool Returns true if the duplicates have been found and
      *              removed for all IRIs
      */
-    private function removePropertyGeneratorDuplicates(&$properties, $property, $value, $iris)
+    private function removePropertyGeneratorDuplicates(&$properties, $property, $value, $activectx, $candidates)
     {
-        $valueMap = array();
+        foreach ($candidates['propGens'] as $propGen) {
+            $def = $this->getPropertyDefinition($activectx, $propGen);
 
-        foreach ($iris as $iri) {
-            if (($iri === $property) || (false === isset($properties[$iri]))) {
+            $valueMap = array();
+
+            foreach ($def['@id'] as $iri) {
+                if (($iri === $property) || (false === isset($properties[$iri]))) {
+                    continue;
+                }
+
+                if (null === $value) {
+                    $valueMap[$iri] = null;
+                }
+
+                foreach ($properties[$iri] as $key => &$val) {
+                    if (self::subtreeEquals($value, $val)) {
+                        $valueMap[$iri] = $key;
+                    }
+                }
+            }
+
+            if (count($valueMap) !== (count($def['@id']) - 1)) {
+                // value wasn't found for all of the property generator's IRIs,
+                // continue with next property generator
                 continue;
             }
 
-            if (null === $value) {
-                $valueMap[$iri] = null;
-            }
-
-            foreach ($properties[$iri] as $key => &$val) {
-                if (self::subtreeEquals($value, $val)) {
-                    $valueMap[$iri] = $key;
+            foreach ($valueMap as $iri => $key) {
+                if (null === $key) {
+                    if (0 === count($properties[$iri])) {
+                        unset($properties[$iri]);
+                    }
+                    continue;
                 }
-            }
-        }
 
-        if (count($valueMap) !== (count($iris) - 1)) {
-            // value wasn't found for all of the property generator's IRIs
-            return false;
-        }
-
-        foreach ($valueMap as $iri => $key) {
-            if (null === $key) {
-                if (0 === count($properties[$iri])) {
+                if (1 === count($properties[$iri])) {
                     unset($properties[$iri]);
+                } else {
+                    unset($properties[$iri][$key]);
                 }
-                continue;
             }
 
-            if (1 === count($properties[$iri])) {
-                unset($properties[$iri]);
-            } else {
-                unset($properties[$iri][$key]);
-            }
+            return $propGen;
         }
 
-        return true;
+        // fall back to term or IRI if none of the property generators matches
+        return $candidates['term'];
     }
 
     /**
