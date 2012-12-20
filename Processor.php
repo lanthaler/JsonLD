@@ -1272,12 +1272,12 @@ class Processor
      * keys-value pairs:
      *
      *   * `@container`: the container, defaults to `@set`
-     *   * `@type`: the datatype IRI for typed values, `@id` for IRIs and
-     *     blank nodes, or `null` for native types and language-tagged strings
-     *   * `@language`: for language-tagged strings the language-code; for
-     *     all other values `null`
-     *   * `typeLang`: is set to `@type` or `@language` unless they are null;
-     *     in that case it is set to `@null`
+     *   * `typeLang`: is set to `@type` for typed values or `@language` for
+     *     (language-tagged) strings; for all other values it is set to
+     *     `null`
+     *   * `typeLangValue`: set to the type of a typed value or the language
+     *     of a language-tagged string (`@null` for all other strings); for
+     *     all other values it is set to `null`
      *
      * @param mixed $value The value.
      *
@@ -1287,8 +1287,6 @@ class Processor
     {
         $valueProfile = array(
             '@container' => '@set',
-            '@type' => null,
-            '@language' => null,
             'typeLang' => null,
             'typeLangValue' => null
         );
@@ -1303,32 +1301,25 @@ class Processor
 
         if (property_exists($value, '@id')) {
             $valueProfile['typeLang'] = '@type';
-            $valueProfile['@type'] = '@id';
             $valueProfile['typeLangValue'] = '@id';
 
             return $valueProfile;
         }
 
         if (property_exists($value, '@value')) {
-            $valueProfile['@type'] = null;
-
             if (property_exists($value, '@type')) {
                 $valueProfile['typeLang'] = '@type';
-                $valueProfile['@type'] = $value->{'@type'};
+                $valueProfile['typeLangValue'] = $value->{'@type'};
             } elseif (property_exists($value, '@language')) {
                 $valueProfile['typeLang'] = '@language';
-                $valueProfile['@language'] = $value->{'@language'};
+                $valueProfile['typeLangValue'] = $value->{'@language'};
 
                 if (false === property_exists($value, '@annotation')) {
                     $valueProfile['@container'] = '@language';
                 }
             } elseif (is_string($value->{'@value'})) {
                 $valueProfile['typeLang'] = '@language';
-                $valueProfile['@language'] = '@null';
-            }
-
-            if (null !== $valueProfile['typeLang']) {
-                $valueProfile['typeLangValue'] = $valueProfile[$valueProfile['typeLang']];
+                $valueProfile['typeLangValue'] = '@null';
             }
 
             return $valueProfile;
@@ -1350,10 +1341,8 @@ class Processor
             for ($i = $len - 1; $i > 0; $i--) {
                 $profile = $this->getValueProfile($value->{'@list'}[$i]);
 
-                if (($valueProfile['@type'] !== $profile['@type']) ||
-                    ($valueProfile['@language'] !== $profile['@language'])) {
-                    $valueProfile['@type'] = null;
-                    $valueProfile['@language'] = null;
+                if (($valueProfile['typeLang'] !== $profile['typeLang']) ||
+                    ($valueProfile['typeLangValue'] !== $profile['typeLangValue'])) {
                     $valueProfile['typeLang'] = null;
                     $valueProfile['typeLangValue'] = null;
 
