@@ -888,14 +888,14 @@ class Processor
             if (in_array($property, self::$keywords)) {
                 if ('@id' === $property) {
                     // TODO Transform @id to relative IRIs by default??
-                    $value = $this->compactIri($value, $activectx, $inversectx, $this->optimize);
+                    $value = $this->compactIri($value, $activectx, $inversectx);
                 } elseif ('@type' === $property) {
                     if (is_string($value)) {
-                        $value = $this->compactVocabularyIri($value, $activectx, $inversectx);
+                        $value = $this->compactIri($value, $activectx, $inversectx, null, true);
                     } else {
                         foreach ($value as $key => &$iri) {
                             // TODO Transform to relative IRIs by default??
-                            $iri = $this->compactVocabularyIri($iri, $activectx, $inversectx);
+                            $iri = $this->compactIri($iri, $activectx, $inversectx, null, true);
                         }
 
                         if ($this->compactArrays && (1 === count($value))) {
@@ -923,7 +923,7 @@ class Processor
 
             // Make sure that empty arrays are preserved
             if (0 === count($value)) {
-                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, null, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
                 self::mergeIntoProperty($element, $activeprty, $value);
 
                 // ... continue with next property
@@ -932,7 +932,7 @@ class Processor
 
             // Compact every item in value separately as they could map to different terms
             foreach ($value as $item) {
-                $activeprty = $this->compactVocabularyIri($property, $activectx, $inversectx, $item, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true);
 
                 if (is_array($activeprty)) {
                     foreach ($activeprty['propGens'] as $propGen) {
@@ -1060,116 +1060,80 @@ class Processor
     }
 
     /**
-     * Compacts an absolute IRI to the shortest matching term or compact IRI.
+     * Compacts an absolute IRI (or aliases a keyword)
+     *
+     * If a value is passed, this method assumes that a property is being
+     * compacted and may return property generators; otherwise only terms,
+     * compact IRIs or, depending on the `vocabRelative` flag, relative IRIs
+     * are returned. If the IRI couldn't be compacted, the IRI is returned
+     * as is.
      *
      * @param mixed $iri           The IRI to be compacted.
      * @param array $activectx     The active context.
      * @param array $inversectx    The inverse context.
-     * @param bool  $toRelativeIri Specifies whether $value should be
-     *                             transformed to a relative IRI as fallback.
+     * @param mixed $value         The value of the property to compact. If
+     *                             `null` is passed, no property generators
+     *                             will be returned.
+     * @param bool  $vocabRelative If `true` is passed, this method tries
+     *                             to convert the IRI to an IRI relative to
+     *                             `@vocab`; otherwise, that fall back
+     *                             mechanism is disabled.
      *
-     * @return string The compacted IRI.
+     * @return string Returns the compacted IRI on success; othwewise the
+     *                IRI is returned as is.
      */
-    private function compactIri($iri, $activectx, $inversectx, $toRelativeIri = false)
-    {
-        // Is there a term defined?
-        if (isset($inversectx[$iri]['term'])) {
-            return $inversectx[$iri]['term'];
-        }
-
-        // ... or can we construct a compact IRI?
-        if (null !== ($result = $this->compactIriToCompactIri($iri, $activectx, $inversectx))) {
-            return $result;
-        }
-
-        // ... otherwise return the IRI as is
-        return $iri;
-    }
-
-    /**
-     * Helper function that compacts an absolute IRI to a compact IRI
-     *
-     * @param string $iri        The IRI.
-     * @param array  $activectx  The active context.
-     * @param array  $inversectx The inverse context.
-     *
-     * @return string|null Returns the compact IRI on success; otherwise null.
-     */
-    private function compactIriToCompactIri($iri, $activectx, $inversectx)
-    {
-        $iriLen = strlen($iri);
-
-        foreach ($inversectx as $termIri => $def) {
-            if (isset($def['term']) && ($iriLen > strlen($termIri)) &&  // prevent empty suffixes
-                (0 === substr_compare($iri, $termIri, 0, strlen($termIri)))) {
-                $compactIri = $def['term'] . ':' . substr($iri, strlen($termIri));
-                if (false === isset($activectx[$compactIri])) {
-                    return $compactIri;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Compacts a vocabulary relative IRI to a term, compact IRI or property
-     * generator
-     *
-     * Vocabulary relative IRIs are either properties or values of `@type`.
-     * Only properties can be compacted to property generators.     *
-     *
-     * @param mixed $iri           The IRI to be compacted.
-     * @param array $activectx     The active context.
-     * @param array $inversectx    The inverse context.
-     * @param mixed $value         The value of the property to compact.
-     * @param bool  $toRelativeIri Specifies whether $value should be
-     *                             transformed to a relative IRI as fallback.
-     * @param bool  $propGens      Return property generators or not?
-     *
-     * @return string The compacted IRI.
-     */
-    private function compactVocabularyIri($iri, $activectx, $inversectx, $value = null, $propGens = true)
+    private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false)
     {
         $result = null;
 
         if (array_key_exists($iri, $inversectx)) {
-            $defaultLanguage = isset($activectx['@language']) ? $activectx['@language'] : null;
+            if (null !== $value) {
+                $valueProfile = $this->getValueProfile($value);
 
-            $valueProfile = $this->getValueProfile($value);
+                $path = array(
+                    ('@list' === $valueProfile['@container'])
+                        ? array('@list', '@null')
+                        : array($valueProfile['@container'], '@set', '@null'),
+                    ('@null' === $valueProfile['typeLang'])
+                        ? array('@null')
+                        : array($valueProfile['typeLang'], '@null'),
+                    ('@null' === $valueProfile['typeLang'])
+                        ? array('@null')
+                        : array($valueProfile[$valueProfile['typeLang']], '@null')  // check this!
+                );
 
-            $path = array(
-                ('@list' === $valueProfile['@container'])
-                    ? array('@list', '@null')
-                    : array($valueProfile['@container'], '@set', '@null'),
-                ('@null' === $valueProfile['typeLang'])
-                    ? array('@null')
-                    : array($valueProfile['typeLang'], '@null'),
-                ('@null' === $valueProfile['typeLang'])
-                    ? array('@null')
-                    : array($valueProfile[$valueProfile['typeLang']], '@null')  // check this!
-            );
+                $result = $this->queryInverseContext($inversectx[$iri], $path);
 
-            $result = $this->queryInverseContext($inversectx[$iri], $path, $propGens);
-
-            if (is_string($result) || isset($result['term'])) {
-                return $result;
+                if (is_string($result) || isset($result['term'])) {
+                    return $result;
+                }
+            } elseif (isset($inversectx[$iri]['term'])) {
+                return $inversectx[$iri]['term'];
             }
         }
 
         // Try to compact to a compact IRI
-        if (null !== ($compactIri = $this->compactIriToCompactIri($iri, $activectx, $inversectx))) {
-            if (null === $result) {
-                return $compactIri;
+        $iriLen = strlen($iri);
+
+        foreach ($inversectx as $termIri => $def) {
+            $termIriLen = strlen($termIri);
+            if (isset($def['term']) && (0 === substr_compare($iri, $termIri, 0, $termIriLen)) &&
+                (false !== ($compactIri = substr($iri, $termIriLen)))) {
+                $compactIri = $def['term'] . ':' . $compactIri;
+                if (false === isset($activectx[$compactIri])) {
+                    if (null === $result) {
+                        return $compactIri;
+                    }
+
+                    $result['term'] = $compactIri;
+
+                    return $result;
+                }
             }
-
-            $result['term'] = $compactIri;
-
-            return $result;
         }
 
         // Last resort, use @vocab if set and the result isn't an empty string
-        if (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
+        if ($vocabRelative && isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))) &&
             (false === isset($activectx[$relativeIri]))) {
             if (null === $result) {
@@ -1328,7 +1292,7 @@ class Processor
             'typeLang' => '@null'
         );
 
-        if (null === $value) {
+        if (false === is_object($value)) {
             return $valueProfile;
         }
 
@@ -1402,7 +1366,6 @@ class Processor
      *
      * @param array   $inversectxFrag The inverse context (or a subtree thereof)
      * @param array   $path           The query corresponding to the value profile
-     * @param bool    $propGens       Return property generators or not?
      * @param integer $level          The recursion depth.
      *
      * @return null|string|string[] If the IRI maps to one or more property generators
@@ -1412,12 +1375,12 @@ class Processor
      *                              to terms, the best matching term will be returned;
      *                              otherwise null will be returned.
      */
-    private function queryInverseContext($inversectxFrag, $path, $propGens = true, $level = 0)
+    private function queryInverseContext($inversectxFrag, $path, $level = 0)
     {
         $result = null;
 
         if (3 === $level) {
-            if ($propGens && isset($inversectxFrag['propGens'])) {
+            if (isset($inversectxFrag['propGens'])) {
                 $result = array('propGens' => $inversectxFrag['propGens']);
             }
 
@@ -1437,7 +1400,7 @@ class Processor
                 continue;
             }
 
-            $tmpResult = $this->queryInverseContext($inversectxFrag[$entry], $path, $propGens, $level + 1);
+            $tmpResult = $this->queryInverseContext($inversectxFrag[$entry], $path, $level + 1);
 
             if (is_string($tmpResult)) {
                 if (null === $result) {
