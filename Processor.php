@@ -1090,17 +1090,21 @@ class Processor
             if (null !== $value) {
                 $valueProfile = $this->getValueProfile($value);
 
-                $path = array(
-                    ('@list' === $valueProfile['@container'])
-                        ? array('@list', '@null')
-                        : array($valueProfile['@container'], '@set', '@null'),
-                    ('@null' === $valueProfile['typeLang'])
-                        ? array('@null')
-                        : array($valueProfile['typeLang'], '@null'),
-                    (null === $valueProfile['typeLang'])
-                        ? array('@null')
-                        : array($valueProfile['typeLangValue'], '@null')  // check this!
-                );
+                $path = array();
+
+                if ('@list' === $valueProfile['@container']) {
+                    $path[] = array('@list', '@null');
+                } else {
+                    $path[] = array($valueProfile['@container'], '@set', '@null');
+                }
+
+                if (null === $valueProfile['typeLang']) {
+                    $path[] = array('@null');
+                    $path[] = array('@null');
+                } else {
+                    $path[] = array($valueProfile['typeLang'], '@null');
+                    $path[] = array($valueProfile['typeLangValue'], '@null');  // check this!
+                }
 
                 $result = $this->queryInverseContext($inversectx[$iri], $path);
 
@@ -1326,7 +1330,6 @@ class Processor
         }
 
         if (property_exists($value, '@list')) {
-            // It will only recurse one level deep as list of lists are not allowed
             $len = count($value->{'@list'});
 
             if ($len > 0) {
