@@ -1156,19 +1156,23 @@ class Processor
     /**
      * Removes the duplicate values introduced by property generators
      *
-     * @param array $properties An associative array containing the
-     *                          property-value pairs of the object using a
-     *                          property generator.
-     * @param string $property  The IRI of the currently being processed
-     *                          property.
-     * @param mixed  $value     The currently being processed value for
-     *                          whose duplicates should be removed.
-     * @param array  $iris      The IRIs the property generator consists of.
+     * @param array  $element    An associative array containing the
+     *                           property-value pairs of the object being
+     *                           currently processed.
+     * @param string $property   The IRI of the currently being processed
+     *                           property.
+     * @param mixed  $value      The currently being processed value for
+     *                           whose duplicates should be removed; if this
+     *                           is `null`, the existence of the property is
+     *                           enough for a match (used for empty arrays)-
+     * @param array  $activectx  The active context.
+     * @param array  $candidates The property generator candidates as
+     *                           returned by the {@link compactIri()} method.
      *
-     * @return bool Returns true if the duplicates have been found and
-     *              removed for all IRIs
+     * @return string Returns the name of the property under which the
+     *                currently being processed value should be stored.
      */
-    private function removePropertyGeneratorDuplicates(&$properties, $property, $value, $activectx, $candidates)
+    private function removePropertyGeneratorDuplicates(&$element, $property, $value, $activectx, $candidates)
     {
         foreach ($candidates['propGens'] as $propGen) {
             $def = $this->getPropertyDefinition($activectx, $propGen);
@@ -1176,7 +1180,7 @@ class Processor
             $valueMap = array();
 
             foreach ($def['@id'] as $iri) {
-                if (($iri === $property) || (false === isset($properties[$iri]))) {
+                if (($iri === $property) || (false === isset($element[$iri]))) {
                     continue;
                 }
 
@@ -1184,7 +1188,7 @@ class Processor
                     $valueMap[$iri] = null;
                 }
 
-                foreach ($properties[$iri] as $key => &$val) {
+                foreach ($element[$iri] as $key => &$val) {
                     if (self::subtreeEquals($value, $val)) {
                         $valueMap[$iri] = $key;
                     }
@@ -1199,16 +1203,16 @@ class Processor
 
             foreach ($valueMap as $iri => $key) {
                 if (null === $key) {
-                    if (0 === count($properties[$iri])) {
-                        unset($properties[$iri]);
+                    if (0 === count($element[$iri])) {
+                        unset($element[$iri]);
                     }
                     continue;
                 }
 
-                if (1 === count($properties[$iri])) {
-                    unset($properties[$iri]);
+                if (1 === count($element[$iri])) {
+                    unset($element[$iri]);
                 } else {
-                    unset($properties[$iri][$key]);
+                    unset($element[$iri][$key]);
                 }
             }
 
