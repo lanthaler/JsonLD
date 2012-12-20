@@ -924,6 +924,22 @@ class Processor
             // Make sure that empty arrays are preserved
             if (0 === count($value)) {
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
+
+                if (is_array($activeprty)) {
+                    foreach ($activeprty['propGens'] as $propGen) {
+                        $def = $this->getPropertyDefinition($activectx, $propGen);
+                        if ($this->removePropertyGeneratorDuplicates($properties, $property, null, $def['@id'])) {
+                            $activeprty = $propGen;
+                            break;
+                        }
+                    }
+
+                    if (is_array($activeprty)) {
+                        // fall back to term or IRI if no property generator matches
+                        $activeprty = $activeprty['term'];
+                    }
+                }
+
                 self::mergeIntoProperty($element, $activeprty, $value);
 
                 // ... continue with next property
@@ -1183,6 +1199,10 @@ class Processor
                 continue;
             }
 
+            if (null === $value) {
+                $valueMap[$iri] = null;
+            }
+
             foreach ($properties[$iri] as $key => &$val) {
                 if (self::subtreeEquals($value, $val)) {
                     $valueMap[$iri] = $key;
@@ -1196,6 +1216,13 @@ class Processor
         }
 
         foreach ($valueMap as $iri => $key) {
+            if (null === $key) {
+                if (0 === count($properties[$iri])) {
+                    unset($properties[$iri]);
+                }
+                continue;
+            }
+
             if (1 === count($properties[$iri])) {
                 unset($properties[$iri]);
             } else {
@@ -1711,6 +1738,7 @@ class Processor
         // Put every IRI of each term into the inverse context
         foreach ($activectx as $term => $def) {
             if (null === $def['@id']) {
+                // this is necessary since some terms can be decoupled from @vocab
                 continue;
             }
 
