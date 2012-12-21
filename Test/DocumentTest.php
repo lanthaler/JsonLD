@@ -105,6 +105,7 @@ JSON_LD_DOCUMENT;
             '_:b1',
             '_:b2',
             '_:b3',
+            'http://vocab.com/type/datatype',
             'http://vocab.com/type/node',
             'http://vocab.com/type/nodeWithAliases'
         );

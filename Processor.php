@@ -30,6 +30,12 @@ class Processor
     /** Maximum number of recursion that are allowed to resolve an IRI */
     const CONTEXT_MAX_IRI_RECURSIONS = 10;
 
+    /** Identifier for the default graph as used in the node map */
+    const DEFAULT_GRAPH = '@default';
+
+    /** Identifier for the union graph as used in the node map */
+    const UNION_GRAPH = '@union';
+
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
                                      '@container', '@list', '@set', '@graph', '@vocab',
@@ -190,12 +196,12 @@ class Processor
     {
         // TODO Add support for named graphs
         $nodeMap = new Object();
-        $this->createNodeMap($nodeMap, $input);
-        $this->mergeNodeMapGraphs($nodeMap);
+        $nodeMap->{self::UNION_GRAPH} = new Object();
+        $this->generateNodeMap($nodeMap, $input, self::UNION_GRAPH);
 
         // As we do not support named graphs yet we are currently just
-        // interested in the merged graph
-        $nodeMap = $nodeMap->{'@merged'};
+        // interested in the union graph
+        $nodeMap = $nodeMap->{self::UNION_GRAPH};
 
         // We need to keep track of blank nodes as they are renamed when
         // inserted into the Document
@@ -1812,143 +1818,136 @@ class Processor
      * @param boolean $iriKeyword If set to true, strings are interpreted as IRI.
      * @param string  $graph      The current graph; @default for the default graph.
      */
-    private function createNodeMap(
+    private function generateNodeMap(
         &$nodeMap,
         $element,
-        &$parent = null,
-        $list = false,
-        $iriKeyword = false,
-        $graph = '@default'
+        $activegraph = self::DEFAULT_GRAPH,
+        $activeid = null,
+        $activeprty = null,
+        &$list = null
     ) {
-        // TODO Make sure all objects are cloned!
-
         if (is_array($element)) {
             foreach ($element as $item) {
-                $this->createNodeMap($nodeMap, $item, $parent, $list, $iriKeyword, $graph);
+                $this->generateNodeMap($nodeMap, $item, $activegraph, $activeid, $activeprty, $list);
             }
 
             return;
         }
 
-        if (is_object($element) && (false === property_exists($element, '@value'))) {
-            // Handle lists
-            if (property_exists($element, '@list')) {
-                $flattenedList = new Object();
-                $flattenedList->{'@list'} = array();
+        // Relabel blank nodes in @type and add a node to the current graph
+        if (property_exists($element, '@type')) {
+            $types = null;
 
-                $this->createNodeMap($nodeMap, $element->{'@list'}, $flattenedList->{'@list'}, true, false, $graph);
-
-                $parent[] = $flattenedList;
-
-                return;
+            if (is_array($element->{'@type'})) {
+                $types = &$element->{'@type'};
+            } else {
+                $types = array(&$element->{'@type'});
             }
 
+            foreach ($types as &$type) {
+                if (0 === substr_compare($type, '_:', 0, 2)) {
+                    $type = $this->getBlankNodeId($type);
+                }
+
+                if (false === property_exists($nodeMap->{$activegraph}, $type)) {
+                    $nodeMap->{$activegraph}->{$type} = new Object();
+                    $nodeMap->{$activegraph}->{$type}->{'@id'} = $type;
+                }
+            }
+        }
+
+        // Handle value objects
+        if (property_exists($element, '@value')) {
+            if (null === $activeprty) {
+                // This is a free-floating value, we can't store it anywhere, store it
+                // under a new blank node identifier in the node map
+                $storeAs = $this->getBlankNodeId();
+                $nodeMap->{$activegraph}->{$storeAs} = $element;
+            } elseif (null === $list) {
+                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $element, true, true);
+            } else {
+                $this->mergeIntoProperty($list, '@list', $element, true, false);
+            }
+        } elseif (property_exists($element, '@list')) {
+            $result = new Object();
+            $result->{'@list'} = array();
+
+            $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
+
+            if (null === $activeprty) {
+                // This is a free-floating list, we can't store it anywhere, store it
+                // under a new blank node identifier in the node map
+                $storeAs = $this->getBlankNodeId();
+                $nodeMap->{$activegraph}->{$storeAs} = $result;
+            } else {
+                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
+            }
+        // and node objects
+        } else {
             $id = null;
-            if (property_exists($element, '@id')) {
+
+            if (false === property_exists($element, '@id')) {
+                $id = $this->getBlankNodeId();
+            } elseif (0 === substr_compare($element->{'@id'}, '_:', 0, 2)) {
+                $id = $this->getBlankNodeId($element->{'@id'});
+            } else {
                 $id = $element->{'@id'};
             }
+            unset($element->{'@id'});
 
-            // if no @id was found or if it was a blank node and we are not currently
-            // merging graphs, assign a new identifier to avoid collisions
-            if ((null === $id) || (('@merged' !== $graph) && (0 === strncmp($id, '_:', 2)))) {
-                $id = $this->getBlankNodeId($id);
+            // Create node in node map if it doesn't exist yet
+            if (false === property_exists($nodeMap->{$activegraph}, $id)) {
+                $nodeMap->{$activegraph}->{$id} = new Object();
+                $nodeMap->{$activegraph}->{$id}->{'@id'} = $id;
             }
 
-            if (null !== $parent) {
-                $node = new Object();
-                $node->{'@id'} = $id;
+            // Add reference to active property
+            if (null !== $activeprty) {
+                $reference = new Object();
+                $reference->{'@id'} = $id;
 
-                // Just add the node reference if it isn't there yet or it is a list
-                if ((true === $list) || (false === in_array($node, $parent))) {
-                    // TODO In array is not enough as the comparison is not strict enough
-                    // "1" and 1 are considered to be the same.
-                    $parent[] = $node;
+                if (null === $list) {
+                    $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $reference, true, true);
+                } else {
+                    $this->mergeIntoProperty($list, '@list', $reference, true, false);
                 }
             }
 
-            $node = null;
-            if (isset($nodeMap->{$graph}->{$id})) {
-                $node = $nodeMap->{$graph}->{$id};
-            } else {
-                if (false === isset($nodeMap->{$graph})) {
-                    $nodeMap->{$graph} = new Object();
-                }
-
-                $node = new Object();
-                $node->{'@id'} = $id;
-
-                $nodeMap->{$graph}->{$id} = $node;
+            if (property_exists($element, '@type')) {
+                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$id}, '@type', $element->{'@type'}, true, true);
+                unset($element->{'@type'});
             }
 
+            if (property_exists($element, '@annotation')) {
+                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@annotation',  $element->{'@annotation'});
+                unset($element->{'@annotation'});
+            }
+
+            // This node also represent a named graph, process it
+            if (property_exists($element, '@graph')) {
+                if (self::UNION_GRAPH !== $activegraph) {
+                    if (false === property_exists($nodeMap, $id)) {
+                        $nodeMap->{$id} = new Object();
+                    }
+
+                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, $id);
+                } else {
+                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, $activegraph);
+                }
+
+                unset($element->{'@graph'});
+            }
+
+            // Process all other properties in order
             $properties = get_object_vars($element);
             ksort($properties);
 
             foreach ($properties as $property => $value) {
-                if ('@id' === $property) {
-                    continue;  // we handled @id already
+                if (false === property_exists($nodeMap->{$activegraph}->{$id}, $property)) {
+                    $nodeMap->{$activegraph}->{$id}->{$property} = array();
                 }
 
-                if ('@type' === $property) {
-                    $node->{$property} = array();
-                    $this->createNodeMap($nodeMap, $value, $node->{$property}, false, true, $graph);
-
-                    continue;
-                }
-
-                if ('@graph' === $property) {
-                    // TODO We don't need a list of nodes in that graph, do we?
-                    $null = null;
-                    $this->createNodeMap($nodeMap, $value, $null, false, false, $id);
-
-                    continue;
-                }
-
-                if (in_array($property, self::$keywords)) {
-                    // Check this! Blank nodes in keywords handled wrong!?
-                    self::mergeIntoProperty($node, $property, $value, true, true);
-                } else {
-                    if (false === isset($node->{$property})) {
-                        $node->{$property} = array();
-                    }
-
-                    $this->createNodeMap($nodeMap, $value, $node->{$property}, false, false, $graph);
-                }
-            }
-        } else {
-            // If it's the value is for a keyword which is interpreted as an IRI and the value
-            // is a string representing a blank node, re-map it to prevent collisions
-            if ((true === $iriKeyword) && is_string($element) && ('@merged' !== $graph) &&
-                (0 === strncmp($element, '_:', 2))) {
-                $element = $this->getBlankNodeId($element);
-            }
-
-            // If it's not a list, make sure that the value is unique
-            if ((false === $list) && (true === in_array($element, $parent))) {
-                // TODO In array is not enough as the comparison is not strict enough
-                // "1" and 1 are considered to be the same.
-                return;
-            }
-
-            // Element wasn't found, add it
-            $parent[] = $element;
-        }
-    }
-
-    /**
-     * Merges the node maps of all graphs in the passed node map into a new
-     * `@merged` node map
-     *
-     * @param object $nodeMap The node map whose different graphs should be
-     *                        merged into one.
-     */
-    private function mergeNodeMapGraphs(&$nodeMap)
-    {
-        $graphs = array_keys((array) $nodeMap);
-        foreach ($graphs as $graph) {
-            $nodes = array_keys((array) $nodeMap->{$graph});
-            foreach ($nodes as $node) {
-                $parent = null;
-                $this->createNodeMap($nodeMap, $nodeMap->{$graph}->{$node}, $parent, false, false, '@merged');
+                $this->generateNodeMap($nodeMap, $value, $activegraph, $id, $property, $list);
             }
         }
     }
@@ -1991,7 +1990,8 @@ class Processor
     public function flatten($element, $graph = null)
     {
         $nodeMap = new Object();
-        $this->createNodeMap($nodeMap, $element);
+        $nodeMap->{'@default'} = new Object();
+        $this->generateNodeMap($nodeMap, $element);
 
         if ('@merged' === $graph) {
             $this->mergeNodeMapGraphs($nodeMap);
@@ -2139,20 +2139,20 @@ class Processor
     public function fromRdf(array $quads)
     {
         $graphs = array();
-        $graphs['@default'] = new Object();
-        $graphs['@default']->nodeMap = array();
-        $graphs['@default']->listMap = array();
+        $graphs[self::DEFAULT_GRAPH] = new Object();
+        $graphs[self::DEFAULT_GRAPH]->nodeMap = array();
+        $graphs[self::DEFAULT_GRAPH]->listMap = array();
 
         foreach ($quads as $quad) {
-            $graphName = '@default';
+            $graphName = self::DEFAULT_GRAPH;
 
             if ($quad->getGraph()) {
                 $graphName = (string) $quad->getGraph();
 
                 // Add a reference to this graph to the default graph if it
                 // doesn't exist yet
-                if (false === isset($graphs['@default']->nodeMap[$graphName])) {
-                    $graphs['@default']->nodeMap[$graphName] =
+                if (false === isset($graphs[self::DEFAULT_GRAPH]->nodeMap[$graphName])) {
+                    $graphs[self::DEFAULT_GRAPH]->nodeMap[$graphName] =
                         self::objectToJsonLd($quad->getGraph());
                 }
             }
@@ -2280,7 +2280,7 @@ class Processor
         // Generate the resulting document starting with the default graph
         $document = array();
 
-        $nodes = $graphs['@default']->nodeMap;
+        $nodes = $graphs[self::DEFAULT_GRAPH]->nodeMap;
         ksort($nodes);
 
         foreach ($nodes as $id => $node) {
@@ -2344,16 +2344,14 @@ class Processor
 
         $processor = new Processor($procOptions);
 
-        $nodeMap = new Object();
-        $processor->createNodeMap($nodeMap, $element);
-
-        $graph = '@merged';
+        $graph = self::UNION_GRAPH;
         if (property_exists($frame, '@graph')) {
-            $graph = '@default';
-        } else {
-            // We need the merged graph, create it
-            $processor->mergeNodeMapGraphs($nodeMap);
+            $graph = self::DEFAULT_GRAPH;
         }
+
+        $nodeMap = new Object();
+        $nodeMap->{$graph} = new Object();
+        $processor->generateNodeMap($nodeMap, $element, $graph);
 
         unset($processor);
 
