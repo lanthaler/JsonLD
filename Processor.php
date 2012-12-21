@@ -1811,12 +1811,14 @@ class Processor
     /**
      * Creates a node map of an expanded JSON-LD document
      *
-     * @param object  $nodeMap    The object holding the node map.
-     * @param mixed   $element    A JSON-LD element to be flattened.
-     * @param string  $parent     The property referencing the passed element.
-     * @param boolean $list       Is a list being processed?
-     * @param boolean $iriKeyword If set to true, strings are interpreted as IRI.
-     * @param string  $graph      The current graph; @default for the default graph.
+     * @param object          $nodeMap     The object holding the node map.
+     * @param object|object[] $element     An expanded JSON-LD element to
+     *                                     be put into the node map
+     * @param string          $activegraph The graph currently being processed.
+     * @param string          $activeid    The node currently being processed.
+     * @param string          $activeprty  The property currently being processed.
+     * @param object          $list        The list object if a list is being
+     *                                     processed.
      */
     private function generateNodeMap(
         &$nodeMap,
@@ -1980,48 +1982,37 @@ class Processor
      * Flattens a JSON-LD document
      *
      * @param mixed  $element A JSON-LD element to be flattened.
-     * @param string $graph   The graph whose flattened node definitions should
-     *                        be returned. The default graph is identified by
-     *                        `@default` and the merged graph by `@merged`.
-     *                        If `null` is passed, all graphs will be returned.
      *
-     * @return array An array of the flattened node definitions of the specified graph.
+     * @return array An array representing the flattened element.
      */
-    public function flatten($element, $graph = null)
+    public function flatten($element)
     {
         $nodeMap = new Object();
-        $nodeMap->{'@default'} = new Object();
+        $nodeMap->{self::DEFAULT_GRAPH} = new Object();
+
         $this->generateNodeMap($nodeMap, $element);
 
-        if ('@merged' === $graph) {
-            $this->mergeNodeMapGraphs($nodeMap);
-        }
+        $defaultGraph = $nodeMap->{self::DEFAULT_GRAPH};
+        unset($nodeMap->{self::DEFAULT_GRAPH});
 
-        $flattened = array();
-
-        if (null === $graph) {
-            $defaultGraph = $nodeMap->{'@default'};
-            unset($nodeMap->{'@default'});
-
-            foreach ($nodeMap as $graphName => $graph) {
-                if (!isset($defaultGraph->{$graphName})) {
-                    $defaultGraph->{$graphName} = new Object();
-                    $defaultGraph->{$graphName}->{'@id'} = $graphName;
-                }
-
-                $defaultGraph->{$graphName}->{'@graph'} = array_values(get_object_vars($graph));
+        // Store named graphs in @graph of a the node representing the graph
+        // in the default graph
+        foreach ($nodeMap as $graphName => $graph) {
+            if (!isset($defaultGraph->{$graphName})) {
+                $defaultGraph->{$graphName} = new Object();
+                $defaultGraph->{$graphName}->{'@id'} = $graphName;
             }
 
-            $nodeMap = new Object();
-            $nodeMap->{'@default'} = $defaultGraph;
-            $graph = '@default';
+            $graph = (array) $graph;
+            ksort($graph);
+
+            $defaultGraph->{$graphName}->{'@graph'} = array_values($graph);
         }
 
-        if (property_exists($nodeMap, $graph)) {
-            $flattened = array_values(get_object_vars($nodeMap->{$graph}));
-        }
+        $defaultGraph = (array) $defaultGraph;
+        ksort($defaultGraph);
 
-        return $flattened;
+        return array_values($defaultGraph);
     }
 
     /**
