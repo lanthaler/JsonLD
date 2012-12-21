@@ -2632,7 +2632,8 @@ class Processor
      */
     private static function setProperty(&$object, $property, $value)
     {
-        if (property_exists($object, $property)) {
+        if (property_exists($object, $property) &&
+            (false === self::subtreeEquals($object->{$property}, $value))) {
             throw new SyntaxException("Object already contains a property \"$property\".", $object);
         }
 
