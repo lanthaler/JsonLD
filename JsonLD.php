@@ -44,7 +44,7 @@ class JsonLD
     public static function parse($input)
     {
         if (false === is_string($input)) {
-            // Return as is, is already in processable form
+            // Return as is - it has already been parsed
             return $input;
         }
 
@@ -219,7 +219,7 @@ class JsonLD
      * @param null|array|object   $options Options to configure the compaction
      *                                   process.
      *
-     * @return mixed The compacted JSON-LD document.
+     * @return object The compacted JSON-LD document.
      *
      * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
@@ -232,7 +232,37 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         // TODO $input can be an IRI, if so overwrite $baseiri accordingly!?
-        $input = self::expand($input, $options);
+        $expanded = self::expand($input, $options);
+
+        return self::doCompact($expanded, $context, $options);
+    }
+
+    /**
+     * Compacts a JSON-LD document according a supplied context
+     *
+     * In contrast to {@link compact()} this method assumes that the input
+     * has already been expanded.
+     *
+     * @param array             $input       The expandedJSON-LD document to
+     *                                       compact.
+     * @param string|object     $context     The context.
+     * @param null|array|object $options     Options to configure the
+     *                                       compaction process.
+     * @param bool              $alwaysGraph If set to true, the resulting
+     *                                       document will always explicitly
+     *                                       contain the default graph at
+     *                                       the top-level.
+     *
+     * @return object The compacted JSON-LD document.
+     *
+     * @throws ParseException   If the JSON-LD input document or context
+     *                          couldn't be parsed.
+     * @throws SyntaxException  If the JSON-LD input document or context
+     *                          contains syntax errors.
+     * @throws ProcessException If compacting the JSON-LD document failed.
+     */
+    private static function doCompact($input, $context, $options = null, $alwaysGraph = false)
+    {
         $context = self::parse($context);
 
         if (false === is_object($context) || (false === property_exists($context, '@context'))) {
@@ -246,21 +276,30 @@ class JsonLD
 
         $processor->processContext($context, $activectx);
         $inversectx = $processor->createInverseContext($activectx);
-        $processor->compact($input, $activectx, $inversectx, null);
+
+        $processor->compact($input, $activectx, $inversectx);
 
         $compactedDocument = new Object();
         if (null !== $context) {
             $compactedDocument->{'@context'} = $context;
         }
 
-        if (is_array($input)) {
-            $graphKeyword = (isset($inversectx['@graph']['term']))
-                ? $inversectx['@graph']['term']
-                : '@graph';
-            $compactedDocument->{$graphKeyword} = $input;
-        } else {
-            $compactedDocument = (object) ((array) $compactedDocument + (array) $input);
+        if (false === is_array($input))
+        {
+            if  (false === $alwaysGraph) {
+                $compactedDocument = (object) ((array) $compactedDocument + (array) $input);
+
+                return $compactedDocument;
+            }
+
+            $input = array($input);
         }
+
+        $graphKeyword = (isset($inversectx['@graph']['term']))
+            ? $inversectx['@graph']['term']
+            : '@graph';
+
+        $compactedDocument->{$graphKeyword} = $input;
 
         return $compactedDocument;
     }
@@ -293,11 +332,15 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param string|array|object $input The JSON-LD document to flatten.
-     * @param null|array|object $options Options to configure the expansion
-     *                                   process.
+     * @param string|array|object $input   The JSON-LD document to flatten.
+     * @param null|string|object  $context The context to compact the
+     *                                     flattened document. If `null` is
+     *                                     passed, the result will not be
+     *                                     compacted.
+     * @param null|array|object   $options Options to configure the
+     *                                     flattening process.
      *
-     * @return array The flattened JSON-LD document.
+     * @return object The flattened JSON-LD document.
      *
      * @throws ParseException   If the JSON-LD input document or context
      *                          couldn't be parsed.
@@ -305,15 +348,20 @@ class JsonLD
      *                          contains syntax errors.
      * @throws ProcessException If flattening the JSON-LD document failed.
      */
-    public static function flatten($input, $options = null)
+    public static function flatten($input, $context = null, $options = null)
     {
         $options = self::mergeOptions($options);
 
         $input = self::expand($input, $options);
 
         $processor = new Processor($options);
+        $flattened = $processor->flatten($input, $options->graph);
 
-        return $processor->flatten($input, $options->graph);
+        if (null === $context) {
+            return $flattened;
+        }
+
+        return self::doCompact($flattened, $context, $options, true);
     }
 
     /**
@@ -462,14 +510,11 @@ class JsonLD
 
         $processor = new Processor($options);
 
-        // Prepare result document by saving the frame's context
-        $framedDocument = new Object();
-        $frameActiveContext = array();
+        // Store the frame as $frame gets modified
+        $frameContext = new Object();
         if (property_exists($frame, '@context')) {
-            $framedDocument->{'@context'} = $frame->{'@context'};
-            $processor->processContext($frame->{'@context'}, $frameActiveContext);
+            $frameContext->{'@context'} = $frame->{'@context'};
         }
-        $frameInverseContext = $processor->createInverseContext($frameActiveContext);
 
         // Expand the frame
         $processor->expand($frame, array(), null, true);
@@ -487,19 +532,7 @@ class JsonLD
         $result = $processor->frame($input, $frame);
 
         // Compact the result using the frame's active context
-        $processor->compact($result, $frameActiveContext, $frameInverseContext);
-
-        // Make that the result is always an array
-        if (false === is_array($result)) {
-            $result = array($result);
-        }
-
-        $graphKeyword = (isset($frameInverseContext['@graph']['term']))
-            ? $frameInverseContext['@graph']['term']
-            : '@graph';
-        $framedDocument->{$graphKeyword} = $result;
-
-        return $framedDocument;
+        return self::doCompact($result, $frameContext, $options, true);
     }
 
     /**

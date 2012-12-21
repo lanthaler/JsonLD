@@ -106,7 +106,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testFlatten($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::flatten($this->basedir . $test->{'input'}, $options);
+        $result = JsonLD::flatten($this->basedir . $test->{'input'}, null, $options);
 
         $this->assertJsonEquals($expected, $result);
     }
