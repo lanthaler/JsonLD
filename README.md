@@ -14,13 +14,14 @@ processor's basic functionality.
 
   * [expansion](http://json-ld.org/spec/latest/json-ld-api/#expansion)
   * [compaction](http://json-ld.org/spec/latest/json-ld-api/#compaction)
-  * [framing](http://json-ld.org/spec/latest/json-ld-api/#framing) (supports
+  * [flattening](http://json-ld.org/spec/latest/json-ld-api/#flattening)
+  * [framing](http://json-ld.org/spec/latest/json-ld-framing/) (supports
     [value matching](https://github.com/json-ld/json-ld.org/issues/110),
     [deep-filtering](https://github.com/json-ld/json-ld.org/issues/110),
     [aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
     [named graphs](https://github.com/json-ld/json-ld.org/issues/118))
-  * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-to-rdf-algorithm)
-  * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#convert-from-rdf-algorithm)
+  * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#rdf-conversion)
+  * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#rdf-conversion)
   * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
 
 
@@ -67,7 +68,7 @@ $expanded = JsonLD::expand('document.jsonld');
 $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
 $framed = JsonLD::frame('document.jsonld', 'frame.jsonld');
 $flattened = JsonLD::flatten('document.jsonld');
-$quads = JsonLD::toQuads('document.jsonld');
+$quads = JsonLD::toRdf('document.jsonld');
 
 // Output the expanded document (pretty print)
 print JsonLD::toString($expanded, true);
@@ -79,7 +80,7 @@ print $serialized;
 
 // And parse them again to a JSON-LD document
 $quads = $nquads->parse($serialized);
-$document = JsonLD::fromQuads($quads);
+$document = JsonLD::fromRdf($quads);
 
 print JsonLD::toString($document, true);
 
