@@ -277,7 +277,12 @@ class Processor
     public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
     {
         if (is_scalar($element)) {
-            $element = $this->expandValue($element, $activectx, $activeprty);
+
+            if ((null === $activeprty) || ('@graph' === $activeprty)) {
+                $element = null;
+            } else {
+                $element = $this->expandValue($element, $activectx, $activeprty);
+            }
 
             return;
         }
@@ -443,6 +448,15 @@ class Processor
         // Annotations are allowed everywhere
         if (property_exists($element, '@annotation')) {
             $numProps--;
+        }
+
+        // Remove free-floating nodes
+        if ((false === $frame) && ((null === $activeprty) || ('@graph' === $activeprty)) &&
+            ((property_exists($element, '@value') || (0 === $numProps) ||
+             ((1 === $numProps) && property_exists($element, '@id'))))) {
+
+            $element = null;
+            return;
         }
 
         if (property_exists($element, '@value')) {
@@ -1860,12 +1874,7 @@ class Processor
 
         // Handle value objects
         if (property_exists($element, '@value')) {
-            if (null === $activeprty) {
-                // This is a free-floating value, we can't store it anywhere, store it
-                // under a new blank node identifier in the node map
-                $storeAs = $this->getBlankNodeId();
-                $nodeMap->{$activegraph}->{$storeAs} = $element;
-            } elseif (null === $list) {
+            if (null === $list) {
                 $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $element, true, true);
             } else {
                 $this->mergeIntoProperty($list, '@list', $element, true, false);
@@ -1876,14 +1885,7 @@ class Processor
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
 
-            if (null === $activeprty) {
-                // This is a free-floating list, we can't store it anywhere, store it
-                // under a new blank node identifier in the node map
-                $storeAs = $this->getBlankNodeId();
-                $nodeMap->{$activegraph}->{$storeAs} = $result;
-            } else {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
-            }
+            $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
         // and node objects
         } else {
             $id = null;

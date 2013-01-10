@@ -178,7 +178,7 @@ class JsonLD
         }
 
         if (false === is_array($input)) {
-            $input = array($input);
+            $input = (null === $input) ? array() : array($input);
         }
 
         return $input;
