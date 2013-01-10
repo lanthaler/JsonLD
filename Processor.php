@@ -602,7 +602,19 @@ class Processor
             return;
         }
 
-        if (('@set' === $keyword) || ('@list' === $keyword)) {
+        // TODO Optimize the following code, there's a lot of repetition, only the $activeprty param is changing
+        if ('@list' === $keyword) {
+            if ((null === $activeprty) || ('@graph' === $activeprty)) {
+                $activeprty = '@list';
+            }
+
+            $this->expand($value, $activectx, $activeprty, $frame);
+            self::mergeIntoProperty($element, $keyword, $value, true);
+
+            return;
+        }
+
+        if ('@set' === $keyword) {
             $this->expand($value, $activectx, $activeprty, $frame);
             self::mergeIntoProperty($element, $keyword, $value, true);
 
