@@ -1884,22 +1884,30 @@ class Processor
             }
         }
 
-        // Handle value objects
         if (property_exists($element, '@value')) {
+            // Handle value objects
             if (null === $list) {
                 $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $element, true, true);
             } else {
                 $this->mergeIntoProperty($list, '@list', $element, true, false);
             }
         } elseif (property_exists($element, '@list')) {
+            // lists
             $result = new Object();
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
 
-            $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
-        // and node objects
+            if (null === $activeprty) {
+                // This is a free-floating list, we can't store it anywhere, store it
+                // under a new blank node identifier in the node map
+                $storeAs = $this->getBlankNodeId();
+                $nodeMap->{$activegraph}->{$storeAs} = $result;
+            } else {
+                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
+            }
         } else {
+            // and node objects
             $id = null;
 
             if (false === property_exists($element, '@id')) {
