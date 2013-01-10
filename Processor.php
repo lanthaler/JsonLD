@@ -385,7 +385,7 @@ class Processor
                             $val = array($val);
                         }
 
-                        $this->expand($val, $activectx, $activeprty, $frame);
+                        $this->expand($val, $activectx, $property, $frame);
 
                         foreach ($val as $item) {
                             if (false === property_exists($item, '@annotation')) {
