@@ -812,7 +812,8 @@ class Processor
             }
         }
 
-        if (array_key_exists($value, $activectx)) {
+        // Terms apply only for vocab-relative IRIs
+        if ((true === $vocabRelative) && array_key_exists($value, $activectx)) {
             return $activectx[$value]['@id'];
         }
 
@@ -919,14 +920,12 @@ class Processor
 
             if (in_array($property, self::$keywords)) {
                 if ('@id' === $property) {
-                    // TODO Transform @id to relative IRIs by default??
                     $value = $this->compactIri($value, $activectx, $inversectx);
                 } elseif ('@type' === $property) {
                     if (is_string($value)) {
                         $value = $this->compactIri($value, $activectx, $inversectx, null, true);
                     } else {
                         foreach ($value as $key => &$iri) {
-                            // TODO Transform to relative IRIs by default??
                             $iri = $this->compactIri($iri, $activectx, $inversectx, null, true);
                         }
 
@@ -1105,14 +1104,14 @@ class Processor
      *                             `@vocab`; otherwise, that fall back
      *                             mechanism is disabled.
      *
-     * @return string Returns the compacted IRI on success; othwewise the
+     * @return string Returns the compacted IRI on success; otherwise the
      *                IRI is returned as is.
      */
     private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false)
     {
         $result = null;
 
-        if (array_key_exists($iri, $inversectx)) {
+        if ((true === $vocabRelative) && array_key_exists($iri, $inversectx)) {
             if (null !== $value) {
                 $valueProfile = $this->getValueProfile($value);
 
@@ -1150,7 +1149,8 @@ class Processor
             if (isset($def['term']) && (0 === substr_compare($iri, $termIri, 0, $termIriLen)) &&
                 (false !== ($compactIri = substr($iri, $termIriLen)))) {
                 $compactIri = $def['term'] . ':' . $compactIri;
-                if (false === isset($activectx[$compactIri])) {
+                if (false === isset($activectx[$compactIri]) ||
+                    ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
                     if (null === $result) {
                         return $compactIri;
                     }
@@ -1162,15 +1162,18 @@ class Processor
             }
         }
 
-        // Last resort, use @vocab if set and the result isn't an empty string
-        if ($vocabRelative && isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
-            (false !== ($relativeIri = substr($iri, strlen($activectx['@vocab'])))) &&
-            (false === isset($activectx[$relativeIri]))) {
+        // Last resort, convert to a relative IRI or use @vocab if set
+        if (false === $vocabRelative) {
+            return (string) $this->baseIri->baseFor($iri);
+        }
+        elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
+            (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
+            (false === isset($activectx[$vocabIri]))) {
             if (null === $result) {
-                return $relativeIri;
+                return $vocabIri;
             }
 
-            $result['term'] = $relativeIri;
+            $result['term'] = $vocabIri;
 
             return $result;
         }
