@@ -1610,8 +1610,7 @@ class Processor
                     unset($context->{$key});
 
                     if (in_array($key, self::$keywords)) {
-                        // Keywords can't be altered
-                        continue;
+                        throw new SyntaxException('Keywords cannot be redefined.', $key);
                     }
 
                     if (null === $value) {
