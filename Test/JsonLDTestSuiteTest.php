@@ -173,11 +173,16 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testToRdf($name, $test, $options)
     {
-        $expected = file_get_contents($this->basedir . $test->{'expect'});
+        $expected = trim(file_get_contents($this->basedir . $test->{'expect'}));
         $quads = JsonLD::toRdf($this->basedir . $test->{'input'}, $options);
 
         $serializer = new NQuads();
         $result = $serializer->serialize($quads);
+
+        // Sort quads (the expected quads are already sorted)
+        $result = explode("\n", trim($result));
+        sort($result);
+        $result = implode("\n", $result);
 
         $this->assertEquals($expected, $result);
     }
