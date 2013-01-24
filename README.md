@@ -49,7 +49,7 @@ Installing is then a matter of running composer
 require('vendor/autoload.php');
 ```
 
-Of course you can also download an [archive](https://github.com/lanthaler/JsonLD/downloads)
+Of course you can also download it as [ZIP archive](https://github.com/lanthaler/JsonLD/archive/master.zip)
 from Github.
 
 
