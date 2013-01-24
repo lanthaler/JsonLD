@@ -284,7 +284,7 @@ class JsonLD
             $compactedDocument->{'@context'} = $context;
         }
 
-        if (false === is_array($input))
+        if ((false === is_array($input)) || (0 === count($input)))
         {
             if  (false === $alwaysGraph) {
                 $compactedDocument = (object) ((array) $compactedDocument + (array) $input);
@@ -292,7 +292,9 @@ class JsonLD
                 return $compactedDocument;
             }
 
-            $input = array($input);
+            if (false === is_array($input)) {
+                $input = array($input);
+            }
         }
 
         $graphKeyword = (isset($inversectx['@graph']['term']))

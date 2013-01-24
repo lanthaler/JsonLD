@@ -75,17 +75,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testCompaction($name, $test, $options)
     {
-        $ignoredTests = array(
-            'compact-0001-in.jsonld',
-            'compact-0003-in.jsonld'
-        );
-
-        if (in_array($test->{'input'}, $ignoredTests)) {
-            $this->markTestSkipped(
-                'See discussion in https://github.com/json-ld/json-ld.org/commit/87a4681c35748ff92d2912e2fc480ca957c5cf5f.'
-            );
-        }
-
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
         $result = JsonLD::compact(
             $this->basedir . $test->{'input'},
