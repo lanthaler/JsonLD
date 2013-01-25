@@ -2019,8 +2019,8 @@ class Processor
         $defaultGraph = $nodeMap->{self::DEFAULT_GRAPH};
         unset($nodeMap->{self::DEFAULT_GRAPH});
 
-        // Store named graphs in @graph of a the node representing the graph
-        // in the default graph
+        // Store named graphs in the @graph property of the node representing
+        // the graph in the default graph
         foreach ($nodeMap as $graphName => $graph) {
             if (!isset($defaultGraph->{$graphName})) {
                 $defaultGraph->{$graphName} = new Object();
@@ -2367,6 +2367,16 @@ class Processor
         $nodeMap = new Object();
         $nodeMap->{$graph} = new Object();
         $processor->generateNodeMap($nodeMap, $element, $graph);
+
+        // Sort the node map to ensure a deterministic output
+        // TODO Move this to a separate function as basically the same is done in flatten()?
+        $nodeMap = (array) $nodeMap;
+        foreach ($nodeMap as $graphName => &$nodes) {
+            $nodes = (array) $nodes;
+            ksort($nodes);
+            $nodes = (object) $nodes;
+        }
+        $nodeMap = (object) $nodeMap;
 
         unset($processor);
 
