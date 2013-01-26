@@ -135,8 +135,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
             'frame-0009-in.jsonld',
             'frame-0010-in.jsonld',
             'frame-0012-in.jsonld',
-            'frame-0013-in.jsonld',
-            'frame-0015-in.jsonld'   // See https://github.com/json-ld/json-ld.org/commit/062114bda8d321c3eb49d6f9a83695ffe1410a58
+            'frame-0013-in.jsonld'
         );
 
         if (in_array($test->{'input'}, $ignoredTests)) {
