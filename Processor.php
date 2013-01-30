@@ -39,7 +39,7 @@ class Processor
     /** A list of all defined keywords */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
                                      '@container', '@list', '@set', '@graph', '@vocab',
-                                     '@annotation', '@null');  // TODO Introduce @null supported just for framing
+                                     '@index', '@null');  // TODO Introduce @null supported just for framing
 
     /** Framing options keywords */
     private static $framingKeywords = array('@explicit', '@default', '@embed',
@@ -354,7 +354,7 @@ class Processor
 
             $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
 
-            if (is_object($value) && in_array($propertyContainer, array('@language', '@annotation'))) {
+            if (is_object($value) && in_array($propertyContainer, array('@language', '@index'))) {
                 $result = array();
 
                 $value = (array) $value;  // makes it easier to order the key-value pairs
@@ -384,7 +384,7 @@ class Processor
                         }
                     }
                 } else {
-                    // @container: @annotation
+                    // @container: @index
                     foreach ($value as $key => $val) {
                         if (false === is_array($val)) {
                             $val = array($val);
@@ -393,8 +393,8 @@ class Processor
                         $this->expand($val, $activectx, $property, $frame);
 
                         foreach ($val as $item) {
-                            if (false === property_exists($item, '@annotation')) {
-                                $item->{'@annotation'} = $key;
+                            if (false === property_exists($item, '@index')) {
+                                $item->{'@index'} = $key;
                             }
 
                             $result[] = $item;
@@ -445,8 +445,8 @@ class Processor
         // and optimize object where possible
         $numProps = count(get_object_vars($element));
 
-        // Annotations are allowed everywhere
-        if (property_exists($element, '@annotation')) {
+        // Indexes are allowed everywhere
+        if (property_exists($element, '@index')) {
             $numProps--;
         }
 
@@ -579,7 +579,7 @@ class Processor
             }
         }
 
-        if (('@value' === $keyword) || ('@language' === $keyword) || ('@annotation' === $keyword)) {
+        if (('@value' === $keyword) || ('@language' === $keyword) || ('@index' === $keyword)) {
             if (false === $frame) {
                 if (is_array($value) && (1 === count($value))) {
                     $value = $value[0];
@@ -976,7 +976,7 @@ class Processor
 
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
 
-                if (in_array($def['@container'], array('@language', '@annotation'))) {
+                if (in_array($def['@container'], array('@language', '@index'))) {
                     if (false === property_exists($element, $activeprty)) {
                         $element->{$activeprty} = new Object();
                     }
@@ -1029,9 +1029,9 @@ class Processor
      * containing the following data:
      *
      * <code>
-     *   @type       => type IRI or null
-     *   @language   => language code or null
-     *   @annotation => annotation string or null
+     *   @type     => type IRI or null
+     *   @language => language code or null
+     *   @index    => index string or null
      * </code>
      *
      * @param mixed $value      The value to compact (arrays are not allowed!).
@@ -1043,9 +1043,9 @@ class Processor
      */
     private function compactValue($value, $definition, $activectx, $inversectx)
     {
-        if (property_exists($value, '@annotation') &&
-            ($value->{'@annotation'} === $definition['@annotation'])) {
-            unset($value->{'@annotation'});
+        if (property_exists($value, '@index') &&
+            ($value->{'@index'} === $definition['@index'])) {
+            unset($value->{'@index'});
         }
 
         $numProperties = count(get_object_vars($value));
@@ -1351,8 +1351,8 @@ class Processor
             return $valueProfile;
         }
 
-        if (property_exists($value, '@annotation')) {
-            $valueProfile['@container'] = '@annotation';
+        if (property_exists($value, '@index')) {
+            $valueProfile['@container'] = '@index';
         }
 
         if (property_exists($value, '@id')) {
@@ -1370,7 +1370,7 @@ class Processor
                 $valueProfile['typeLang'] = '@language';
                 $valueProfile['typeLangValue'] = $value->{'@language'};
 
-                if (false === property_exists($value, '@annotation')) {
+                if (false === property_exists($value, '@index')) {
                     $valueProfile['@container'] = '@language';
                 }
             } elseif (is_string($value->{'@value'})) {
@@ -1388,7 +1388,7 @@ class Processor
                 $valueProfile = $this->getValueProfile($value->{'@list'}[0]);
             }
 
-            if (false === property_exists($value, '@annotation')) {
+            if (false === property_exists($value, '@index')) {
                 $valueProfile['@container'] = '@list';
             }
 
@@ -1509,7 +1509,7 @@ class Processor
             '@language' => (isset($activectx['@language']))
                 ? $activectx['@language']
                 : null,
-            '@annotation' => null,
+            '@index' => null,
             '@container' => null,
             'isKeyword' => false,
             'compactArrays' => true
@@ -1699,7 +1699,7 @@ class Processor
                         }
 
                         if (isset($value->{'@container'})) {
-                            if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@annotation'))) {
+                            if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
                                 $activectxKey['@container'] = $value->{'@container'};
                             }
                         }
@@ -1944,9 +1944,9 @@ class Processor
                 unset($element->{'@type'});
             }
 
-            if (property_exists($element, '@annotation')) {
-                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@annotation',  $element->{'@annotation'});
-                unset($element->{'@annotation'});
+            if (property_exists($element, '@index')) {
+                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index',  $element->{'@index'});
+                unset($element->{'@index'});
             }
 
             // This node also represent a named graph, process it
