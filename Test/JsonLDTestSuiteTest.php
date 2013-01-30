@@ -46,6 +46,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group expansion
      * @dataProvider expansionProvider
      */
     public function testExpansion($name, $test, $options)
@@ -71,6 +72,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group compaction
      * @dataProvider compactionProvider
      */
     public function testCompaction($name, $test, $options)
@@ -101,6 +103,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group flattening
      * @dataProvider flattenProvider
      */
     public function testFlatten($name, $test, $options)
@@ -126,6 +129,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group framing
      * @dataProvider framingProvider
      */
     public function testFraming($name, $test, $options)
@@ -169,6 +173,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group toRdf
      * @dataProvider toRdfProvider
      */
     public function testToRdf($name, $test, $options)
@@ -202,6 +207,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * @param object $test    The test definition.
      * @param object $options The options to configure the algorithms.
      *
+     * @group fromRdf
      * @dataProvider fromRdfProvider
      */
     public function testFromRdf($name, $test, $options)
