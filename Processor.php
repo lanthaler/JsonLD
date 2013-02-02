@@ -36,21 +36,23 @@ class Processor
     /** Identifier for the union graph as used in the node map */
     const UNION_GRAPH = '@union';
 
-    /** A list of all defined keywords */
+    /**
+     * @var array A list of all defined keywords
+     */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
                                      '@container', '@list', '@set', '@graph', '@vocab',
                                      '@index', '@null');  // TODO Introduce @null supported just for framing
 
-    /** Framing options keywords */
+    /**
+     * @var array Framing options keywords
+     */
     private static $framingKeywords = array('@explicit', '@default', '@embed',
                                             //'@omitDefault',     // TODO Is this really needed?
                                             '@embedChildren');  // TODO How should this be called?
                                             // TODO Add @preserve, @null?? Update spec keyword list
 
     /**
-     * The base IRI
-     *
-     * @var IRI
+     * @var IRI The base IRI
      */
     private $baseIri = null;
 
@@ -97,11 +99,20 @@ class Processor
      */
     private $useRdfType;
 
-    /** Blank node map */
+    /**
+     * @var array Blank node map
+     */
     private $blankNodeMap = array();
 
-    /** Blank node counter */
+    /**
+     * @var integer Blank node counter
+     */
     private $blankNodeCounter = 0;
+
+    /**
+     * @var DocumentFactoryInterface The factory to create new documents
+     */
+    private $documentFactory = null;
 
     /**
      * Constructor
@@ -136,6 +147,7 @@ class Processor
         $this->optimize = (bool) $options->optimize;
         $this->useNativeTypes = (bool) $options->useNativeTypes;
         $this->useRdfType = (bool) $options->useRdfType;
+        $this->documentFactory = $options->documentFactory;
     }
 
     /**
@@ -206,7 +218,11 @@ class Processor
         // We need to keep track of blank nodes as they are renamed when
         // inserted into the Document
 
-        $document = new Document($this->baseIri);
+        if (null === $this->documentFactory) {
+            $this->documentFactory = new DefaultDocumentFactory();
+        }
+
+        $document = $this->documentFactory->createDocument($this->baseIri);
         $nodes = array();
 
         foreach ($nodeMap as $id => &$item) {
@@ -1165,8 +1181,7 @@ class Processor
         // Last resort, convert to a relative IRI or use @vocab if set
         if (false === $vocabRelative) {
             return (string) $this->baseIri->baseFor($iri);
-        }
-        elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
+        } elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
             (false === isset($activectx[$vocabIri]))) {
             if (null === $result) {
@@ -1945,7 +1960,7 @@ class Processor
             }
 
             if (property_exists($element, '@index')) {
-                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index',  $element->{'@index'});
+                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index', $element->{'@index'});
                 unset($element->{'@index'});
             }
 
@@ -2356,6 +2371,7 @@ class Processor
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
         $procOptions->useRdfType = $this->useRdfType;
+        $procOptions->documentFactory = $this->documentFactory;
 
         $processor = new Processor($procOptions);
 

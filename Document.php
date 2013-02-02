@@ -18,7 +18,7 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class Document
+class Document implements DocumentInterface
 {
     /**
      * The base IRI
@@ -83,26 +83,15 @@ class Document
     /**
      * Constructor
      *
-     * @param null|string|IRI $baseIri The document's base IRI
+     * @param null|string|IRI $iri The document's IRI
      */
-    public function __construct($baseIri = null)
+    public function __construct($iri = null)
     {
-        $this->baseIri = new IRI($baseIri);
+        $this->baseIri = new IRI($iri);
     }
 
     /**
-     * Creates a new node which is linked to this document
-     *
-     * If a blank node identifier or an invalid ID is passed, the ID will be
-     * ignored and a new blank node identifier unique to the document is
-     * created for the node.
-     *
-     * If there exists already a node with the passed ID in the document,
-     * that node will be returned instead of creating a new one.
-     *
-     * @param null|string $id The ID of the node.
-     *
-     * @return Node The newly created node.
+     * {@inheritdoc}
      */
     public function createNode($id = null)
     {
@@ -120,14 +109,9 @@ class Document
     }
 
     /**
-     * Removes a node from the document
-     *
-     * This will also eliminate all references to the node within the
-     * document.
-     *
-     * @param Node $node The node to remove from the document.
+     * {@inheritdoc}
      */
-    public function remove(Node $node)
+    public function removeNode(Node $node)
     {
         if ($node->getDocument() === $this) {
             $node->removeFromDocument();
@@ -143,10 +127,7 @@ class Document
     }
 
     /**
-     * Get all nodes
-     *
-     * @return array[Node] Returns an array containing all nodes defined in
-     *                     the document.
+     * {@inheritdoc}
      */
     public function getNodes()
     {
@@ -154,11 +135,7 @@ class Document
     }
 
     /**
-     * Get a node by ID
-     *
-     * @param string $id The ID of the node to retrieve.
-     *
-     * @return Node|null Returns the node if found; null otherwise.
+     * {@inheritdoc}
      */
     public function getNode($id)
     {
@@ -172,12 +149,7 @@ class Document
     }
 
     /**
-     * Get nodes by type
-     *
-     * @param string|Node $type The type
-     *
-     * @return array[Node] Returns an array containing all nodes of the
-     *                     specified type in the document.
+     * {@inheritdoc}
      */
     public function getNodesByType($type)
     {
@@ -191,16 +163,7 @@ class Document
     }
 
     /**
-     * Check whether the document already contains a node with the
-     * specified ID
-     *
-     * @param string|Node $id The node ID to check. Blank node identifiers
-     *                        will always return false except a node instance
-     *                        which is part of the document will be passed
-     *                        instead of a string.
-     *
-     * @return bool Returns true if the document contains a node with the
-     *              specified ID; false otherwise.
+     * {@inheritdoc}
      */
     public function contains($id)
     {

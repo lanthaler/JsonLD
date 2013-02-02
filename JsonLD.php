@@ -99,10 +99,11 @@ class JsonLD
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
+     *   - <em>base</em>            The base IRI of the input document.
+     *   - <em>expandContext</em>   An optional context to use additionally
+     *                              to the context embedded in input when
+     *                              expanding the input.
+     *   - <em>documentFactory</em> The document factory.
      *
      * @param string|array|object $input   The JSON-LD document to process.
      * @param null|array|object   $options Options to configure the processing.
@@ -284,9 +285,8 @@ class JsonLD
             $compactedDocument->{'@context'} = $context;
         }
 
-        if ((false === is_array($input)) || (0 === count($input)))
-        {
-            if  (false === $alwaysGraph) {
+        if ((false === is_array($input)) || (0 === count($input))) {
+            if (false === $alwaysGraph) {
                 $compactedDocument = (object) ((array) $compactedDocument + (array) $input);
 
                 return $compactedDocument;
@@ -592,7 +592,8 @@ class JsonLD
             'optimize' => false,
             'graph' => null,
             'useNativeTypes' => true,
-            'useRdfType' => false
+            'useRdfType' => false,
+            'documentFactory' => null
         );
 
         if (is_array($options) || is_object($options)) {
@@ -621,6 +622,10 @@ class JsonLD
             }
             if (property_exists($options, 'useRdfType') && is_bool($options->useRdfType)) {
                 $result->useRdfType = $options->useRdfType;
+            }
+            if (property_exists($options, 'documentFactory') &&
+                ($options->documentFactory instanceof DocumentFactoryInterface)) {
+                $result->documentFactory = $options->documentFactory;
             }
         }
 

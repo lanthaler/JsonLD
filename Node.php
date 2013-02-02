@@ -183,7 +183,7 @@ class Node
         $doc = $this->document;
         $this->document = null;
 
-        $doc->remove($this);
+        $doc->removeNode($this);
     }
 
     /**

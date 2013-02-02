@@ -325,7 +325,7 @@ JSON_LD_DOCUMENT;
             'Check node2.2\'s reverse properties'
         );
 
-        $this->document->remove($node2);
+        $this->document->removeNode($node2);
 
         $this->assertSame(array(), $node3->getReverseProperties(), 'n3 reverse properties');
         $this->assertNull($node3->getReverseProperty('http://vocab.com/link'), 'n3 <-link- n2 removed');
@@ -360,7 +360,7 @@ JSON_LD_DOCUMENT;
             'Check node type\'s reverse properties'
         );
 
-        $this->document->remove($nodeType);
+        $this->document->removeNode($nodeType);
 
         $this->assertSame(array(), $nodeType->getReverseProperties(), 'node type\'s reverse properties');
         $this->assertSame(array(), $nodeType->getNodesWithThisType(), 'n1+n3 <-type- node type removed');
