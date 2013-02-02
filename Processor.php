@@ -973,7 +973,13 @@ class Processor
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
 
                 if (is_array($activeprty)) {
-                    $activeprty = $this->removePropertyGeneratorDuplicates($properties, $property, null, $activectx, $activeprty);
+                    $activeprty = $this->removePropertyGeneratorDuplicates(
+                        $properties,
+                        $property,
+                        null,
+                        $activectx,
+                        $activeprty
+                    );
                 }
 
                 self::mergeIntoProperty($element, $activeprty, $value);
@@ -987,7 +993,13 @@ class Processor
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true);
 
                 if (is_array($activeprty)) {
-                    $activeprty = $this->removePropertyGeneratorDuplicates($properties, $property, $item, $activectx, $activeprty);
+                    $activeprty = $this->removePropertyGeneratorDuplicates(
+                        $properties,
+                        $property,
+                        $item,
+                        $activectx,
+                        $activeprty
+                    );
                 }
 
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
@@ -1948,7 +1960,13 @@ class Processor
                 $reference->{'@id'} = $id;
 
                 if (null === $list) {
-                    $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $reference, true, true);
+                    $this->mergeIntoProperty(
+                        $nodeMap->{$activegraph}->{$activeid},
+                        $activeprty,
+                        $reference,
+                        true,
+                        true
+                    );
                 } else {
                     $this->mergeIntoProperty($list, '@list', $reference, true, false);
                 }
