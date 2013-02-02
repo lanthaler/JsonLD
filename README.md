@@ -87,17 +87,20 @@ print JsonLD::toString($document, true);
 // Node-centric API
 $doc = JsonLD::getDocument('document.jsonld');
 
+// get the default graph
+$graph = $doc->getGraph();
+
 // get all nodes in the document
-$nodes = $doc->getNodes();
+$nodes = $graph->getNodes();
 
 // retrieve a node by ID
-$node = $doc->getNode('http://example.com/node1');
+$node = $graph->getNode('http://example.com/node1');
 
 // get a property
 $node->getProperty('http://example.com/vocab/name');
 
 // add a new blank node to the document
-$newNode = $doc->createNode();
+$newNode = $graph->createNode();
 
 // link the new blank node to the existing node
 $node->addPropertyValue('http://example.com/vocab/link', $newNode);

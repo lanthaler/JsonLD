@@ -12,6 +12,7 @@ namespace ML\JsonLD\Test;
 use ML\JsonLD\JsonLD;
 use ML\JsonLD\Processor;
 use ML\JsonLD\Document;
+use ML\JsonLD\Graph;
 use ML\JsonLD\Node;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
@@ -24,14 +25,14 @@ use ML\JsonLD\TypedValue;
 class DocumentTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * The document instance being used throughout the tests.
+     * The graph instance being used throughout the tests.
      *
-     * @var Document
+     * @var Graph
      */
-    protected $document;
+    protected $graph;
 
     /**
-     * Create the Document to test.
+     * Create the graph to test.
      */
     protected function setUp()
     {
@@ -88,7 +89,8 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
 }
 JSON_LD_DOCUMENT;
 
-        $this->document = Document::load($json, array('base' => 'http://example.com/node/index.jsonld'));
+        $doc = Document::load($json, array('base' => 'http://example.com/node/index.jsonld'));
+        $this->graph = $doc->getGraph();
     }
 
 
@@ -110,7 +112,7 @@ JSON_LD_DOCUMENT;
             'http://vocab.com/type/nodeWithAliases'
         );
 
-        $nodes = $this->document->getNodes();
+        $nodes = $this->graph->getNodes();
         $this->assertCount(count($nodeIds), $nodes);
 
         foreach ($nodes as $node) {
@@ -121,10 +123,10 @@ JSON_LD_DOCUMENT;
             $this->assertInstanceOf('ML\JsonLD\Node', $node);
 
             // Does the document return the same instance?
-            $n = $this->document->getNode($node->getId());
+            $n = $this->graph->getNode($node->getId());
             $this->assertSame($node, $n, 'same instance');
             $this->assertTrue($node->equals($n), 'equals');
-            $this->assertSame($this->document, $n->getDocument(), 'linked to document');
+            $this->assertSame($this->graph, $n->getGraph(), 'linked to document');
         }
     }
 
@@ -133,17 +135,17 @@ JSON_LD_DOCUMENT;
      */
     public function testNodeRelationships()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $node2 = $this->document->getNode('http://example.com/node/2');
-        $node3 = $this->document->getNode('http://example.com/node/3');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
+        $node3 = $this->graph->getNode('http://example.com/node/3');
 
-        $node1_1 = $this->document->getNode('_:b0');
-        $node2_1 = $this->document->getNode('_:b1');
-        $node2_2 = $this->document->getNode('_:b2');
-        $node3_1 = $this->document->getNode('_:b3');
+        $node1_1 = $this->graph->getNode('_:b0');
+        $node2_1 = $this->graph->getNode('_:b1');
+        $node2_2 = $this->graph->getNode('_:b2');
+        $node3_1 = $this->graph->getNode('_:b3');
 
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
-        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->graph->getNode('http://vocab.com/type/nodeWithAliases');
 
         $this->assertSame($node2, $node1->getProperty('http://vocab.com/link'), 'n1 -link-> n2');
         $this->assertSame($node1_1, $node1->getProperty('http://vocab.com/contains'), 'n1 -contains-> n1.1');
@@ -166,17 +168,17 @@ JSON_LD_DOCUMENT;
      */
     public function testNodeReverseRelationships()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $node2 = $this->document->getNode('http://example.com/node/2');
-        $node3 = $this->document->getNode('http://example.com/node/3');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
+        $node3 = $this->graph->getNode('http://example.com/node/3');
 
-        $node1_1 = $this->document->getNode('_:b0');
-        $node2_1 = $this->document->getNode('_:b1');
-        $node2_2 = $this->document->getNode('_:b2');
-        $node3_1 = $this->document->getNode('_:b3');
+        $node1_1 = $this->graph->getNode('_:b0');
+        $node2_1 = $this->graph->getNode('_:b1');
+        $node2_2 = $this->graph->getNode('_:b2');
+        $node3_1 = $this->graph->getNode('_:b3');
 
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
-        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->graph->getNode('http://vocab.com/type/nodeWithAliases');
 
         $this->assertSame($node1, $node2->getReverseProperty('http://vocab.com/link'), 'n2 <-link- n1');
         $this->assertSame($node1, $node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1');
@@ -197,22 +199,22 @@ JSON_LD_DOCUMENT;
      */
     public function testNodeIsBlankNode()
     {
-        $this->assertFalse($this->document->getNode('http://example.com/node/1')->isBlankNode(), 'n1');
-        $this->assertFalse($this->document->getNode('http://example.com/node/2')->isBlankNode(), 'n2');
-        $this->assertFalse($this->document->getNode('http://example.com/node/3')->isBlankNode(), 'n3');
+        $this->assertFalse($this->graph->getNode('http://example.com/node/1')->isBlankNode(), 'n1');
+        $this->assertFalse($this->graph->getNode('http://example.com/node/2')->isBlankNode(), 'n2');
+        $this->assertFalse($this->graph->getNode('http://example.com/node/3')->isBlankNode(), 'n3');
 
-        $this->assertTrue($this->document->getNode('_:b0')->isBlankNode(), '_:b0');
-        $this->assertTrue($this->document->getNode('_:b1')->isBlankNode(), '_:b1');
-        $this->assertTrue($this->document->getNode('_:b2')->isBlankNode(), '_:b2');
-        $this->assertTrue($this->document->getNode('_:b3')->isBlankNode(), '_:b3');
+        $this->assertTrue($this->graph->getNode('_:b0')->isBlankNode(), '_:b0');
+        $this->assertTrue($this->graph->getNode('_:b1')->isBlankNode(), '_:b1');
+        $this->assertTrue($this->graph->getNode('_:b2')->isBlankNode(), '_:b2');
+        $this->assertTrue($this->graph->getNode('_:b3')->isBlankNode(), '_:b3');
 
-        $node = $this->document->createNode();
+        $node = $this->graph->createNode();
         $this->assertTrue($node->isBlankNode(), 'new node without ID');
 
-        $node = $this->document->createNode('_:fljdf');
+        $node = $this->graph->createNode('_:fljdf');
         $this->assertTrue($node->isBlankNode(), 'new node blank node ID');
 
-        $node = $this->document->createNode('http://www.example.com/node/new');
+        $node = $this->graph->createNode('http://www.example.com/node/new');
         $this->assertFalse($node->isBlankNode(), 'new node with ID');
     }
 
@@ -221,13 +223,13 @@ JSON_LD_DOCUMENT;
      */
     public function testNodeReverseRelationshipsUpdated()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $node1_1 = $this->document->getNode('_:b0');
-        $node2 = $this->document->getNode('http://example.com/node/2');
-        $node3 = $this->document->getNode('http://example.com/node/3');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $node1_1 = $this->graph->getNode('_:b0');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
+        $node3 = $this->graph->getNode('http://example.com/node/3');
 
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
-        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->graph->getNode('http://vocab.com/type/nodeWithAliases');
 
         $revProperties = $node2->getReverseProperties();
         $this->assertCount(1, $revProperties, 'Check number of node2\'s reverse properties');
@@ -247,7 +249,7 @@ JSON_LD_DOCUMENT;
         $this->assertNull($node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1 removed');
 
         $expectedProperties = array(
-            Node::TYPE => $this->document->getNode('http://vocab.com/type/node'),
+            Node::TYPE => $this->graph->getNode('http://vocab.com/type/node'),
             'http://vocab.com/name' => '1'
         );
         $properties = $node1->getProperties();
@@ -270,11 +272,11 @@ JSON_LD_DOCUMENT;
     public function testNodeRemoval()
     {
         // Remove node 1
-        $node1 = $this->document->getNode('/node/1');
-        $node1_1 = $this->document->getNode('_:b0');
-        $node2 = $this->document->getNode('http://example.com/node/2');
+        $node1 = $this->graph->getNode('/node/1');
+        $node1_1 = $this->graph->getNode('_:b0');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
 
-        $this->assertTrue($this->document->contains('http://example.com/node/1'), 'node 1 in document?');
+        $this->assertTrue($this->graph->containsNode('http://example.com/node/1'), 'node 1 in document?');
 
         $this->assertSame(
             array('http://vocab.com/link' => array($node1)),
@@ -288,7 +290,7 @@ JSON_LD_DOCUMENT;
             'Check node1.1\'s reverse properties'
         );
 
-        $node1->removeFromDocument();
+        $node1->removeFromGraph();
 
         $this->assertSame(array(), $node2->getReverseProperties(), 'n2 reverse properties');
         $this->assertNull($node2->getReverseProperty('http://vocab.com/link'), 'n2 <-link- n1 removed');
@@ -296,16 +298,16 @@ JSON_LD_DOCUMENT;
         $this->assertSame(array(), $node1_1->getReverseProperties(), 'n1.1 reverse properties');
         $this->assertNull($node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1 removed');
 
-        $this->assertFalse($this->document->contains('/node/1'), 'node 1 still in document?');
-        $this->assertNull($node1->getDocument(), 'node 1\'s document reset?');
+        $this->assertFalse($this->graph->containsNode('/node/1'), 'node 1 still in document?');
+        $this->assertNull($node1->getGraph(), 'node 1\'s document reset?');
 
         // Remove node 2
-        $node2 = $this->document->getNode('http://example.com/node/2');
-        $node2_1 = $this->document->getNode('_:b1');
-        $node2_2 = $this->document->getNode('_:b2');
-        $node3 = $this->document->getNode('/node/3');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
+        $node2_1 = $this->graph->getNode('_:b1');
+        $node2_2 = $this->graph->getNode('_:b2');
+        $node3 = $this->graph->getNode('/node/3');
 
-        $this->assertTrue($this->document->contains('/node/2'), 'node 2 in document?');
+        $this->assertTrue($this->graph->containsNode('/node/2'), 'node 2 in document?');
 
         $this->assertSame(
             array('http://vocab.com/link' => array($node2)),
@@ -325,7 +327,7 @@ JSON_LD_DOCUMENT;
             'Check node2.2\'s reverse properties'
         );
 
-        $this->document->removeNode($node2);
+        $this->graph->removeNode($node2);
 
         $this->assertSame(array(), $node3->getReverseProperties(), 'n3 reverse properties');
         $this->assertNull($node3->getReverseProperty('http://vocab.com/link'), 'n3 <-link- n2 removed');
@@ -336,7 +338,7 @@ JSON_LD_DOCUMENT;
         $this->assertSame(array(), $node2_2->getReverseProperties(), 'n2.2 reverse properties');
         $this->assertNull($node2_2->getReverseProperty('http://vocab.com/contains'), 'n2.2 <-contains- n2 removed');
 
-        $this->assertFalse($this->document->contains('./2'), 'node 2 still in document?');
+        $this->assertFalse($this->graph->containsNode('./2'), 'node 2 still in document?');
     }
 
     /**
@@ -345,11 +347,11 @@ JSON_LD_DOCUMENT;
     public function testNodeTypeRemoval()
     {
         // Remove nodeType
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $node3 = $this->document->getNode('/node/3');
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $node3 = $this->graph->getNode('/node/3');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
 
-        $this->assertTrue($this->document->contains('http://vocab.com/type/node'), 'node type in document?');
+        $this->assertTrue($this->graph->containsNode('http://vocab.com/type/node'), 'node type in document?');
 
         $this->assertSame($nodeType, $node1->getType(), 'n1 type');
         $this->assertSame($nodeType, $node3->getType(), 'n3 type');
@@ -360,7 +362,7 @@ JSON_LD_DOCUMENT;
             'Check node type\'s reverse properties'
         );
 
-        $this->document->removeNode($nodeType);
+        $this->graph->removeNode($nodeType);
 
         $this->assertSame(array(), $nodeType->getReverseProperties(), 'node type\'s reverse properties');
         $this->assertSame(array(), $nodeType->getNodesWithThisType(), 'n1+n3 <-type- node type removed');
@@ -368,7 +370,7 @@ JSON_LD_DOCUMENT;
         $this->assertNull($node1->getType(), 'n1 type removed');
         $this->assertNull($node3->getType(), 'n3 type removed');
 
-        $this->assertFalse($this->document->contains('http://vocab.com/type/node'), 'node type still in document?');
+        $this->assertFalse($this->graph->containsNode('http://vocab.com/type/node'), 'node type still in document?');
     }
 
     /**
@@ -377,7 +379,7 @@ JSON_LD_DOCUMENT;
     public function testNodePropertyUniqueness()
     {
         // Null
-        $node = $this->document->getNode('http://example.com/node/1');
+        $node = $this->graph->getNode('http://example.com/node/1');
         $this->assertNull($node->getProperty('http://example.com/node/1'), 'inexistent');
 
         $node->addPropertyValue('http://vocab.com/inexistent', null);
@@ -388,7 +390,7 @@ JSON_LD_DOCUMENT;
         $this->assertNull($node->getProperty('http://example.com/node/1'), 'inexistent removed');
 
         // Scalars
-        $node = $this->document->getNode('http://example.com/node/1');
+        $node = $this->graph->getNode('http://example.com/node/1');
 
         $this->assertSame('1', $node->getProperty('http://vocab.com/name', 'name: initial value'));
 
@@ -403,7 +405,7 @@ JSON_LD_DOCUMENT;
         $this->assertSame('1', $node->getProperty('http://vocab.com/name', 'name: removed new value'));
 
         // Language-tagged strings
-        $node = $this->document->getNode('http://example.com/node/2');
+        $node = $this->graph->getNode('http://example.com/node/2');
         $value = $node->getProperty('http://vocab.com/lang');
 
         $this->assertInstanceOf('ML\JsonLD\LanguageTaggedString', $value, 'lang: initial value type');
@@ -440,7 +442,7 @@ JSON_LD_DOCUMENT;
         $this->assertTrue($newLangValue2->equals($value[1]), 'lang: check values 2 (2)');
 
         // Typed values
-        $node = $this->document->getNode('http://example.com/node/2');
+        $node = $this->graph->getNode('http://example.com/node/2');
         $value = $node->getProperty('http://vocab.com/typed');
 
         $this->assertInstanceOf('ML\JsonLD\TypedValue', $value, 'typed: initial value class');
@@ -477,19 +479,19 @@ JSON_LD_DOCUMENT;
         $this->assertTrue($newTypedValue2->equals($value[1]), 'typed: check values 2 (2)');
 
         // Nodes
-        $node = $this->document->getNode('http://example.com/node/3');
-        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node = $this->graph->getNode('http://example.com/node/3');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
 
         $value = $node->getProperty('http://vocab.com/link');
 
         $this->assertInstanceOf('ML\JsonLD\Node', $value, 'node: initial value class');
         $this->assertSame($node1, $value, 'node: initial node');
 
-        $newNode1 = $this->document->createNode();
-        $this->assertTrue($this->document->contains($newNode1), 'node: new1 in document');
+        $newNode1 = $this->graph->createNode();
+        $this->assertTrue($this->graph->containsNode($newNode1), 'node: new1 in document');
 
-        $newNode2 = $this->document->createNode('http://example.com/node/new/2');
-        $this->assertTrue($this->document->contains($newNode2), 'node: new2 in document');
+        $newNode2 = $this->graph->createNode('http://example.com/node/new/2');
+        $this->assertTrue($this->graph->containsNode($newNode2), 'node: new2 in document');
 
         $node->addPropertyValue('http://vocab.com/link', $node1);
         $this->assertSame($node1, $node->getProperty('http://vocab.com/link'), 'node: still same');
@@ -512,14 +514,14 @@ JSON_LD_DOCUMENT;
         $this->assertTrue($newNode2->equals($value[1]), 'node: check values 2 (2)');
 
         // Node types
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
-        $nodeWithAliasesType = $this->document->getNode('http://vocab.com/type/nodeWithAliases');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
+        $nodeWithAliasesType = $this->graph->getNode('http://vocab.com/type/nodeWithAliases');
 
         $this->assertSame($nodeType, $node1->getType(), 'type: n1 initial type');
 
-        $newType1 = $this->document->createNode();
-        $this->assertTrue($this->document->contains($newNode1), 'type: new1 in document');
+        $newType1 = $this->graph->createNode();
+        $this->assertTrue($this->graph->containsNode($newNode1), 'type: new1 in document');
 
         $node1->addType($nodeType);
         $this->assertSame($nodeType, $node1->getType(), 'type: n1 type still same');
@@ -550,10 +552,10 @@ JSON_LD_DOCUMENT;
      */
     public function testAddInvalidPropertyValue()
     {
-        $document = new Document();
-        $newNode = $document->createNode();
+        $graph = new Graph();
+        $newNode = $graph->createNode();
 
-        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
         $node1->addPropertyValue('http://vocab.com/link', $newNode);
     }
 
@@ -565,7 +567,7 @@ JSON_LD_DOCUMENT;
      */
     public function testSetInvalidTypeValue()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
         $node1->setType('http://vocab.com/type/aTypeAsString');
     }
 
@@ -578,11 +580,11 @@ JSON_LD_DOCUMENT;
     public function testSetInvalidTypeArray()
     {
         $types = array(
-            $this->document->getNode('http://vocab.com/type/nodeWithAliases'),
+            $this->graph->getNode('http://vocab.com/type/nodeWithAliases'),
             'http://vocab.com/type/aTypeAsString'
         );
 
-        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
 
         $node1->setType($types);
     }
@@ -595,10 +597,10 @@ JSON_LD_DOCUMENT;
      */
     public function testAddTypeNotInDocument()
     {
-        $document = new Document();
-        $newType = $document->createNode();
+        $graph = new Graph();
+        $newType = $graph->createNode();
 
-        $node1 = $this->document->getNode('http://example.com/node/1');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
         $node1->addType($newType);
     }
 
@@ -607,15 +609,15 @@ JSON_LD_DOCUMENT;
      */
     public function testContains()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $nodeb_0 = $this->document->getNode('_:b0');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $nodeb_0 = $this->graph->getNode('_:b0');
 
-        $this->assertTrue($this->document->contains($node1), 'node1 obj');
-        $this->assertTrue($this->document->contains('http://example.com/node/1'), 'node1 IRI');
-        $this->assertFalse($this->document->contains('http://example.com/node/X'), 'inexistent IRI');
-        $this->assertTrue($this->document->contains($nodeb_0), '_:b0');
-        $this->assertFalse($this->document->contains('_:b0'), '_:b0 IRI');
-        $this->assertFalse($this->document->contains(new TypedValue('val', 'http://example.com/type')), 'typed value');
+        $this->assertTrue($this->graph->containsNode($node1), 'node1 obj');
+        $this->assertTrue($this->graph->containsNode('http://example.com/node/1'), 'node1 IRI');
+        $this->assertFalse($this->graph->containsNode('http://example.com/node/X'), 'inexistent IRI');
+        $this->assertTrue($this->graph->containsNode($nodeb_0), '_:b0');
+        $this->assertFalse($this->graph->containsNode('_:b0'), '_:b0 IRI');
+        $this->assertFalse($this->graph->containsNode(new TypedValue('val', 'http://example.com/type')), 'typed value');
     }
 
     /**
@@ -623,10 +625,10 @@ JSON_LD_DOCUMENT;
      */
     public function testCreateExistingNode()
     {
-        $node1 = $this->document->getNode('http://example.com/node/1');
-        $nodeType = $this->document->getNode('http://vocab.com/type/node');
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $nodeType = $this->graph->getNode('http://vocab.com/type/node');
 
-        $this->assertSame($node1, $this->document->createNode('http://example.com/node/1'));
-        $this->assertSame($nodeType, $this->document->createNode('http://vocab.com/type/node'));
+        $this->assertSame($node1, $this->graph->createNode('http://example.com/node/1'));
+        $this->assertSame($nodeType, $this->graph->createNode('http://vocab.com/type/node'));
     }
 }

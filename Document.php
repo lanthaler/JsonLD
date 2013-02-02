@@ -21,33 +21,19 @@ use ML\IRI\IRI;
 class Document implements DocumentInterface
 {
     /**
-     * The base IRI
-     *
-     * @var IRI
+     * @var IRI The document's IRI
      */
-    private $baseIri = null;
+    private $iri = null;
 
     /**
-     * An associative array holding all nodes in the graph
-     *
-     * @var array
+     * @var GraphInterface The default graph
      */
-    protected $nodes = array();
+    private $defaultGraph = null;
 
     /**
-     * A term map containing terms/prefixes mapped to IRIs. This is similar
-     * to a JSON-LD context but ignores all definitions except the IRI.
-     *
-     * @var array
+     * @var array An associative array holding all named graphs in the document
      */
-    protected $termMap = array();
-
-    /**
-     * Blank node counter
-     *
-     * @var int
-     */
-    private $blankNodeCounter = 0;
+    protected $namedGraphs = array();
 
     /**
      * Parses a JSON-LD document and returns it as a Document
@@ -60,8 +46,8 @@ class Document implements DocumentInterface
      *    $document = Document::load('document.jsonld');
      *  </code>
      *
-     * <strong>Please note that currently all data is merged into one graph,
-     *   named graphs are not supported yet!</strong>
+     * <strong>Please note that currently all data is merged into the
+     *   default graph, named graphs are not supported yet!</strong>
      *
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
@@ -87,116 +73,102 @@ class Document implements DocumentInterface
      */
     public function __construct($iri = null)
     {
-        $this->baseIri = new IRI($iri);
+        $this->iri = new IRI($iri);
+        $this->defaultGraph = new Graph($this);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function createNode($id = null)
+    public function setIri($iri)
     {
-        if (!is_string($id) || ('_:' === substr($id, 0, 2))) {
-            $id = $this->createBlankNodeId();
-            $abs_id = $id;
-        } else {
-            $id = (string) $this->baseIri->resolve($id);
-            if (isset($this->nodes[$id])) {
-                return $this->nodes[$id];
-            }
-        }
-
-        return $this->nodes[$id] = new Node($this, $id);
+        $this->iri = new IRI($iri);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function removeNode(Node $node)
+    public function getIri($asObject = false)
     {
-        if ($node->getDocument() === $this) {
-            $node->removeFromDocument();
-        }
-
-        $id = $node->getId();
-
-        if (!$node->isBlankNode()) {
-            $id = (string) $this->baseIri->resolve($id);
-        }
-
-        unset($this->nodes[$id]);
+        return ($asObject) ? $this->iri : (string) $this->iri;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getNodes()
+    public function createGraph($name)
     {
-        return array_values($this->nodes);
+        $name = (string) $this->iri->resolve($name);
+
+        if (isset($this->namedGraphs[$name])) {
+            return $this->namedGraphs[$name];
+        }
+
+        return $this->namedGraphs[$name] = new Graph($this, $name);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getNode($id)
+    public function getGraph($name = null)
     {
-        if (!((strlen($id) >= 2) && ('_:' === substr($id, 0, 2)))) {
-            $id = (string) $this->baseIri->resolve($id);
+        if (null === $name) {
+            return $this->defaultGraph;
         }
 
-        return isset($this->nodes[$id])
-            ? $this->nodes[$id]
+        $name = (string) $this->iri->resolve($name);
+
+        return isset($this->namedGraphs[$name])
+            ? $this->namedGraphs[$name]
             : null;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getNodesByType($type)
+    public function getGraphNames()
     {
-        if (is_string($type)) {
-            if (null === ($type = $this->getNode($type))) {
-                return array();
-            }
-        }
-
-        return $type->getNodesWithThisType();
+        return array_keys($this->namedGraphs);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function contains($id)
+    public function containsGraph($name)
     {
-        $node = $id;
+        $name = (string) $this->iri->resolve($name);
 
-        if ($node instanceof Node) {
-            $id = $node->getId();
-        }
-
-        if ((null === $id) || !is_string($id)) {
-            return false;
-        }
-
-        if ((strlen($id) >= 2) && ('_:' === substr($id, 0, 2))) {
-            if (isset($this->nodes[$id]) && ($node === $this->nodes[$id])) {
-                return true;
-            }
-
-            return false;
-        }
-
-        $id = (string) $this->baseIri->resolve($id);
-
-        return isset($this->nodes[$id]);
+        return isset($this->namedGraphs[$name]);
     }
 
     /**
-     * Create a new blank node identifier unique to the document.
-     *
-     * @return string The new blank node identifier.
+     * {@inheritdoc}
      */
-    protected function createBlankNodeId()
+    public function removeGraph($graph = null)
     {
-        return '_:b' . $this->blankNodeCounter++;
+        if (null === $graph) {
+            $this->defaultGraph = new Graph($this);
+
+            return;
+        }
+
+        $name = $graph;
+
+        if ($graph instanceof GraphInterface) {
+            foreach ($this->namedGraphs as $n => $g) {
+                if ($g === $graph) {
+                    $name = $n;
+                    break;
+                }
+            }
+        }
+
+        if (isset($this->namedGraphs[$name])) {
+            if ($this->namedGraphs[$name]->getDocument() === $this) {
+                $this->namedGraphs[$name]->removeFromDocument();
+            }
+
+            unset($this->namedGraphs[$name]);
+        }
     }
 }

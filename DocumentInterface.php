@@ -19,69 +19,67 @@ use ML\IRI\IRI;
 interface DocumentInterface
 {
     /**
-     * Creates a new node which is linked to this document
+     * Set the document's IRI
      *
-     * If a blank node identifier or an invalid ID is passed, the ID will be
-     * ignored and a new blank node identifier unique to the document is
-     * created for the node.
-     *
-     * If there exists already a node with the passed ID in the document,
-     * that node will be returned instead of creating a new one.
-     *
-     * @param null|string $id The ID of the node.
-     *
-     * @return Node The newly created node.
+     * @param string|IRI The IRI.
      */
-    public function createNode($id = null);
+    public function setIri($iri);
 
     /**
-     * Removes a node from the document
+     * Get the document's IRI
      *
-     * This will also eliminate all references to the node within the
-     * document.
+     * @param boolean $asObject If set to true, the return value will be an
+     *                          {@link IRI} object; otherwise a string.
      *
-     * @param Node $node The node to remove from the document.
+     * @return string|IRI The document's IRI (might be empty).
      */
-    public function removeNode(Node $node);
+    public function getIri($asObject = false);
 
     /**
-     * Get all nodes
+     * Creates a new graph which is linked to this document
      *
-     * @return array[Node] Returns an array containing all nodes defined in
-     *                     the document.
+     * If there exists already a graph with the passed name in the document,
+     * that graph will be returned instead of creating a new one.
+     *
+     * @param string|IRI $name The graph's name.
+     *
+     * @return GraphInterface The newly created graph.
      */
-    public function getNodes();
+    public function createGraph($name);
 
     /**
-     * Get a node by ID
+     * Get a graph by name
      *
-     * @param string $id The ID of the node to retrieve.
+     * @param null|string $name The name of the graph to retrieve. If null
+     *                          is passed, the default will be returned.
      *
-     * @return Node|null Returns the node if found; null otherwise.
+     * @return GraphInterface|null Returns the graph if found; null otherwise.
      */
-    public function getNode($id);
+    public function getGraph($name = null);
 
     /**
-     * Get nodes by type
+     * Get graph names
      *
-     * @param string|Node $type The type
-     *
-     * @return array[Node] Returns an array containing all nodes of the
-     *                     specified type in the document.
+     * @return array[string] Returns the names of all graphs in the document.
      */
-    public function getNodesByType($type);
+    public function getGraphNames();
 
     /**
-     * Check whether the document already contains a node with the
-     * specified ID
+     * Check whether the document contains a graph with the specified name
      *
-     * @param string|Node $id The node ID to check. Blank node identifiers
-     *                        will always return false except a node instance
-     *                        which is part of the document will be passed
-     *                        instead of a string.
+     * @param string $name The graph name.
      *
-     * @return bool Returns true if the document contains a node with the
-     *              specified ID; false otherwise.
+     * @return bool Returns true if the document contains a graph with the
+     *              specified name; false otherwise.
      */
-    public function contains($id);
+    public function containsGraph($name);
+
+    /**
+     * Removes a graph from the document
+     *
+     * @param null|string|GraphInterface $graph The graph (or its name) to
+     *                                          remove. If null is passed,
+     *                                          the default will be reset.
+     */
+    public function removeGraph($graph = null);
 }

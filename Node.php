@@ -10,39 +10,33 @@
 namespace ML\JsonLD;
 
 /**
- * A Node represents a node in a JSON-LD document.
+ * A Node represents a node in a JSON-LD graph.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class Node
+class Node implements NodeInterface
 {
     /** The @type constant. */
     const TYPE = '@type';
 
     /**
-     * The document the node belongs to.
-     *
-     * @var Document
+     * @var GraphInterface The graph the node belongs to.
      */
-    private $document;
+    private $graph;
 
     /**
-     * The ID of the node
-     *
-     * @var string
+     * @var string The ID of the node
      */
     private $id;
 
     /**
-     * An associative array holding all node's properties except it's ID
-     *
-     * @var array
+     * @var array An associative array holding all properties of the node except it's ID
      */
     private $properties = array();
 
     /**
      * An associative array holding all reverse properties of this node, i.e.,
-     * a pointers to all nodes that link to this Node.
+     * a pointers to all nodes that link to this node.
      *
      * @var array
      */
@@ -51,19 +45,17 @@ class Node
     /**
      * Constructor
      *
-     * @param Document    $document The document the node belong to.
-     * @param null|string $id       The ID of the node.
+     * @param GraphInterface $graph The graph the node belongs to.
+     * @param null|string    $id    The ID of the node.
      */
-    public function __construct(Document $document, $id = null)
+    public function __construct(GraphInterface $graph, $id = null)
     {
-        $this->document = $document;
+        $this->graph = $graph;
         $this->id = $id;
     }
 
     /**
-     * Get ID
-     *
-     * @return string|null The ID of the node or null.
+     * {@inheritdoc}
      */
     public function getId()
     {
@@ -71,19 +63,14 @@ class Node
     }
 
     /**
-     * Set the node type
-     *
-     * @param null|Node|array[Node] The type(s) of this node.
-     *
-     * @throws \InvalidArgumentException If type is not null, a Node or an
-     *                                   array of Nodes.
+     * {@inheritdoc}
      */
     public function setType($type)
     {
-        if ((null !== $type) && !($type instanceof Node)) {
+        if ((null !== $type) && !($type instanceof NodeInterface)) {
             if (is_array($type)) {
                 foreach ($type as $val) {
-                    if ((null !== $val) && !($val instanceof Node)) {
+                    if ((null !== $val) && !($val instanceof NodeInterface)) {
                         throw new \InvalidArgumentException('type must be null, a Node, or an array of Nodes');
                     }
                 }
@@ -96,29 +83,23 @@ class Node
     }
 
     /**
-     * Add a type to this node
-     *
-     * @param Node The type to add.
+     * {@inheritdoc}
      */
-    public function addType(Node $type)
+    public function addType(NodeInterface $type)
     {
         return $this->addPropertyValue(self::TYPE, $type);
     }
 
     /**
-     * Remove a type from this node
-     *
-     * @param Node The type to remove.
+     * {@inheritdoc}
      */
-    public function removeType(Node $type)
+    public function removeType(NodeInterface $type)
     {
         return $this->removePropertyValue(self::TYPE, $type);
     }
 
     /**
-     * Get node type
-     *
-     * @return null|Node|array[Node] Returns the type(s) of this node.
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -126,13 +107,7 @@ class Node
     }
 
     /**
-     * Get the nodes which have this node as their type
-     *
-     * This will return all nodes that link to this Node instance via the
-     * @type (rdf:type) property.
-     *
-     * @return array[Node] Returns the node(s) having this node as their
-     *                     type.
+     * {@inheritdoc}
      */
     public function getNodesWithThisType()
     {
@@ -142,23 +117,17 @@ class Node
     }
 
     /**
-     * Get the document the node belongs to
-     *
-     * @return null|Document Returns the document the node belongs to or
-     *                       null if the node doesn't belong to any document.
+     * {@inheritdoc}
      */
-    public function getDocument()
+    public function getGraph()
     {
-        return $this->document;
+        return $this->graph;
     }
 
     /**
-     * Removes the node from the document
-     *
-     * This will also remove all references to and from other nodes in this
-     * node's document.
+     * {@inheritdoc}
      */
-    public function removeFromDocument()
+    public function removeFromGraph()
     {
         // Remove other node's properties and reverse properties pointing to
         // this node
@@ -174,26 +143,20 @@ class Node
             }
 
             foreach ($values as $value) {
-                if ($value instanceof Node) {
+                if ($value instanceof NodeInterface) {
                     $this->removePropertyValue($property, $value);
                 }
             }
         }
 
-        $doc = $this->document;
-        $this->document = null;
+        $g = $this->graph;
+        $this->graph = null;
 
-        $doc->removeNode($this);
+        $g->removeNode($this);
     }
 
     /**
-     * Is this node a blank node
-     *
-     * A blank node is a node whose identifier has just local meaning. It has
-     * therefore a node identifier with the prefix <code>_:</code> or no
-     * identifier at all.
-     *
-     * @return bool Returns true if the node is a blank node, otherwise false.
+     * {@inheritdoc}
      */
     public function isBlankNode()
     {
@@ -201,20 +164,7 @@ class Node
     }
 
     /**
-     * Set a property of the node
-     *
-     * If the value is or contains a reference to a node which is not part
-     * of the document, the referenced node will added to the document as
-     * well. If the referenced node is already part of another document a
-     * copy of the node will be created and added to the document.
-     *
-     * @param string $property The name of the property.
-     * @param mixed  $value    The value of the property. This MUST NOT be
-     *                         an array. Use null to remove the property.
-     *
-     * @throws \InvalidArgumentException If value is an array or an object
-     *                                   which is neither a language-tagged
-     *                                   string nor a typed value or a node.
+     * {@inheritdoc}
      */
     public function setProperty($property, $value)
     {
@@ -228,23 +178,7 @@ class Node
     }
 
     /**
-     * Adds a value to a property of the node
-     *
-     * If the value already exists, it won't be added again, i.e., there
-     * won't be any duplicate property values.
-     *
-     * If the value is or contains a reference to a node which is not part
-     * of the document, the referenced node will added to the document as
-     * well. If the referenced node is already part of another document a
-     * copy of the node will be created and added to the document.
-     *
-     * @param string $property The name of the property.
-     * @param mixed  $value    The value of the property. This MUST NOT be
-     *                         an array.
-     *
-     * @throws \InvalidArgumentException If value is an array or an object
-     *                                   which is neither a language-tagged
-     *                                   string nor a typed value or a node.
+     * {@inheritdoc}
      */
     public function addPropertyValue($property, $value)
     {
@@ -299,15 +233,13 @@ class Node
 
         $this->properties[$property] = $existingValues;
 
-        if ($value instanceof Node) {
+        if ($value instanceof NodeInterface) {
             $value->addReverseProperty($property, $this);
         }
     }
 
     /**
-     * Removes a property and all it's values
-     *
-     * @param string $property The name of the property to remove.
+     * {@inheritdoc}
      */
     public function removeProperty($property)
     {
@@ -320,7 +252,7 @@ class Node
             : array($this->properties[(string) $property]);
 
         foreach ($values as $value) {
-            if ($value instanceof Node) {
+            if ($value instanceof NodeInterface) {
                 $value->removeReverseProperty((string) $property, $this);
             }
         }
@@ -329,11 +261,7 @@ class Node
     }
 
     /**
-     * Removes a property value
-     *
-     * @param string $property The name of the property.
-     * @param mixed  $value    The value of the property. This MUST NOT be
-     *                         an array.
+     * {@inheritdoc}
      */
     public function removePropertyValue($property, $value)
     {
@@ -349,7 +277,7 @@ class Node
 
         for ($i = 0, $length = count($values); $i < $length; $i++) {
             if ($this->equalValues($values[$i], $value)) {
-                if ($value instanceof Node) {
+                if ($value instanceof NodeInterface) {
                     $value->removeReverseProperty((string) $property, $this);
                 }
 
@@ -372,11 +300,7 @@ class Node
     }
 
     /**
-     * Get the properties of this node
-     *
-     * @return array Returns an associative array containing all properties
-     *               of this node. The key is the property name whereas the
-     *               value is the property's value.
+     * {@inheritdoc}
      */
     public function getProperties()
     {
@@ -384,12 +308,7 @@ class Node
     }
 
     /**
-     * Get the value of a property
-     *
-     * @param string $property The name of the property.
-     *
-     * @return mixed Returns the value of the property or null if the
-     *               property doesn't exist.
+     * {@inheritdoc}
      */
     public function getProperty($property)
     {
@@ -399,12 +318,7 @@ class Node
     }
 
     /**
-     * Get the reverse properties of this node
-     *
-     * @return array Returns an associative array containing all reverse
-     *               properties of this node. The key is the property name
-     *               whereas the value is an array of nodes linking to this
-     *               instance via that property.
+     * {@inheritdoc}
      */
     public function getReverseProperties()
     {
@@ -417,16 +331,7 @@ class Node
     }
 
     /**
-     * Get the nodes of a reverse property
-     *
-     * This will return all nodes that link to this Node instance via the
-     * specified property.
-     *
-     * @param string                $property The name of the reverse property.
-     *
-     * @return null|Node|array[Node] Returns the node(s) pointing to this
-     *                               instance via the specified property or
-     *                               null if no such node exists.
+     * {@inheritdoc}
      */
     public function getReverseProperty($property)
     {
@@ -442,14 +347,9 @@ class Node
     }
 
     /**
-     * Compares this Node object to the specified value.
-     *
-     * @param mixed $other The value this instance should be compared to.
-     *
-     * @return bool Returns true if the passed value is the same as this
-     *              instance; false otherwise.
+     * {@inheritdoc}
      */
-    public function equals($other)
+    public function equals(NodeInterface $other)
     {
         return $this === $other;
     }
@@ -457,11 +357,11 @@ class Node
     /**
      * Add a reverse property.
      *
-     * @param string $property The name of the property.
-     * @param Node   $node     The node which has a property pointing to this
-     *                         Node instance.
+     * @param string        $property The name of the property.
+     * @param NodeInterface $node     The node which has a property pointing
+     *                                to this node instance.
      */
-    protected function addReverseProperty($property, Node $node)
+    protected function addReverseProperty($property, NodeInterface $node)
     {
         $this->revProperties[$property][$node->getId()] = $node;
     }
@@ -469,11 +369,11 @@ class Node
     /**
      * Remove a reverse property.
      *
-     * @param string $property The name of the property.
-     * @param Node   $node     The node which has a property pointing to this
-     *                         Node instance.
+     * @param string        $property The name of the property.
+     * @param NodeInterface $node     The node which has a property pointing
+     *                                to this node instance.
      */
-    protected function removeReverseProperty($property, Node $node)
+    protected function removeReverseProperty($property, NodeInterface $node)
     {
         unset($this->revProperties[$property][$node->getId()]);
 
@@ -493,7 +393,7 @@ class Node
     protected function isValidPropertyValue($value)
     {
         if (is_scalar($value) || (is_object($value) &&
-             ((($value instanceof Node) && ($value->document === $this->document)) ||
+             ((($value instanceof NodeInterface) && ($value->graph === $this->graph)) ||
               ($value instanceof Value)))) {
             return true;
         }

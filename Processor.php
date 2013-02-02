@@ -223,11 +223,12 @@ class Processor
         }
 
         $document = $this->documentFactory->createDocument($this->baseIri);
+        $graph = $document->getGraph();
         $nodes = array();
 
         foreach ($nodeMap as $id => &$item) {
             if (!isset($nodes[$id])) {
-                $nodes[$id] = $document->createNode($item->{'@id'});
+                $nodes[$id] = $graph->createNode($item->{'@id'});
             }
 
             $node = $nodes[$id];
@@ -238,7 +239,7 @@ class Processor
             if (property_exists($item, '@type')) {
                 foreach ($item->{'@type'} as $type) {
                     if (!isset($nodes[$type])) {
-                        $nodes[$type] = $document->createNode($type);
+                        $nodes[$type] = $graph->createNode($type);
                     }
                     $node->addType($nodes[$type]);
                 }
@@ -260,7 +261,7 @@ class Processor
                         }
                     } elseif (property_exists($val, '@id')) {
                         if (!isset($nodes[$val->{'@id'}])) {
-                            $nodes[$val->{'@id'}] = $document->createNode($val->{'@id'});
+                            $nodes[$val->{'@id'}] = $graph->createNode($val->{'@id'});
                         }
                         $node->addPropertyValue($property, $nodes[$val->{'@id'}]);
                     } else {
