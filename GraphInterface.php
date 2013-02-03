@@ -96,4 +96,14 @@ interface GraphInterface
      * Removes the graph from the document
      */
     public function removeFromDocument();
+
+    /**
+     * Merges the specified graph into the current graph
+     *
+     * @param GraphInterface $graph The graph that should be merged into the
+     *                              current graph.
+     *
+     * @return self
+     */
+    public function merge(GraphInterface $graph);
 }

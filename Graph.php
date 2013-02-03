@@ -170,6 +170,56 @@ class Graph implements GraphInterface
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function merge(GraphInterface $graph)
+    {
+        $nodes = $graph->getNodes();
+        $bnodeMap = array();
+
+        foreach ($nodes as $node) {
+            if ($node->isBlankNode()) {
+                if (false === isset($bnodeMap[$node->getId()])) {
+                    $bnodeMap[$node->getId()] = $this->createNode();
+                }
+                $n = $bnodeMap[$node->getId()];
+            } else {
+                $n = $this->createNode($node->getId());
+            }
+
+            foreach ($node->getProperties() as $property => $values) {
+                if (false === is_array($values)) {
+                    $values = array($values);
+                }
+
+                foreach ($values as $val) {
+                    if ($val instanceof NodeInterface) {
+                        // If the value is another node, we just need to
+                        // create a reference to the corresponding node
+                        // in this graph. The properties will be merged
+                        // in the outer loop
+                        if ($val->isBlankNode()) {
+                            if (false === isset($bnodeMap[$val->getId()])) {
+                                $bnodeMap[$val->getId()] = $this->createNode();
+                            }
+                            $val = $bnodeMap[$val->getId()];
+                        } else {
+                            $val = $this->createNode($val->getId());
+                        }
+                    } elseif (is_object($val)) {
+                        // Clone typed values and language-tagged strings
+                        $val = clone $val;
+                    }
+
+                    $n->addPropertyValue($property, $val);
+                }
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Create a new blank node identifier unique to the document.
      *
      * @return string The new blank node identifier.

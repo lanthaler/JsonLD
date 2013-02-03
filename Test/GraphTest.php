@@ -18,11 +18,11 @@ use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 
 /**
- * Test the parsing of a JSON-LD document into a Document.
+ * Test the parsing of a JSON-LD document into a Graph.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class DocumentTest extends \PHPUnit_Framework_TestCase
+class GraphTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * The graph instance being used throughout the tests.
@@ -42,7 +42,7 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
     "ex": "http://vocab.com/",
     "ex:lang": { "@language": "en" },
     "ex:typed": { "@type": "ex:type/datatype" },
-    "node": "ex:type/node"
+    "Node": "ex:type/node"
   },
   "@graph": [
     {
@@ -68,7 +68,7 @@ class DocumentTest extends \PHPUnit_Framework_TestCase
     {
       "@id": "http://example.com/node/3",
       "ex:name": "3",
-      "@type": "node",
+      "@type": "Node",
       "ex:link": { "@id": "http://example.com/node/1" },
       "ex:contains": {
         "@id": "_:someBlankNode",
@@ -122,11 +122,11 @@ JSON_LD_DOCUMENT;
             // Is the node of the right type?
             $this->assertInstanceOf('ML\JsonLD\Node', $node);
 
-            // Does the document return the same instance?
+            // Does the graph return the same instance?
             $n = $this->graph->getNode($node->getId());
             $this->assertSame($node, $n, 'same instance');
             $this->assertTrue($node->equals($n), 'equals');
-            $this->assertSame($this->graph, $n->getGraph(), 'linked to document');
+            $this->assertSame($this->graph, $n->getGraph(), 'linked to graph');
         }
     }
 
@@ -267,7 +267,7 @@ JSON_LD_DOCUMENT;
     }
 
     /**
-     * Tests the removal of nodes from the document.
+     * Tests the removal of nodes from the graph.
      */
     public function testNodeRemoval()
     {
@@ -276,7 +276,7 @@ JSON_LD_DOCUMENT;
         $node1_1 = $this->graph->getNode('_:b0');
         $node2 = $this->graph->getNode('http://example.com/node/2');
 
-        $this->assertTrue($this->graph->containsNode('http://example.com/node/1'), 'node 1 in document?');
+        $this->assertTrue($this->graph->containsNode('http://example.com/node/1'), 'node 1 in graph?');
 
         $this->assertSame(
             array('http://vocab.com/link' => array($node1)),
@@ -298,8 +298,8 @@ JSON_LD_DOCUMENT;
         $this->assertSame(array(), $node1_1->getReverseProperties(), 'n1.1 reverse properties');
         $this->assertNull($node1_1->getReverseProperty('http://vocab.com/contains'), 'n1.1 <-contains- n1 removed');
 
-        $this->assertFalse($this->graph->containsNode('/node/1'), 'node 1 still in document?');
-        $this->assertNull($node1->getGraph(), 'node 1\'s document reset?');
+        $this->assertFalse($this->graph->containsNode('/node/1'), 'node 1 still in graph?');
+        $this->assertNull($node1->getGraph(), 'node 1\'s graph reset?');
 
         // Remove node 2
         $node2 = $this->graph->getNode('http://example.com/node/2');
@@ -307,7 +307,7 @@ JSON_LD_DOCUMENT;
         $node2_2 = $this->graph->getNode('_:b2');
         $node3 = $this->graph->getNode('/node/3');
 
-        $this->assertTrue($this->graph->containsNode('/node/2'), 'node 2 in document?');
+        $this->assertTrue($this->graph->containsNode('/node/2'), 'node 2 in graph?');
 
         $this->assertSame(
             array('http://vocab.com/link' => array($node2)),
@@ -338,11 +338,11 @@ JSON_LD_DOCUMENT;
         $this->assertSame(array(), $node2_2->getReverseProperties(), 'n2.2 reverse properties');
         $this->assertNull($node2_2->getReverseProperty('http://vocab.com/contains'), 'n2.2 <-contains- n2 removed');
 
-        $this->assertFalse($this->graph->containsNode('./2'), 'node 2 still in document?');
+        $this->assertFalse($this->graph->containsNode('./2'), 'node 2 still in graph?');
     }
 
     /**
-     * Tests the removal of node types from the document.
+     * Tests the removal of node types from the graph.
      */
     public function testNodeTypeRemoval()
     {
@@ -351,7 +351,7 @@ JSON_LD_DOCUMENT;
         $node3 = $this->graph->getNode('/node/3');
         $nodeType = $this->graph->getNode('http://vocab.com/type/node');
 
-        $this->assertTrue($this->graph->containsNode('http://vocab.com/type/node'), 'node type in document?');
+        $this->assertTrue($this->graph->containsNode('http://vocab.com/type/node'), 'node type in graph?');
 
         $this->assertSame($nodeType, $node1->getType(), 'n1 type');
         $this->assertSame($nodeType, $node3->getType(), 'n3 type');
@@ -370,7 +370,7 @@ JSON_LD_DOCUMENT;
         $this->assertNull($node1->getType(), 'n1 type removed');
         $this->assertNull($node3->getType(), 'n3 type removed');
 
-        $this->assertFalse($this->graph->containsNode('http://vocab.com/type/node'), 'node type still in document?');
+        $this->assertFalse($this->graph->containsNode('http://vocab.com/type/node'), 'node type still in graph?');
     }
 
     /**
@@ -488,10 +488,10 @@ JSON_LD_DOCUMENT;
         $this->assertSame($node1, $value, 'node: initial node');
 
         $newNode1 = $this->graph->createNode();
-        $this->assertTrue($this->graph->containsNode($newNode1), 'node: new1 in document');
+        $this->assertTrue($this->graph->containsNode($newNode1), 'node: new1 in graph');
 
         $newNode2 = $this->graph->createNode('http://example.com/node/new/2');
-        $this->assertTrue($this->graph->containsNode($newNode2), 'node: new2 in document');
+        $this->assertTrue($this->graph->containsNode($newNode2), 'node: new2 in graph');
 
         $node->addPropertyValue('http://vocab.com/link', $node1);
         $this->assertSame($node1, $node->getProperty('http://vocab.com/link'), 'node: still same');
@@ -521,7 +521,7 @@ JSON_LD_DOCUMENT;
         $this->assertSame($nodeType, $node1->getType(), 'type: n1 initial type');
 
         $newType1 = $this->graph->createNode();
-        $this->assertTrue($this->graph->containsNode($newNode1), 'type: new1 in document');
+        $this->assertTrue($this->graph->containsNode($newNode1), 'type: new1 in graph');
 
         $node1->addType($nodeType);
         $this->assertSame($nodeType, $node1->getType(), 'type: n1 type still same');
@@ -591,11 +591,11 @@ JSON_LD_DOCUMENT;
 
     /**
      * Tests whether it is possible to add an type which is not part of the
-     * document
+     * graph
      *
      * @expectedException InvalidArgumentException
      */
-    public function testAddTypeNotInDocument()
+    public function testAddTypeNotInGraph()
     {
         $graph = new Graph();
         $newType = $graph->createNode();
@@ -605,7 +605,7 @@ JSON_LD_DOCUMENT;
     }
 
     /**
-     * Tests whether nodes are contained in the document
+     * Tests whether nodes are contained in the graph
      */
     public function testContains()
     {
@@ -630,5 +630,130 @@ JSON_LD_DOCUMENT;
 
         $this->assertSame($node1, $this->graph->createNode('http://example.com/node/1'));
         $this->assertSame($nodeType, $this->graph->createNode('http://vocab.com/type/node'));
+    }
+
+    /**
+     * Tests the merging of two graphs
+     */
+    public function testMerge()
+    {
+
+        $json = <<<JSON_LD_DOCUMENT
+{
+  "@context": {
+    "ex": "http://vocab.com/",
+    "node": "ex:type/node"
+  },
+  "@graph": [
+    {
+      "@id": "1",
+      "@type": "ex:type/node",
+      "ex:name": "1",
+      "ex:link": { "@id": "./2" },
+      "ex:contains": { "ex:nested": "1.1 (graph 2)" }
+    },
+    {
+      "@id": "/node/2",
+      "ex:name": "and a different name in graph 2",
+      "ex:link": { "@id": "/node/4" },
+      "ex:newFromGraph2": "this was added in graph 2"
+    },
+    {
+      "@id": "http://example.com/node/4",
+      "ex:name": "node 4 from graph 2"
+    }
+  ]
+}
+JSON_LD_DOCUMENT;
+
+        $graph2 = Document::load($json, array('base' => 'http://example.com/node/index.jsonld'))->getGraph();
+
+        // Merge graph2 into graph
+        $this->graph->merge($graph2);
+
+        $nodeIds = array(
+            'http://example.com/node/1',
+            'http://example.com/node/2',
+            'http://example.com/node/3',
+            'http://example.com/node/4',
+            '_:b0',
+            '_:b1',
+            '_:b2',
+            '_:b3',
+            '_:b4',
+            'http://vocab.com/type/datatype',
+            'http://vocab.com/type/node',
+            'http://vocab.com/type/nodeWithAliases'
+        );
+
+        $nodes = $this->graph->getNodes();
+        $this->assertCount(count($nodeIds), $nodes);
+
+        foreach ($nodes as $node) {
+            // Is the node's ID valid?
+            $this->assertContains($node->getId(), $nodeIds, 'Found unexpected node ID: ' . $node->getId());
+
+            // Is the node of the right type?
+            $this->assertInstanceOf('ML\JsonLD\Node', $node);
+
+            // Does the graph return the same instance?
+            $n = $this->graph->getNode($node->getId());
+            $this->assertSame($node, $n, 'same instance');
+            $this->assertTrue($node->equals($n), 'equals');
+            $this->assertSame($this->graph, $n->getGraph(), 'linked to graph');
+
+            // It must not share node objects with graph 2
+            $this->assertNotSame($node, $graph2->getNode($node->getId()), 'shared instance between graph and graph 2');
+        }
+
+        // Check that the properties have been updated as well
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $node2 = $this->graph->getNode('http://example.com/node/2');
+        $node3 = $this->graph->getNode('http://example.com/node/3');
+        $node4 = $this->graph->getNode('http://example.com/node/4');
+
+        $this->assertEquals('1', $node1->getProperty('http://vocab.com/name'), 'n1->name');
+        $this->assertSame($node2, $node1->getProperty('http://vocab.com/link'), 'n1 -link-> n2');
+        $this->assertCount(2, $node1->getProperty('http://vocab.com/contains'), 'n1 -contains-> 2 blank nodes');
+
+        $this->assertEquals(
+            array('2', 'and a different name in graph 2'),
+            $node2->getProperty('http://vocab.com/name'), 'n2->name'
+        );
+
+        $this->assertSame(array($node3, $node4), $node2->getProperty('http://vocab.com/link'), 'n2 -link-> n3 & n4');
+        $this->assertEquals(
+            'this was added in graph 2',
+            $node2->getProperty('http://vocab.com/newFromGraph2'),
+            'n2->newFromGraph2'
+        );
+
+        $this->assertEquals('node 4 from graph 2', $node4->getProperty('http://vocab.com/name'), 'n4->name');
+
+        // Verify that graph 2 wasn't changed
+        $nodeIds = array(
+            'http://example.com/node/1',
+            'http://example.com/node/2',
+            '_:b0',                             // ex:contains: { ex:nested }
+            'http://example.com/node/4',
+            'http://vocab.com/type/node'
+        );
+
+        $nodes = $graph2->getNodes();
+        $this->assertCount(count($nodeIds), $nodes);
+
+        foreach ($nodes as $node) {
+            // Is the node's ID valid?
+            $this->assertContains($node->getId(), $nodeIds, 'Found unexpected node ID in graph 2: ' . $node->getId());
+
+            // Is the node of the right type?
+            $this->assertInstanceOf('ML\JsonLD\Node', $node);
+
+            // Does the graph return the same instance?
+            $n = $graph2->getNode($node->getId());
+            $this->assertSame($node, $n, 'same instance (graph 2)');
+            $this->assertTrue($node->equals($n), 'equals (graph 2)');
+            $this->assertSame($graph2, $n->getGraph(), 'linked to graph (graph 2)');
+        }
     }
 }
