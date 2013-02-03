@@ -23,12 +23,12 @@ class Document implements DocumentInterface
     /**
      * @var IRI The document's IRI
      */
-    private $iri = null;
+    protected $iri = null;
 
     /**
      * @var GraphInterface The default graph
      */
-    private $defaultGraph = null;
+    protected $defaultGraph = null;
 
     /**
      * @var array An associative array holding all named graphs in the document
