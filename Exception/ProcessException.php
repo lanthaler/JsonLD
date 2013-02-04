@@ -118,7 +118,7 @@ class ProcessException extends \RuntimeException
         }
 
         if (null !== $this->parsedFile) {
-            $this->message .= sprintf(' in %s', json_encode($this->parsedFile));
+            $this->message .= sprintf(' in %s', $this->parsedFile);
         }
 
         if ($this->snippet) {
