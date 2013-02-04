@@ -111,9 +111,11 @@ class Node implements NodeInterface
      */
     public function getNodesWithThisType()
     {
-        return (isset($this->revProperties[self::TYPE]))
-            ? array_values($this->revProperties[self::TYPE])
-            : array();
+        if (null === ($nodes = $this->getReverseProperty(self::TYPE))) {
+            return array();
+        }
+
+        return (is_array($nodes)) ? $nodes : array($nodes);
     }
 
     /**
