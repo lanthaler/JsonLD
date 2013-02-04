@@ -9,12 +9,14 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
+
 /**
  * A Node represents a node in a JSON-LD graph.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class Node implements NodeInterface
+class Node implements NodeInterface, JsonLdSerializable
 {
     /** The @type constant. */
     const TYPE = '@type';
@@ -354,6 +356,55 @@ class Node implements NodeInterface
     public function equals(NodeInterface $other)
     {
         return $this === $other;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function toJsonLd($useNativeTypes = true)
+    {
+        $node = new \stdClass();
+
+        // Only label blank nodes if other nodes point to it
+        if ((false === $this->isBlankNode()) || (count($this->getReverseProperties()) > 0)) {
+            $node->{'@id'} = $this->getId();
+        }
+
+        $properties = $this->getProperties();
+
+        foreach ($properties as $prop => $values) {
+            if (false === is_array($values)) {
+                $values = array($values);
+            }
+
+            if (self::TYPE === $prop) {
+                $node->{'@type'} = array();
+                foreach ($values as $val) {
+                    $node->{'@type'}[] = $val->getId();
+                }
+
+                continue;
+            }
+
+            $node->{$prop} = array();
+
+            foreach ($values as $value) {
+                if ($value instanceof NodeInterface) {
+                    $ref = new \stdClass();
+                    $ref->{'@id'} = $value->getId();
+                    $node->{$prop}[] = $ref;
+                } elseif (is_object($value)) {  // language-tagged string or typed value
+                    $node->{$prop}[] = $value->toJsonLd($useNativeTypes);
+                } else {
+                    $val = new Object();
+                    $val->{'@value'} = $value;
+                    $node->{$prop}[] = $val;
+                }
+            }
+
+        }
+
+        return $node;
     }
 
     /**

@@ -718,7 +718,8 @@ JSON_LD_DOCUMENT;
 
         $this->assertEquals(
             array('2', 'and a different name in graph 2'),
-            $node2->getProperty('http://vocab.com/name'), 'n2->name'
+            $node2->getProperty('http://vocab.com/name'),
+            'n2->name'
         );
 
         $this->assertSame(array($node3, $node4), $node2->getProperty('http://vocab.com/link'), 'n2 -link-> n3 & n4');
@@ -755,5 +756,132 @@ JSON_LD_DOCUMENT;
             $this->assertTrue($node->equals($n), 'equals (graph 2)');
             $this->assertSame($graph2, $n->getGraph(), 'linked to graph (graph 2)');
         }
+    }
+
+    /**
+     * Tests the serialization of nodes
+     */
+    public function testSerializeNode()
+    {
+        $expected = JsonLD::parse(
+            '{
+                "@id": "http://example.com/node/1",
+                "@type": [ "http://vocab.com/type/node" ],
+                "http://vocab.com/name": [ { "@value": "1" } ],
+                "http://vocab.com/link": [ { "@id": "http://example.com/node/2" } ],
+                "http://vocab.com/contains": [ { "@id": "_:b0" } ]
+            }'
+        );
+
+        $node1 = $this->graph->getNode('http://example.com/node/1');
+        $this->assertEquals($expected, $node1->toJsonLd(), 'Serialize node 1');
+    }
+
+    /**
+     * Tests the serialization of graphs
+     */
+    public function testSerializeGraph()
+    {
+        // This is the expanded and flattened version of the test document
+        // (the blank node labels have been renamed from _:t... to _:b...)
+        $expected = JsonLD::parse(
+            '[{
+               "@id": "_:b0",
+               "http://vocab.com/nested": [{
+                  "@value": "1.1"
+               }]
+            }, {
+               "@id": "_:b1",
+               "http://vocab.com/nested": [{
+                  "@value": "2.1"
+               }]
+            }, {
+               "@id": "_:b2",
+               "http://vocab.com/nested": [{
+                  "@value": "2.2"
+               }]
+            }, {
+               "@id": "_:b3",
+               "http://vocab.com/nested": [{
+                  "@value": "3.1"
+               }]
+            }, {
+               "@id": "http://example.com/node/1",
+               "@type": ["http://vocab.com/type/node"],
+               "http://vocab.com/contains": [{
+                  "@id": "_:b0"
+               }],
+               "http://vocab.com/link": [{
+                  "@id": "http://example.com/node/2"
+               }],
+               "http://vocab.com/name": [{
+                  "@value": "1"
+               }]
+            }, {
+               "@id": "http://example.com/node/2",
+               "@type": ["http://vocab.com/type/nodeWithAliases"],
+               "http://vocab.com/aliases": [{
+                  "@value": "node2"
+               }, {
+                  "@value": 2
+               }],
+               "http://vocab.com/contains": [{
+                  "@id": "_:b1"
+               }, {
+                  "@id": "_:b2"
+               }],
+               "http://vocab.com/lang": [{
+                  "@language": "en",
+                  "@value": "language-tagged string"
+               }],
+               "http://vocab.com/link": [{
+                  "@id": "http://example.com/node/3"
+               }],
+               "http://vocab.com/name": [{
+                  "@value": "2"
+               }],
+               "http://vocab.com/typed": [{
+                  "@type": "http://vocab.com/type/datatype",
+                  "@value": "typed value"
+               }]
+            }, {
+               "@id": "http://example.com/node/3",
+               "@type": ["http://vocab.com/type/node"],
+               "http://vocab.com/contains": [{
+                  "@id": "_:b3"
+               }],
+               "http://vocab.com/lang": [{
+                  "@language": "en",
+                  "@value": "language-tagged string: en"
+               }, {
+                  "@language": "de",
+                  "@value": "language-tagged string: de"
+               }],
+               "http://vocab.com/link": [{
+                  "@id": "http://example.com/node/1"
+               }],
+               "http://vocab.com/name": [{
+                  "@value": "3"
+               }],
+               "http://vocab.com/typed": [{
+                  "@type": "http://vocab.com/type/datatype",
+                  "@value": "typed value"
+               }, {
+                  "@language": "ex:/type/otherDataType",
+                  "@value": "typed value"
+               }, {
+                  "@language": "ex:/type/datatype",
+                  "@value": "typed value"
+               }]
+            }, {
+               "@id": "http://vocab.com/type/datatype"
+            }, {
+               "@id": "http://vocab.com/type/node"
+            }, {
+               "@id": "http://vocab.com/type/nodeWithAliases"
+            }]'
+        );
+
+        $this->assertEquals($expected, $this->graph->toJsonLd(false), 'Serialize graph');
     }
 }

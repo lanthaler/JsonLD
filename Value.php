@@ -17,7 +17,7 @@ use stdClass as Object;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-abstract class Value
+abstract class Value implements JsonLdSerializable
 {
     /**
      * The value in the form of a string
@@ -98,18 +98,6 @@ abstract class Value
 
         return new TypedValue($value, (null === $type) ? RdfConstants::XSD_STRING : $type);
     }
-
-    /**
-     * Convert this instance to a JSON-LD element in expanded form
-     *
-     * @param boolean $useNativeTypes If set to true, native types are used
-     *                                for xsd:integer, xsd:double, and
-     *                                xsd:boolean, otherwise typed strings
-     *                                will be used instead.
-     *
-     * @return string|integer|float|boolean|Object The JSON-LD element.
-     */
-    abstract public function toJsonLd($useNativeTypes = true);
 
     /**
      * Compares this instance to the specified value.

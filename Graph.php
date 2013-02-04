@@ -16,7 +16,7 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class Graph implements GraphInterface
+class Graph implements GraphInterface, JsonLdSerializable
 {
     /**
      * @var DocumentInterface The document this graph belongs to.
@@ -217,6 +217,23 @@ class Graph implements GraphInterface
         }
 
         return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function toJsonLd($useNativeTypes = true)
+    {
+        // Bring nodes into a deterministic order
+        $nodes = $this->nodes;
+        ksort($nodes);
+        $nodes = array_values($nodes);
+
+        $serializeNode = function ($node) use ($useNativeTypes) {
+            return $node->toJsonLd($useNativeTypes);
+        };
+
+        return array_map($serializeNode, $nodes);
     }
 
     /**

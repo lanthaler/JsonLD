@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 use ML\IRI\IRI;
 
 /**
@@ -18,7 +19,7 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class Document implements DocumentInterface
+class Document implements DocumentInterface, JsonLdSerializable
 {
     /**
      * @var IRI The document's IRI
@@ -170,5 +171,30 @@ class Document implements DocumentInterface
 
             unset($this->namedGraphs[$name]);
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function toJsonLd($useNativeTypes = true)
+    {
+        $defGraph = $this->defaultGraph->toJsonLd($useNativeTypes);
+
+        if (0 === count($this->namedGraphs)) {
+            return $defGraph;
+        }
+
+        foreach ($this->namedGraphs as $graphName => $graph) {
+            $namedGraph = new Object();
+            $namedGraph->{'@id'} = $graphName;
+            $namedGraph->{'@graph'} = $graph->toJsonLd($useNativeTypes);
+
+            $defGraph[] = $namedGraph;
+        }
+
+        $document = new Object();
+        $document->{'@graph'} = $defGraph;
+
+        return array($document);
     }
 }

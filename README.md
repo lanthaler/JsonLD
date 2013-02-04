@@ -90,7 +90,7 @@ $doc = JsonLD::getDocument('document.jsonld');
 // get the default graph
 $graph = $doc->getGraph();
 
-// get all nodes in the document
+// get all nodes in the graph
 $nodes = $graph->getNodes();
 
 // retrieve a node by ID
@@ -99,7 +99,7 @@ $node = $graph->getNode('http://example.com/node1');
 // get a property
 $node->getProperty('http://example.com/vocab/name');
 
-// add a new blank node to the document
+// add a new blank node to the graph
 $newNode = $graph->createNode();
 
 // link the new blank node to the existing node
@@ -107,6 +107,9 @@ $node->addPropertyValue('http://example.com/vocab/link', $newNode);
 
 // even reverse properties are supported; this returns $newNode
 $node->getReverseProperty('http://example.com/vocab/link');
+
+// serialize the graph and convert it to a string
+$serialized = JsonLD::toString($graph->toJsonLd());
 ```
 
 
