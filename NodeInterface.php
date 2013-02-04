@@ -17,14 +17,6 @@ namespace ML\JsonLD;
 interface NodeInterface
 {
     /**
-     * Constructor
-     *
-     * @param GraphInterface    $graph The graph the node belongs to.
-     * @param null|string $id       The ID of the node.
-     */
-    public function __construct(GraphInterface $graph, $id = null);
-
-    /**
      * Get ID
      *
      * @return string|null The ID of the node or null.
