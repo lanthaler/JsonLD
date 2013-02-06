@@ -81,7 +81,9 @@ class Node implements NodeInterface, JsonLdSerializable
             }
         }
 
-        return $this->setProperty(self::TYPE, $type);
+        $this->setProperty(self::TYPE, $type);
+
+        return $this;
     }
 
     /**
@@ -89,7 +91,9 @@ class Node implements NodeInterface, JsonLdSerializable
      */
     public function addType(NodeInterface $type)
     {
-        return $this->addPropertyValue(self::TYPE, $type);
+        $this->addPropertyValue(self::TYPE, $type);
+
+        return $this;
     }
 
     /**
@@ -97,7 +101,9 @@ class Node implements NodeInterface, JsonLdSerializable
      */
     public function removeType(NodeInterface $type)
     {
-        return $this->removePropertyValue(self::TYPE, $type);
+        $this->removePropertyValue(self::TYPE, $type);
+
+        return $this;
     }
 
     /**
@@ -157,6 +163,8 @@ class Node implements NodeInterface, JsonLdSerializable
         $this->graph = null;
 
         $g->removeNode($this);
+
+        return $this;
     }
 
     /**
@@ -174,11 +182,11 @@ class Node implements NodeInterface, JsonLdSerializable
     {
         if (null === $value) {
             $this->removeProperty($property);
-
-            return;
+        } else {
+            $this->doMergeIntoProperty((string) $property, array(), $value);
         }
 
-        $this->doMergeIntoProperty((string) $property, array(), $value);
+        return $this;
     }
 
     /**
@@ -195,6 +203,8 @@ class Node implements NodeInterface, JsonLdSerializable
         }
 
         $this->doMergeIntoProperty((string) $property, $existing, $value);
+
+        return $this;
     }
 
     /**
@@ -248,7 +258,7 @@ class Node implements NodeInterface, JsonLdSerializable
     public function removeProperty($property)
     {
         if (!isset($this->properties[(string) $property])) {
-            return;
+            return $this;
         }
 
         $values = is_array($this->properties[(string) $property])
@@ -262,6 +272,8 @@ class Node implements NodeInterface, JsonLdSerializable
         }
 
         unset($this->properties[(string) $property]);
+
+        return $this;
     }
 
     /**
@@ -270,7 +282,7 @@ class Node implements NodeInterface, JsonLdSerializable
     public function removePropertyValue($property, $value)
     {
         if (!$this->isValidPropertyValue($value) || !isset($this->properties[(string) $property])) {
-            return;
+            return $this;
         }
 
         $values =& $this->properties[(string) $property];
@@ -293,7 +305,7 @@ class Node implements NodeInterface, JsonLdSerializable
         if (0 === count($values)) {
             unset($this->properties[(string) $property]);
 
-            return;
+            return $this;
         }
 
         $this->properties[(string) $property] = array_values($values); // re-index the array

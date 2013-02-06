@@ -84,6 +84,8 @@ class Document implements DocumentInterface, JsonLdSerializable
     public function setIri($iri)
     {
         $this->iri = new IRI($iri);
+
+        return $this;
     }
 
     /**
@@ -150,7 +152,7 @@ class Document implements DocumentInterface, JsonLdSerializable
         if (null === $graph) {
             $this->defaultGraph = new Graph($this);
 
-            return;
+            return $this;
         }
 
         $name = $graph;
@@ -171,6 +173,8 @@ class Document implements DocumentInterface, JsonLdSerializable
 
             unset($this->namedGraphs[$name]);
         }
+
+        return $this;
     }
 
     /**

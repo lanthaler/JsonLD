@@ -84,6 +84,8 @@ class Graph implements GraphInterface, JsonLdSerializable
         }
 
         unset($this->nodes[$id]);
+
+        return $this;
     }
 
     /**
@@ -167,6 +169,8 @@ class Graph implements GraphInterface, JsonLdSerializable
         $this->document = null;
 
         $doc->removeGraph($this);
+
+        return $this;
     }
 
     /**

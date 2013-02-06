@@ -46,6 +46,8 @@ final class TypedValue extends Value
      *
      * @param string $type The type.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If the type is not a string. No
      *                                   further checks are currently done.
      */
@@ -56,6 +58,8 @@ final class TypedValue extends Value
         }
 
         $this->type = $type;
+
+        return $this;
     }
 
     /**

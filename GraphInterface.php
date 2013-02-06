@@ -39,6 +39,8 @@ interface GraphInterface
      * document.
      *
      * @param NodeInterface $node The node to remove from the document.
+     *
+     * @return self
      */
     public function removeNode(NodeInterface $node);
 
@@ -94,6 +96,8 @@ interface GraphInterface
 
     /**
      * Removes the graph from the document
+     *
+     * @return self
      */
     public function removeFromDocument();
 

@@ -22,6 +22,8 @@ interface DocumentInterface
      * Set the document's IRI
      *
      * @param string|IRI The IRI.
+     *
+     * @return self
      */
     public function setIri($iri);
 
@@ -80,6 +82,8 @@ interface DocumentInterface
      * @param null|string|GraphInterface $graph The graph (or its name) to
      *                                          remove. If null is passed,
      *                                          the default will be reset.
+     *
+     * @return self
      */
     public function removeGraph($graph = null);
 }

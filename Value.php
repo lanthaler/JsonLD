@@ -31,6 +31,8 @@ abstract class Value implements JsonLdSerializable
      *
      * @param string $value The value.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If the value is not a string.
      */
     public function setValue($value)
@@ -40,6 +42,8 @@ abstract class Value implements JsonLdSerializable
         }
 
         $this->value = $value;
+
+        return $this;
     }
 
     /**

@@ -28,6 +28,8 @@ interface NodeInterface
      *
      * @param null|NodeInterface|array[NodeInterface] The type(s) of this node.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If type is not null, a Node or an
      *                                   array of Nodes.
      */
@@ -37,6 +39,8 @@ interface NodeInterface
      * Add a type to this node
      *
      * @param NodeInterface The type to add.
+     *
+     * @return self
      */
     public function addType(NodeInterface $type);
 
@@ -44,6 +48,8 @@ interface NodeInterface
      * Remove a type from this node
      *
      * @param NodeInterface The type to remove.
+     *
+     * @return self
      */
     public function removeType(NodeInterface $type);
 
@@ -78,6 +84,8 @@ interface NodeInterface
      *
      * This will also remove all references to and from other nodes in this
      * node's graph.
+     *
+     * @return self
      */
     public function removeFromGraph();
 
@@ -104,6 +112,8 @@ interface NodeInterface
      * @param mixed  $value    The value of the property. This MUST NOT be
      *                         an array. Use null to remove the property.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If value is an array or an object
      *                                   which is neither a language-tagged
      *                                   string nor a typed value or a node.
@@ -125,6 +135,8 @@ interface NodeInterface
      * @param mixed  $value    The value of the property. This MUST NOT be
      *                         an array.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If value is an array or an object
      *                                   which is neither a language-tagged
      *                                   string nor a typed value or a node.
@@ -135,6 +147,8 @@ interface NodeInterface
      * Removes a property and all it's values
      *
      * @param string $property The name of the property to remove.
+     *
+     * @return self
      */
     public function removeProperty($property);
 
@@ -144,6 +158,8 @@ interface NodeInterface
      * @param string $property The name of the property.
      * @param mixed  $value    The value of the property. This MUST NOT be
      *                         an array.
+     *
+     * @return self
      */
     public function removePropertyValue($property, $value);
 

@@ -43,6 +43,8 @@ final class LanguageTaggedString extends Value
      *
      * @param string $language The language.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If the language is not a string. No
      *                                   further checks are currently done.
      */
@@ -53,6 +55,8 @@ final class LanguageTaggedString extends Value
         }
 
         $this->language = $language;
+
+        return $this;
     }
 
     /**
