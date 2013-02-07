@@ -228,7 +228,7 @@ class JsonLD
      *                          contains syntax errors.
      * @throws ProcessException If compacting the JSON-LD document failed.
      */
-    public static function compact($input, $context, $options = null)
+    public static function compact($input, $context = null, $options = null)
     {
         $options = self::mergeOptions($options);
 
@@ -262,9 +262,11 @@ class JsonLD
      *                          contains syntax errors.
      * @throws ProcessException If compacting the JSON-LD document failed.
      */
-    private static function doCompact($input, $context, $options = null, $alwaysGraph = false)
+    private static function doCompact($input, $context = null, $options = null, $alwaysGraph = false)
     {
-        $context = self::parse($context);
+        if (null !== $context) {
+            $context = self::parse($context);
+        }
 
         if (false === is_object($context) || (false === property_exists($context, '@context'))) {
             $context = null;
