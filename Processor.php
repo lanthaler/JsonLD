@@ -1400,7 +1400,7 @@ class Processor
                 if (false === property_exists($value, '@index')) {
                     $valueProfile['@container'] = '@language';
                 }
-            } elseif (is_string($value->{'@value'})) {
+            } else {
                 $valueProfile['typeLang'] = '@language';
                 $valueProfile['typeLangValue'] = '@null';
             }
