@@ -1072,8 +1072,7 @@ class Processor
      */
     private function compactValue($value, $definition, $activectx, $inversectx)
     {
-        if (property_exists($value, '@index') &&
-            ($value->{'@index'} === $definition['@index'])) {
+        if ('@index' === $definition['@container']) {
             unset($value->{'@index'});
         }
 
