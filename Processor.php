@@ -950,7 +950,7 @@ class Processor
                             $value = $value[0];
                         }
                     }
-                } elseif ('@graph' === $property) {
+                } elseif (('@graph' === $property) || ('@list' === $property)) {
                     $this->compact($value, $activectx, $inversectx, $property);
 
                     if (false === is_array($value)) {
