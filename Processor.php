@@ -663,6 +663,8 @@ class Processor
 
         if ('@id' === $def['@type']) {
             $result->{'@id'} = $this->expandIri($value, $activectx, true);
+        } elseif ('@vocab' === $def['@type']) {
+            $result->{'@id'} = $this->expandIri($value, $activectx, true, true);
         } else {
             $result->{'@value'} = $value;
 
@@ -1078,9 +1080,14 @@ class Processor
 
         $numProperties = count(get_object_vars($value));
 
-        if (property_exists($value, '@id') && (1 === $numProperties) &&
-            ('@id' === $definition['@type'])) {
-            return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
+        if (property_exists($value, '@id') && (1 === $numProperties)) {
+            if ('@id' === $definition['@type']) {
+                return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
+            }
+
+            if ('@vocab' === $definition['@type']) {
+                return $this->compactIri($value->{'@id'}, $activectx, $inversectx, null, true);
+            }
         }
 
         if (property_exists($value, '@value')) {
@@ -1141,7 +1148,7 @@ class Processor
 
         if ((true === $vocabRelative) && array_key_exists($iri, $inversectx)) {
             if (null !== $value) {
-                $valueProfile = $this->getValueProfile($value);
+                $valueProfile = $this->getValueProfile($value, $inversectx);
 
                 $path = array();
 
@@ -1362,11 +1369,12 @@ class Processor
      *     of a language-tagged string (`@null` for all other strings); for
      *     all other values it is set to `null`
      *
-     * @param mixed $value The value.
+     * @param mixed $value      The value.
+     * @param array $inversectx The inverse context.
      *
      * @return array The value profile.
      */
-    private function getValueProfile($value)
+    private function getValueProfile($value, $inversectx)
     {
         $valueProfile = array(
             '@container' => '@set',
@@ -1384,7 +1392,12 @@ class Processor
 
         if (property_exists($value, '@id')) {
             $valueProfile['typeLang'] = '@type';
-            $valueProfile['typeLangValue'] = '@id';
+
+            if (isset($inversectx[$value->{'@id'}]['term'])) {
+                $valueProfile['typeLangValue'] = '@vocab';
+            } else {
+                $valueProfile['typeLangValue'] = '@id';
+            }
 
             return $valueProfile;
         }
@@ -1412,7 +1425,7 @@ class Processor
             $len = count($value->{'@list'});
 
             if ($len > 0) {
-                $valueProfile = $this->getValueProfile($value->{'@list'}[0]);
+                $valueProfile = $this->getValueProfile($value->{'@list'}[0], $inversectx);
             }
 
             if (false === property_exists($value, '@index')) {
@@ -1421,7 +1434,7 @@ class Processor
 
 
             for ($i = $len - 1; $i > 0; $i--) {
-                $profile = $this->getValueProfile($value->{'@list'}[$i]);
+                $profile = $this->getValueProfile($value->{'@list'}[$i], $inversectx);
 
                 if (($valueProfile['typeLang'] !== $profile['typeLang']) ||
                     ($valueProfile['typeLangValue'] !== $profile['typeLangValue'])) {
@@ -1711,7 +1724,7 @@ class Processor
                         if (isset($value->{'@type'})) {
                             $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
 
-                            if (('@id' !== $expanded) && (false === strpos($expanded, ':'))) {
+                            if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
                                 throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                             }
 
@@ -2788,7 +2801,7 @@ class Processor
      * and {@link TypedValue typed values} are converted by this method. All
      * other objects are returned as-is.
      *
-     * @param  $object The object to convert.
+     * @param object  $object         The object to convert.
      * @param boolean $useNativeTypes If set to true, native types are used
      *                                for xsd:integer, xsd:double, and
      *                                xsd:boolean, otherwise typed strings
