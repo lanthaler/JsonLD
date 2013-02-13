@@ -49,8 +49,8 @@ class JsonLD
         }
 
         // if input is a file, process it
-        $file = $input;
-        if (((strpos($file, "{") === false) && (strpos($file, "[") === false)) || @is_readable($file)) {
+        $input = trim($input);
+        if ((isset($input[0]) && ("{" !== $input[0]) && ("[" !== $input[0])) || @is_readable($input)) {
             $context = stream_context_create(
                 array(
                     'http' => array(
@@ -66,16 +66,16 @@ class JsonLD
                 )
             );
 
-            if (false === ($input = file_get_contents($file, false, $context))) {
-                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $file));
+            if (false === ($input = file_get_contents($input, false, $context))) {
+                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $input));
             }
         }
 
         try {
             return Processor::parse($input);
         } catch (ParseException $e) {
-            if ($file) {
-                $e->setParsedFile($file);
+            if ($input) {
+                $e->setParsedFile($input);
             }
 
             throw $e;
