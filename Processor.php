@@ -1163,7 +1163,14 @@ class Processor
                     $path[] = array('@null');
                 } else {
                     $path[] = array($valueProfile['typeLang'], '@null');
-                    $path[] = array($valueProfile['typeLangValue'], '@null');  // check this!
+
+                    if (('@type' === $valueProfile['typeLang']) && ('@id' === $valueProfile['typeLangValue'])) {
+                        $path[] = array($valueProfile['typeLangValue'], '@vocab', '@null');
+                    } elseif (('@type' === $valueProfile['typeLang']) && ('@vocab' === $valueProfile['typeLangValue'])) {
+                        $path[] = array($valueProfile['typeLangValue'], '@id', '@null');
+                    } else {
+                        $path[] = array($valueProfile['typeLangValue'], '@null');
+                    }
                 }
 
                 $result = $this->queryInverseContext($inversectx[$iri], $path);
