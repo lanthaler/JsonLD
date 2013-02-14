@@ -1806,6 +1806,8 @@ class Processor
         $activectx = array_merge($activectx, $propertyGenerators);
         unset($propertyGenerators);
 
+        uksort($activectx, array($this, 'sortTerms'));
+
         // Put every IRI of each term into the inverse context
         foreach ($activectx as $term => $def) {
             if (null === $def['@id']) {
@@ -1814,69 +1816,69 @@ class Processor
             }
 
             $container = (isset($def['@container'])) ? $def['@container'] : '@null';
-            $propertyGenerator = 'propGens';  // yes
+            $termOrPropertyGen = 'propGens';  // yes
 
             if (false === is_array($def['@id'])) {
-                $propertyGenerator = 'term';  // no
-                $inverseContext[$def['@id']]['term'][] = $term;
+                $termOrPropertyGen = 'term';  // no
+                if (false === isset($inverseContext[$def['@id']]['term'])) {
+                    $inverseContext[$def['@id']]['term'] = $term;
+                }
 
                 $def['@id'] = array($def['@id']);
             }
 
             foreach ($def['@id'] as $iri) {
-                if (isset($def['@type'])) {
-                    $inverseContext[$iri][$container]['@type'][$def['@type']][$propertyGenerator][] = $term;
-                } elseif (array_key_exists('@language', $def)) {  // can be null
-                    $language = (null === $def['@language']) ? '@null' : $def['@language'];
+                $typeOrLang = '@null';
+                $typeLangValue = '@null';
 
-                    $inverseContext[$iri][$container]['@language'][$language][$propertyGenerator][] = $term;
+                if (isset($def['@type'])) {
+                    $typeOrLang = '@type';
+                    $typeLangValue = $def['@type'];
+                } elseif (array_key_exists('@language', $def)) {  // can be null
+                    $typeOrLang = '@language';
+                    $typeLangValue = (null === $def['@language']) ? '@null' : $def['@language'];
                 } else {
                     // Every untyped term is implicitly set to the default language
-                    $inverseContext[$iri][$container]['@language'][$defaultLanguage][$propertyGenerator][] = $term;
+                    if ('propGens' === $termOrPropertyGen) {
+                        // Only add property generator if no other generator expands to the same IRIs
+                        // (it's easier to add it and remove it again then to not add it at all)
+                        $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen][] = $term;
 
-                    $inverseContext[$iri][$container]['@null']['@null'][$propertyGenerator][] = $term;
-                }
-            }
-        }
+                        $last = count($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen]) - 1;
+                        $propGens = $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen];
 
-        // Then sort the terms and eliminate all except the lexicographically least;
-        // do the same for property generators but only eliminate those expanding
-        // to the same IRIs
-        foreach ($inverseContext as &$containerBucket) {
-            foreach ($containerBucket as $container => &$typeLangBucket) {
-                if ('term' === $container) {
-                    usort($typeLangBucket, array($this, 'sortTerms'));
-                    $typeLangBucket = $typeLangBucket[0];
-
-                    continue;
-                }
-
-                foreach ($typeLangBucket as $key => &$values) {
-                    foreach ($values as &$termBuckets) {
-                        if (isset($termBuckets['term'])) {
-                            usort($termBuckets['term'], array($this, 'sortTerms'));
-
-                            $termBuckets['term'] = $termBuckets['term'][0];
-                        }
-
-                        if (isset($termBuckets['propGens'])) {
-                            usort($termBuckets['propGens'], array($this, 'sortTerms'));
-                            $len = count($termBuckets['propGens']);
-
-                            for ($j = count($termBuckets['propGens']) - 1; $j > 0; $j--) {
-                                for ($i = $j - 1; $i >= 0; $i--) {
-                                    if ($activectx[$termBuckets['propGens'][$i]] ===
-                                        $activectx[$termBuckets['propGens'][$j]]) {
-                                        array_splice($termBuckets['propGens'], $j, 1);
-                                        break;
-                                    }
-                                }
+                        for ($i = $last - 1; $i >= 0; $i--) {
+                            if ($activectx[$propGens[$i]] === $activectx[$propGens[$last]]) {
+                                array_pop($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen]);
+                                break;
                             }
                         }
+                    } elseif (false === isset($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen])) {
+                        $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen] = $term;
                     }
+                }
+
+                if ('propGens' === $termOrPropertyGen) {
+                    // Only add property generator if no other generator expands to the same IRIs
+                    // (it's easier to add it and remove it again then to not add it at all)
+                    $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen][] = $term;
+
+                    $last = count($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen]) - 1;
+                    $propGens = $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen];
+
+                    for ($i = $last - 1; $i >= 0; $i--) {
+                        if ($activectx[$propGens[$i]] === $activectx[$propGens[$last]]) {
+                            array_pop($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen]);
+                            break;
+                        }
+                    }
+                } elseif (false === isset($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen])) {
+                    $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen] = $term;
                 }
             }
         }
+
+        // Sort the whole inverse context in reverse order, the longest IRI comes first
         uksort($inverseContext, array($this, 'sortTerms'));
         $inverseContext = array_reverse($inverseContext);
 
