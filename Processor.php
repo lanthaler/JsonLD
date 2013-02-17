@@ -2051,7 +2051,7 @@ class Processor
             return $this->blankNodeMap[$id];
         }
 
-        $bnode = '_:t' . $this->blankNodeCounter++;
+        $bnode = '_:b' . $this->blankNodeCounter++;
         $this->blankNodeMap[$id] = $bnode;
 
         return $bnode;
