@@ -2746,6 +2746,19 @@ class Processor
             return;
         }
 
+        if (is_array($value)) {
+            // Make sure empty arrays are created since we preserve them in expansion
+            if ((0 === count($value)) && (false === property_exists($object, $property))) {
+                $object->{$property} = array();
+            }
+
+            foreach ($value as $val) {
+                static::mergeIntoProperty($object, $property, $val, $alwaysArray, $unique);
+            }
+
+            return;
+        }
+
         if (property_exists($object, $property)) {
             if (false === is_array($object->{$property})) {
                 $object->{$property} = array($object->{$property});
@@ -2759,17 +2772,9 @@ class Processor
                 }
             }
 
-            if (false === is_array($value)) {
-                $object->{$property}[] = $value;
-            } else {
-                $object->{$property} = array_merge($object->{$property}, $value);
-            }
+            $object->{$property}[] = $value;
         } else {
-            if ($alwaysArray && (false === is_array($value))) {
-                $object->{$property} = array($value);
-            } else {
-                $object->{$property} = $value;
-            }
+            $object->{$property} = ($alwaysArray) ? array($value) : $value;
         }
     }
 
