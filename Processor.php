@@ -469,7 +469,7 @@ class Processor
 
         // Remove free-floating nodes
         if ((false === $frame) && ((null === $activeprty) || ('@graph' === $activeprty)) &&
-            ((property_exists($element, '@value') || (0 === $numProps) ||
+            (((0 === $numProps) || property_exists($element, '@value') || property_exists($element, '@list') ||
              ((1 === $numProps) && property_exists($element, '@id'))))) {
 
             $element = null;
