@@ -1060,9 +1060,10 @@ class Processor
      * containing the following data:
      *
      * <code>
-     *   @type     => type IRI or null
-     *   @language => language code or null
-     *   @index    => index string or null
+     *   @type      => type IRI or null
+     *   @language  => language code or null
+     *   @index     => index string or null
+     *   @container => the container: @set, @list, @language, or @index
      * </code>
      *
      * @param mixed $value      The value to compact (arrays are not allowed!).
@@ -1080,43 +1081,43 @@ class Processor
 
         $numProperties = count(get_object_vars($value));
 
-        if (property_exists($value, '@id') && (1 === $numProperties)) {
-            if ('@id' === $definition['@type']) {
-                return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
-            }
-
-            if ('@vocab' === $definition['@type']) {
-                return $this->compactIri($value->{'@id'}, $activectx, $inversectx, null, true);
-            }
-        }
-
-        if (property_exists($value, '@value')) {
-            $criterion = (isset($value->{'@type'})) ? '@type' : null;
-            $criterion = (isset($value->{'@language'})) ? '@language' : $criterion;
-
-            if (null !== $criterion) {
-                if ($value->{$criterion} !== $definition[$criterion]) {
-                    return $value;
+        // @id object
+        if (property_exists($value, '@id')) {
+            if (1 === $numProperties) {
+                if ('@id' === $definition['@type']) {
+                    return $this->compactIri($value->{'@id'}, $activectx, $inversectx);
                 }
 
-                unset($value->{$criterion});
-
-                return (2 === $numProperties) ? $value->{'@value'} : $value;
+                if ('@vocab' === $definition['@type']) {
+                    return $this->compactIri($value->{'@id'}, $activectx, $inversectx, null, true);
+                }
             }
 
-            // the object has neither a @type nor a @language property
-            // check the active property's definition
-            if ((null !== $definition['@language']) && is_string($value->{'@value'})) {
-                // if the property is language tagged, we can't compact
-                // the value if it is a string
-                return $value;
-            }
-
-            // we can compact the value
-            return (1 === $numProperties) ? $value->{'@value'} : $value;
+            return $value;
         }
 
-        return $value;
+        // @value object
+        $criterion = (isset($value->{'@type'})) ? '@type' : null;
+        $criterion = (isset($value->{'@language'})) ? '@language' : $criterion;
+
+        if (null !== $criterion) {
+            if ((2 === $numProperties) && ($value->{$criterion} === $definition[$criterion])) {
+                return $value->{'@value'};
+            }
+
+            return $value;
+        }
+
+        // the object has neither a @type nor a @language property
+        // check the active property's definition
+        if (is_string($value->{'@value'}) && (null !== $definition['@language'])) {
+            // if the property is language tagged or there's a default language,
+            // we can't compact the value if it is a string
+            return $value;
+        }
+
+        // we can compact the value
+        return (1 === $numProperties) ? $value->{'@value'} : $value;
     }
 
     /**
