@@ -449,6 +449,16 @@ class Processor
                     $target->{'@reverse'} = new Object();
                 }
                 $target = $target->{'@reverse'};
+
+                if (false === is_array($value)) {
+                    $value = array($value);
+                }
+
+                foreach ($value as $val) {
+                    if (property_exists($val, '@value') || property_exists($val, '@list')) {
+                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $val);
+                    }
+                }
             }
 
             if (is_array($expProperty)) {
@@ -649,7 +659,7 @@ class Processor
 
         if ('@reverse' === $keyword) {
             if (false === is_object($value)) {
-                throw new SyntaxException("Invalid value for $keyword detected (must be an object).", $value);
+                throw new SyntaxException('Detected invalid value for @reverse (must be an object).', $value);
             }
 
             $this->expand($value, $activectx, $keyword, $frame);
