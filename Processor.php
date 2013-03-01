@@ -970,6 +970,7 @@ class Processor
         $properties = get_object_vars($element);
         ksort($properties);
 
+        $inReverse = ('@reverse' === $activeprty);
         $element = new Object();
 
         foreach ($properties as $property => $value) {
@@ -1001,6 +1002,20 @@ class Processor
                     if (false === is_array($value)) {
                         $value = array($value);
                     }
+                } elseif ('@reverse' === $property) {
+                    $this->compact($value, $activectx, $inversectx, $property);
+
+                    // Move reverse properties out of the map into element
+                    foreach (get_object_vars($value) as $prop => $val) {
+                        if ($this->getPropertyDefinition($activectx, $prop, '@reverse')) {
+                            self::mergeIntoProperty($element, $prop, $val);
+                            unset($value->{$prop});
+                        }
+                    }
+
+                    if (0 === count(get_object_vars($value))) {
+                        continue;  // no properties left in the @reverse-map
+                    }
                 }
 
                 // Get the keyword alias from the inverse context if available
@@ -1016,7 +1031,7 @@ class Processor
 
             // Make sure that empty arrays are preserved
             if (0 === count($value)) {
-                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true, $inReverse);
 
                 if (is_array($activeprty)) {
                     $activeprty = $this->removePropertyGeneratorDuplicates(
@@ -1036,7 +1051,7 @@ class Processor
 
             // Compact every item in value separately as they could map to different terms
             foreach ($value as $item) {
-                $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true, $inReverse);
 
                 if (is_array($activeprty)) {
                     $activeprty = $this->removePropertyGeneratorDuplicates(
@@ -1182,11 +1197,12 @@ class Processor
      *                             to convert the IRI to an IRI relative to
      *                             `@vocab`; otherwise, that fall back
      *                             mechanism is disabled.
+     * @param bool  $reverse       Is the IRI used within a @reverse container?
      *
      * @return string Returns the compacted IRI on success; otherwise the
      *                IRI is returned as is.
      */
-    private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false)
+    private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false, $reverse = false)
     {
         $result = null;
 
@@ -1202,7 +1218,10 @@ class Processor
                     $path[] = array($valueProfile['@container'], '@set', '@null');
                 }
 
-                if (null === $valueProfile['typeLang']) {
+                if (true === $reverse) {
+                    $path[] = array('@type', '@null');
+                    $path[] = array('@reverse', '@id', '@null');
+                } elseif (null === $valueProfile['typeLang']) {
                     $path[] = array('@null');
                     $path[] = array('@null');
                 } else {
@@ -1915,7 +1934,7 @@ class Processor
 
             if (false === is_array($def['@id'])) {
                 $termOrPropertyGen = 'term';  // no
-                if (false === isset($inverseContext[$def['@id']]['term'])) {
+                if (false === isset($inverseContext[$def['@id']]['term']) && (false === $def['@reverse'])) {
                     $inverseContext[$def['@id']]['term'] = $term;
                 }
 
@@ -1926,7 +1945,10 @@ class Processor
                 $typeOrLang = '@null';
                 $typeLangValue = '@null';
 
-                if (isset($def['@type'])) {
+                if (true === $def['@reverse']) {
+                    $typeOrLang = '@type';
+                    $typeLangValue = '@reverse';
+                } elseif (isset($def['@type'])) {
                     $typeOrLang = '@type';
                     $typeLangValue = $def['@type'];
                 } elseif (array_key_exists('@language', $def)) {  // can be null
