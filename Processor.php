@@ -2121,6 +2121,21 @@ class Processor
                 unset($element->{'@index'});
             }
 
+            if (property_exists($element, '@reverse')) {
+                $reference = array('@id' => $id);
+
+                // First, add the reverse property to all nodes pointing to this node and then
+                // add them to the node mape
+                foreach (get_object_vars($element->{'@reverse'}) as $property => $value) {
+                    foreach ($value as $val) {
+                        $this->mergeIntoProperty($val, $property, (object)$reference, true, true);
+                        $this->generateNodeMap($nodeMap, $val, $activegraph);
+                    }
+                }
+
+                unset($element->{'@reverse'});
+            }
+
             // This node also represent a named graph, process it
             if (property_exists($element, '@graph')) {
                 if (self::UNION_GRAPH !== $activegraph) {
