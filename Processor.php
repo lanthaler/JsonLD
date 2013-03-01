@@ -1636,12 +1636,15 @@ class Processor
                 // make sure we don't modify the passed context
                 $context = clone $context;
 
-                if (isset($context->{'@vocab'})) {
-                    if ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
-                        throw new SyntaxException("The value of @vocab must be an absolute IRI.", $context);
+                if (property_exists($context, '@vocab')) {
+                    if (null === $context->{'@vocab'}) {
+                        unset($activectx['@vocab']);
+                    } elseif ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
+                        throw new SyntaxException("The value of @vocab must be an absolute IRI or null.", $context);
+                    } else {
+                        $activectx['@vocab'] = $context->{'@vocab'};
                     }
 
-                    $activectx['@vocab'] = $context->{'@vocab'};
                     unset($context->{'@vocab'});
                 }
 
