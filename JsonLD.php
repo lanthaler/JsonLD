@@ -14,6 +14,7 @@ use ML\JsonLD\Exception\ParseException;
 use ML\JsonLD\Exception\SyntaxException;
 use ML\JsonLD\Exception\ProcessException;
 use ML\JsonLD\Exception\InvalidQuadException;
+use ML\IRI\IRI;
 
 /**
  * JsonLD offers convenience methods to load, process, and dump JSON-LD.
@@ -165,7 +166,7 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         $processor = new Processor($options);
-        $activectx = array();
+        $activectx = array('@base' => new IRI($options->base));
 
         if (null !== $options->expandContext) {
             $processor->processContext($options->expandContext, $activectx);
@@ -274,7 +275,7 @@ class JsonLD
             $context = $context->{'@context'};
         }
 
-        $activectx = array();
+        $activectx = array('@base' => new IRI($options->base));
         $processor = new Processor($options);
 
         $processor->processContext($context, $activectx);

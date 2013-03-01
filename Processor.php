@@ -40,8 +40,8 @@ class Processor
      * @var array A list of all defined keywords
      */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
-                                     '@container', '@list', '@set', '@graph', '@vocab',
-                                     '@index', '@null');  // TODO Introduce @null supported just for framing
+                                     '@container', '@list', '@set', '@graph',
+                                     '@base', '@vocab', '@index', '@null');  // TODO Introduce @null supported just for framing
 
     /**
      * @var array Framing options keywords
@@ -119,7 +119,8 @@ class Processor
      *
      * The options parameter must be passed and all off the following properties
      * have to be set:
-     *   - <em>base</em>           The base IRI of the input document.
+     *
+     *   - <em>base</em>           The base IRI.
      *   - <em>compactArrays</em>  If set to true, arrays holding just one element
      *                             are compacted to scalars, otherwise the arrays
      *                             are kept as arrays.
@@ -860,7 +861,7 @@ class Processor
             if ($vocabRelative && array_key_exists('@vocab', $activectx)) {
                 return $activectx['@vocab'] . $value;
             } elseif ($relativeIri) {
-                return (string) $this->baseIri->resolve($value);
+                return (string) $activectx['@base']->resolve($value);
             }
         }
 
@@ -1207,7 +1208,7 @@ class Processor
 
         // Last resort, convert to a relative IRI or use @vocab if set
         if (false === $vocabRelative) {
-            return (string) $this->baseIri->baseFor($iri);
+            return (string) $activectx['@base']->baseFor($iri);
         } elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
             (false === isset($activectx[$vocabIri]))) {
@@ -1631,10 +1632,22 @@ class Processor
 
         foreach ($loclctx as $context) {
             if (null === $context) {
-                $activectx = array();
+                $activectx = array('@base' => $this->baseIri);
             } elseif (is_object($context)) {
                 // make sure we don't modify the passed context
                 $context = clone $context;
+
+                if (property_exists($context, '@base')) {
+                    if (null === $context->{'@base'}) {
+                        $activectx['@base'] = $this->baseIri;
+                    } elseif ((false === is_string($context->{'@base'})) || (false === strpos($context->{'@base'}, ':'))) {
+                        throw new SyntaxException("The value of @base must be an absolute IRI or null.", $context);
+                    } else {
+                        $activectx['@base'] = new IRI($context->{'@base'});
+                    }
+
+                    unset($context->{'@base'});
+                }
 
                 if (property_exists($context, '@vocab')) {
                     if (null === $context->{'@vocab'}) {
@@ -1757,7 +1770,7 @@ class Processor
                     }
                 }
             } else {
-                $remoteContext = (string) $this->baseIri->resolve($context);
+                $remoteContext = (string) $activectx['@base']->resolve($context);
                 if (in_array($remoteContext, $remotectxs)) {
                     throw new ProcessException(
                         'Recursive inclusion of remote context: ' . join(' -> ', $remotectxs) . ' -> ' .
@@ -1803,6 +1816,7 @@ class Processor
         $defaultLanguage = isset($activectx['@language']) ? $activectx['@language'] : '@null';
         $propertyGenerators = isset($activectx['@propertyGenerators']) ? $activectx['@propertyGenerators'] : array();
 
+        unset($activectx['@base']);
         unset($activectx['@vocab']);
         unset($activectx['@language']);
         unset($activectx['@propertyGenerators']);
@@ -2410,7 +2424,7 @@ class Processor
         }
 
         $procOptions = new Object();
-        $procOptions->base = (string) $this->baseIri;
+        $procOptions->base = (string) $this->baseIri;  // TODO Check which base IRI to use
         $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
