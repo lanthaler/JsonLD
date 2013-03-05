@@ -40,7 +40,7 @@ class Processor
      * @var array A list of all defined keywords
      */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
-                                     '@container', '@list', '@set', '@graph',
+                                     '@container', '@list', '@set', '@graph', '@reverse',
                                      '@base', '@vocab', '@index', '@null');  // TODO Introduce @null supported just for framing
 
     /**
@@ -356,11 +356,11 @@ class Processor
                 }
 
                 if (in_array($expProperty, self::$keywords)) {
-                    // we don't allow overwriting the behavior of keywords,
-                    // so if the property expands to one, we treat it as the
-                    // keyword itself
-                    $property = $expProperty;
-
+                    if ('@reverse' === $activeprty) {
+                        throw new SyntaxException(
+                            'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
+                        );
+                    }
                     $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
 
                     continue;
@@ -443,6 +443,24 @@ class Processor
                 $value = $obj;
             }
 
+            $target = $element;
+            if ($this->getPropertyDefinition($activectx, $property, '@reverse')) {
+                if (false === property_exists($target, '@reverse')) {
+                    $target->{'@reverse'} = new Object();
+                }
+                $target = $target->{'@reverse'};
+
+                if (false === is_array($value)) {
+                    $value = array($value);
+                }
+
+                foreach ($value as $val) {
+                    if (property_exists($val, '@value') || property_exists($val, '@list')) {
+                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $val);
+                    }
+                }
+            }
+
             if (is_array($expProperty)) {
                 // Label all blank nodes to connect duplicates
                 $this->labelBlankNodes($value);
@@ -452,10 +470,10 @@ class Processor
 
                 foreach ($expProperty['@id'] as $item) {
                     $value = unserialize($serialized);
-                    self::mergeIntoProperty($element, $item, $value, true);
+                    self::mergeIntoProperty($target, $item, $value, true);
                 }
             } else {
-                self::mergeIntoProperty($element, $expProperty, $value, true);
+                self::mergeIntoProperty($target, $expProperty, $value, true);
             }
         }
 
@@ -635,6 +653,40 @@ class Processor
         if ('@set' === $keyword) {
             $this->expand($value, $activectx, $activeprty, $frame);
             self::mergeIntoProperty($element, $keyword, $value, true);
+
+            return;
+        }
+
+        if ('@reverse' === $keyword) {
+            if (false === is_object($value)) {
+                throw new SyntaxException('Detected invalid value for @reverse (must be an object).', $value);
+            }
+
+            $this->expand($value, $activectx, $keyword, $frame);
+
+            // Do not create @reverse-containers inside @reverse containers
+            if (property_exists($value, $keyword)) {
+                foreach (get_object_vars($value->{$keyword}) as $prop => $val) {
+                    self::mergeIntoProperty($element, $prop, $val, true);
+                }
+
+                unset($value->{$keyword});
+            }
+
+            $value = get_object_vars($value);
+
+            if ((count($value) > 0) && (false === property_exists($element, $keyword))) {
+                $element->{$keyword} = new Object();
+            }
+
+            foreach ($value as $prop => $val) {
+                foreach ($val as $v) {
+                    if (property_exists($v, '@value') || property_exists($v, '@list')) {
+                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $v);
+                    }
+                    self::mergeIntoProperty($element->{$keyword}, $prop, $v, true);
+                }
+            }
 
             return;
         }
@@ -928,6 +980,7 @@ class Processor
         $properties = get_object_vars($element);
         ksort($properties);
 
+        $inReverse = ('@reverse' === $activeprty);
         $element = new Object();
 
         foreach ($properties as $property => $value) {
@@ -959,6 +1012,20 @@ class Processor
                     if (false === is_array($value)) {
                         $value = array($value);
                     }
+                } elseif ('@reverse' === $property) {
+                    $this->compact($value, $activectx, $inversectx, $property);
+
+                    // Move reverse properties out of the map into element
+                    foreach (get_object_vars($value) as $prop => $val) {
+                        if ($this->getPropertyDefinition($activectx, $prop, '@reverse')) {
+                            self::mergeIntoProperty($element, $prop, $val);
+                            unset($value->{$prop});
+                        }
+                    }
+
+                    if (0 === count(get_object_vars($value))) {
+                        continue;  // no properties left in the @reverse-map
+                    }
                 }
 
                 // Get the keyword alias from the inverse context if available
@@ -974,7 +1041,7 @@ class Processor
 
             // Make sure that empty arrays are preserved
             if (0 === count($value)) {
-                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true, $inReverse);
 
                 if (is_array($activeprty)) {
                     $activeprty = $this->removePropertyGeneratorDuplicates(
@@ -994,7 +1061,7 @@ class Processor
 
             // Compact every item in value separately as they could map to different terms
             foreach ($value as $item) {
-                $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true, $inReverse);
 
                 if (is_array($activeprty)) {
                     $activeprty = $this->removePropertyGeneratorDuplicates(
@@ -1140,11 +1207,12 @@ class Processor
      *                             to convert the IRI to an IRI relative to
      *                             `@vocab`; otherwise, that fall back
      *                             mechanism is disabled.
+     * @param bool  $reverse       Is the IRI used within a @reverse container?
      *
      * @return string Returns the compacted IRI on success; otherwise the
      *                IRI is returned as is.
      */
-    private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false)
+    private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false, $reverse = false)
     {
         $result = null;
 
@@ -1160,7 +1228,10 @@ class Processor
                     $path[] = array($valueProfile['@container'], '@set', '@null');
                 }
 
-                if (null === $valueProfile['typeLang']) {
+                if (true === $reverse) {
+                    $path[] = array('@type', '@null');
+                    $path[] = array('@reverse', '@id', '@null');
+                } elseif (null === $valueProfile['typeLang']) {
                     $path[] = array('@null');
                     $path[] = array('@null');
                 } else {
@@ -1554,6 +1625,7 @@ class Processor
     private function getPropertyDefinition($activectx, $property, $only = null)
     {
         $result = array(
+            '@reverse' => false,
             '@type' => null,
             '@language' => (isset($activectx['@language']))
                 ? $activectx['@language']
@@ -1582,6 +1654,7 @@ class Processor
 
             if (null !== $def) {
                 $result['@id'] = $def['@id'];
+                $result['@reverse'] = $def['@reverse'];
 
                 if (isset($def['@type'])) {
                     $result['@type'] = $def['@type'];
@@ -1680,6 +1753,7 @@ class Processor
                     if (null === $value) {
                         unset($activectx[$key]);
                         $activectx[$key]['@id'] = null;
+                        $activectx[$key]['@reverse'] = false;
 
                         continue;
                     }
@@ -1691,11 +1765,37 @@ class Processor
                             throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                         }
 
-                        $activectx[$key] = array('@id' => $expanded);
+                        $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
                     } elseif (is_object($value)) {
+                        $value = clone $value;    // make sure we don't modify context entries
                         unset($activectx[$key]);  // delete previous definition
 
                         $expanded = null;
+
+                        if (property_exists($value, '@reverse')) {
+                            $maxEntries = 1;
+
+                            if (isset($value->{'@container'})) {
+                                if ('@index' !== $value->{'@container'}) {
+                                    throw new SyntaxException(
+                                        "Terms using the @reverse feature support only @index-containers.",
+                                        $value
+                                    );
+                                }
+
+                                $maxEntries++;
+                            }
+
+                            if (count(get_object_vars($value)) > $maxEntries) {
+                                throw new SyntaxException("Invalid term definition using @reverse detected", $value);
+                            }
+
+                            $value->{'@id'} = $value->{'@reverse'};
+                            $value->{'@type'} = '@id';
+                            $value->{'@reverse'} = true;
+                        } else {
+                            $value->{'@reverse'} = false;
+                        }
 
                         if (property_exists($value, '@id')) {
                             if (is_array($value->{'@id'})) {
@@ -1718,6 +1818,12 @@ class Processor
                                 sort($expanded);
                             } else {
                                 $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
+
+                                if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
+                                    throw new SyntaxException(
+                                        "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
+                                    );
+                                }
                             }
                         } else {
                             $expanded = $this->doExpandIri($key, $activectx, false, true, $context);
@@ -1735,7 +1841,7 @@ class Processor
                             if ((null === $expanded) || in_array($expanded, self::$keywords)) {
                                 // if it's an aliased keyword or the IRI is null, we ignore all other properties
                                 // TODO Should we throw an exception if there are other properties?
-                                $activectxKey = array('@id' => $expanded);
+                                $activectxKey = array('@id' => $expanded, '@reverse' => false);
 
                                 continue;
                             } elseif (false === strpos($expanded, ':')) {
@@ -1743,7 +1849,7 @@ class Processor
                             }
                         }
 
-                        $activectxKey = array('@id' => $expanded);
+                        $activectxKey = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
 
                         if (isset($value->{'@type'})) {
                             $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
@@ -1838,7 +1944,7 @@ class Processor
 
             if (false === is_array($def['@id'])) {
                 $termOrPropertyGen = 'term';  // no
-                if (false === isset($inverseContext[$def['@id']]['term'])) {
+                if (false === isset($inverseContext[$def['@id']]['term']) && (false === $def['@reverse'])) {
                     $inverseContext[$def['@id']]['term'] = $term;
                 }
 
@@ -1849,7 +1955,10 @@ class Processor
                 $typeOrLang = '@null';
                 $typeLangValue = '@null';
 
-                if (isset($def['@type'])) {
+                if (true === $def['@reverse']) {
+                    $typeOrLang = '@type';
+                    $typeLangValue = '@reverse';
+                } elseif (isset($def['@type'])) {
                     $typeOrLang = '@type';
                     $typeLangValue = $def['@type'];
                 } elseif (array_key_exists('@language', $def)) {  // can be null
@@ -2020,6 +2129,21 @@ class Processor
             if (property_exists($element, '@index')) {
                 $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index', $element->{'@index'});
                 unset($element->{'@index'});
+            }
+
+            if (property_exists($element, '@reverse')) {
+                $reference = array('@id' => $id);
+
+                // First, add the reverse property to all nodes pointing to this node and then
+                // add them to the node mape
+                foreach (get_object_vars($element->{'@reverse'}) as $property => $value) {
+                    foreach ($value as $val) {
+                        $this->mergeIntoProperty($val, $property, (object)$reference, true, true);
+                        $this->generateNodeMap($nodeMap, $val, $activegraph);
+                    }
+                }
+
+                unset($element->{'@reverse'});
             }
 
             // This node also represent a named graph, process it
