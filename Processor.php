@@ -171,26 +171,19 @@ class Processor
 
         switch (json_last_error()) {
             case JSON_ERROR_NONE:
-                // no error
-                break;
+                break;  // no error
             case JSON_ERROR_DEPTH:
                 throw new ParseException('The maximum stack depth has been exceeded.');
-                break;
             case JSON_ERROR_STATE_MISMATCH:
                 throw new ParseException('Invalid or malformed JSON.');
-                break;
             case JSON_ERROR_CTRL_CHAR:
                 throw new ParseException('Control character error (possibly incorrectly encoded).');
-                break;
             case JSON_ERROR_SYNTAX:
                 throw new ParseException('Syntax error, malformed JSON.');
-                break;
             case JSON_ERROR_UTF8:
                 throw new ParseException('Malformed UTF-8 characters (possibly incorrectly encoded).');
-                break;
             default:
                 throw new ParseException('Unknown error while parsing JSON.');
-                break;
         }
 
         return (empty($data)) ? null : $data;
@@ -346,7 +339,7 @@ class Processor
         $element = new Object();
 
         foreach ($properties as $property => $value) {
-            $expProperty = $this->expandProperty($property, $activectx);
+            $expProperty = $this->expandIri($property, $activectx, false, true);
 
             if (false === is_array($expProperty)) {
                 // Make sure to keep framing keywords if a frame is being expanded
@@ -461,20 +454,7 @@ class Processor
                 }
             }
 
-            if (is_array($expProperty)) {
-                // Label all blank nodes to connect duplicates
-                $this->labelBlankNodes($value);
-
-                // Create deep copies of the value for each property
-                $serialized = serialize($value);
-
-                foreach ($expProperty['@id'] as $item) {
-                    $value = unserialize($serialized);
-                    self::mergeIntoProperty($target, $item, $value, true);
-                }
-            } else {
-                self::mergeIntoProperty($target, $expProperty, $value, true);
-            }
+            self::mergeIntoProperty($target, $expProperty, $value, true);
         }
 
         // All properties have been processed. Make sure the result is valid
@@ -736,67 +716,6 @@ class Processor
     }
 
     /**
-     * Labels all nodes in an expanded JSON-LD structure with fresh blank node identifiers
-     *
-     * This method assumes that element and all its children have already been
-     * expanded.
-     *
-     * @param mixed $element The expanded JSON-LD structure whose blank
-     *                        nodes should be labeled.
-     */
-    private function labelBlankNodes(&$element)
-    {
-        if (is_array($element)) {
-            foreach ($element as &$value) {
-                $this->labelBlankNodes($value);
-            }
-        } elseif (is_object($element)) {
-            if (property_exists($element, '@value')) {
-                return;
-            }
-
-            if (property_exists($element, '@list')) {
-                $this->labelBlankNodes($element->{'@list'});
-
-                return;
-            }
-
-            $properties = array_keys(get_object_vars($element));
-            sort($properties);
-
-            if (false === property_exists($element, '@id')) {
-                $element->{'@id'} = $this->getBlankNodeId();
-            }
-
-            foreach ($properties as $key) {
-                $this->labelBlankNodes($element->{$key});
-            }
-        }
-
-    }
-
-    /**
-     * Expand a property to an IRI or a JSON-LD keyword
-     *
-     * @param mixed $value     The value to be expanded to an absolute IRI.
-     * @param array $activectx The active context.
-     *
-     * @return null|string|string[] If the property could be expanded either
-     *                              the IRI(s) or the keyword is returned;
-     *                              otherwise null is returned.
-     */
-    private function expandProperty($value, $activectx)
-    {
-        if (isset($activectx['@propertyGenerators'][$value])) {
-            return $activectx['@propertyGenerators'][$value];
-        }
-
-        $result = $this->expandIri($value, $activectx, false, true);
-
-        return $result;
-    }
-
-    /**
      * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute
      * IRI and relabels blank nodes
      *
@@ -872,9 +791,9 @@ class Processor
                 if (is_string($localctx->{$value})) {
                     return $this->doExpandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
                 } elseif (isset($localctx->{$value}->{'@id'})) {
-                    if (false === is_string($localctx->{$value->{'@id'}})) {
+                    if (false === is_string($localctx->{$value}->{'@id'})) {
                         throw new SyntaxException(
-                            'A term definition must not use a property generator: ' . join(' -> ', $path),
+                            'Detected invalid IRI mapping for term ' . $value,
                             $localctx
                         );
                     }
@@ -979,18 +898,10 @@ class Processor
         // Otherwise, compact all properties
         $properties = get_object_vars($element);
         ksort($properties);
-
         $inReverse = ('@reverse' === $activeprty);
         $element = new Object();
 
         foreach ($properties as $property => $value) {
-            // This is necessary as foreach operates on a copy of the array
-            // and it might have been modified by property generators
-            if (false === array_key_exists($property, $properties)) {
-                continue;
-            }
-            $value = $properties[$property];
-
             if (in_array($property, self::$keywords)) {
                 if ('@id' === $property) {
                     $value = $this->compactIri($value, $activectx, $inversectx);
@@ -1043,16 +954,6 @@ class Processor
             if (0 === count($value)) {
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true, $inReverse);
 
-                if (is_array($activeprty)) {
-                    $activeprty = $this->removePropertyGeneratorDuplicates(
-                        $properties,
-                        $property,
-                        null,
-                        $activectx,
-                        $activeprty
-                    );
-                }
-
                 self::mergeIntoProperty($element, $activeprty, $value);
 
                 // ... continue with next property
@@ -1062,17 +963,6 @@ class Processor
             // Compact every item in value separately as they could map to different terms
             foreach ($value as $item) {
                 $activeprty = $this->compactIri($property, $activectx, $inversectx, $item, true, $inReverse);
-
-                if (is_array($activeprty)) {
-                    $activeprty = $this->removePropertyGeneratorDuplicates(
-                        $properties,
-                        $property,
-                        $item,
-                        $activectx,
-                        $activeprty
-                    );
-                }
-
                 $def = $this->getPropertyDefinition($activectx, $activeprty);
 
                 if (in_array($def['@container'], array('@language', '@index'))) {
@@ -1099,17 +989,27 @@ class Processor
                         }
 
                         if ('@list' === $def['@container']) {
-                            $item = $item->{'@list'};
-
                             // a term can just hold one list if it has a @list container
                             // (we don't support lists of lists)
-                            self::setProperty($element, $activeprty, $item);
+                            self::setProperty($element, $activeprty,  $item->{'@list'});
 
                             continue;  // ... continue with next value
-                        }
-                    }
+                        } else {
+                            $result = new Object();
 
-                    $this->compact($item, $activectx, $inversectx, $activeprty);
+                            $alias = $this->compactIri('@list', $activectx, $inversectx, null, true);
+                            $result->{$alias} = $item->{'@list'};
+
+                            if (isset($item->{'@index'})) {
+                                $alias = $this->compactIri('@index', $activectx, $inversectx, null, true);
+                                $result->{$alias} = $item->{'@index'};
+                            }
+
+                            $item = $result;
+                        }
+                    } else {
+                        $this->compact($item, $activectx, $inversectx, $activeprty);
+                    }
                 }
 
                 // Merge value back into resulting object making sure that value is always
@@ -1191,18 +1091,12 @@ class Processor
     /**
      * Compacts an absolute IRI (or aliases a keyword)
      *
-     * If a value is passed, this method assumes that a property is being
-     * compacted and may return property generators; otherwise only terms,
-     * compact IRIs or, depending on the `vocabRelative` flag, relative IRIs
-     * are returned. If the IRI couldn't be compacted, the IRI is returned
-     * as is.
+     * If the IRI couldn't be compacted, the IRI is returned as is.
      *
      * @param mixed $iri           The IRI to be compacted.
      * @param array $activectx     The active context.
      * @param array $inversectx    The inverse context.
-     * @param mixed $value         The value of the property to compact. If
-     *                             `null` is passed, no property generators
-     *                             will be returned.
+     * @param mixed $value         The value of the property to compact.
      * @param bool  $vocabRelative If `true` is passed, this method tries
      *                             to convert the IRI to an IRI relative to
      *                             `@vocab`; otherwise, that fall back
@@ -1220,35 +1114,31 @@ class Processor
             if (null !== $value) {
                 $valueProfile = $this->getValueProfile($value, $inversectx);
 
-                $path = array();
-
-                if ('@list' === $valueProfile['@container']) {
-                    $path[] = array('@list', '@null');
-                } else {
-                    $path[] = array($valueProfile['@container'], '@set', '@null');
-                }
+                $container = ('@list' === $valueProfile['@container'])
+                    ? array('@list', '@null')
+                    : array($valueProfile['@container'], '@set', '@null');
 
                 if (true === $reverse) {
-                    $path[] = array('@type', '@null');
-                    $path[] = array('@reverse', '@id', '@null');
+                    $typeOrLang = array('@type', '@null');
+                    $typeOrLangValue = array('@reverse', '@id', '@null');
                 } elseif (null === $valueProfile['typeLang']) {
-                    $path[] = array('@null');
-                    $path[] = array('@null');
+                    $typeOrLang = array('@null');
+                    $typeOrLangValue = array('@null');
                 } else {
-                    $path[] = array($valueProfile['typeLang'], '@null');
+                    $typeOrLang = array($valueProfile['typeLang'], '@null');
 
                     if (('@type' === $valueProfile['typeLang']) && ('@id' === $valueProfile['typeLangValue'])) {
-                        $path[] = array($valueProfile['typeLangValue'], '@vocab', '@null');
+                        $typeOrLangValue = array($valueProfile['typeLangValue'], '@vocab', '@null');
                     } elseif (('@type' === $valueProfile['typeLang']) && ('@vocab' === $valueProfile['typeLangValue'])) {
-                        $path[] = array($valueProfile['typeLangValue'], '@id', '@null');
+                        $typeOrLangValue = array($valueProfile['typeLangValue'], '@id', '@null');
                     } else {
-                        $path[] = array($valueProfile['typeLangValue'], '@null');
+                        $typeOrLangValue = array($valueProfile['typeLangValue'], '@null');
                     }
                 }
 
-                $result = $this->queryInverseContext($inversectx[$iri], $path);
+                $result = $this->queryInverseContext($inversectx[$iri], $container, $typeOrLang, $typeOrLangValue);
 
-                if (is_string($result) || isset($result['term'])) {
+                if (null !== $result) {
                     return $result;
                 }
             } elseif (isset($inversectx[$iri]['term'])) {
@@ -1266,13 +1156,7 @@ class Processor
                 $compactIri = $def['term'] . ':' . $compactIri;
                 if (false === isset($activectx[$compactIri]) ||
                     ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
-                    if (null === $result) {
-                        return $compactIri;
-                    }
-
-                    $result['term'] = $compactIri;
-
-                    return $result;
+                    return $compactIri;
                 }
             }
         }
@@ -1283,93 +1167,11 @@ class Processor
         } elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
             (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
             (false === isset($activectx[$vocabIri]))) {
-            if (null === $result) {
-                return $vocabIri;
-            }
-
-            $result['term'] = $vocabIri;
-
-            return $result;
+            return $vocabIri;
         }
 
         // IRI couldn't be compacted, return as is
-        if (null === $result) {
-            return $iri;
-        }
-
-        $result['term'] = $iri;
-
-        return $result;
-    }
-
-    /**
-     * Removes the duplicate values introduced by property generators
-     *
-     * @param array  $element    An associative array containing the
-     *                           property-value pairs of the object being
-     *                           currently processed.
-     * @param string $property   The IRI of the currently being processed
-     *                           property.
-     * @param mixed  $value      The currently being processed value for
-     *                           whose duplicates should be removed; if this
-     *                           is `null`, the existence of the property is
-     *                           enough for a match (used for empty arrays)-
-     * @param array  $activectx  The active context.
-     * @param array  $candidates The property generator candidates as
-     *                           returned by the {@link compactIri()} method.
-     *
-     * @return string Returns the name of the property under which the
-     *                currently being processed value should be stored.
-     */
-    private function removePropertyGeneratorDuplicates(&$element, $property, $value, $activectx, $candidates)
-    {
-        foreach ($candidates['propGens'] as $propGen) {
-            $def = $this->getPropertyDefinition($activectx, $propGen);
-
-            $valueMap = array();
-
-            foreach ($def['@id'] as $iri) {
-                if (($iri === $property) || (false === isset($element[$iri]))) {
-                    continue;
-                }
-
-                if (null === $value) {
-                    $valueMap[$iri] = null;
-                }
-
-                foreach ($element[$iri] as $key => &$val) {
-                    if (self::subtreeEquals($value, $val)) {
-                        $valueMap[$iri] = $key;
-                    }
-                }
-            }
-
-            if (count($valueMap) !== (count($def['@id']) - 1)) {
-                // value wasn't found for all of the property generator's IRIs,
-                // continue with next property generator
-                continue;
-            }
-
-            foreach ($valueMap as $iri => $key) {
-                if (null === $key) {
-                    if (0 === count($element[$iri])) {
-                        unset($element[$iri]);
-                    }
-                    continue;
-                }
-
-                if (1 === count($element[$iri])) {
-                    unset($element[$iri]);
-                } else {
-                    unset($element[$iri][$key]);
-                }
-            }
-
-            return $propGen;
-        }
-
-        // fall back to term or IRI if none of the property generators matches
-        return $candidates['term'];
+        return $iri;
     }
 
     /**
@@ -1530,73 +1332,28 @@ class Processor
     }
 
     /**
-     * Queries the inverse context to find the term or property generator(s)
-     * for a given query path (= value profile)
+     * Queries the inverse context to find the term for a given query
+     * path (= value profile)
      *
      * @param array   $inversectxFrag The inverse context (or a subtree thereof)
      * @param array   $path           The query corresponding to the value profile
      * @param integer $level          The recursion depth.
      *
-     * @return null|string|string[] If the IRI maps to one or more property generators
-     *                              their terms plus (if available) a term matching the
-     *                              IRI that isn't a property generator will be returned;
-     *                              if the IRI doesn't map to a property generator but just
-     *                              to terms, the best matching term will be returned;
-     *                              otherwise null will be returned.
+     * @return null|string The best matching term or null if none was found.
      */
-    private function queryInverseContext($inversectxFrag, $path, $level = 0)
+    private function queryInverseContext($inversectx, $containers, $typeOrLangs, $typeOrLangValues)
     {
-        $result = null;
-
-        if (3 === $level) {
-            if (isset($inversectxFrag['propGens'])) {
-                $result = array('propGens' => $inversectxFrag['propGens']);
-            }
-
-            if (isset($inversectxFrag['term'])) {
-                if (null === $result) {
-                    return $inversectxFrag['term'];
-                }
-
-                $result['term'] = $inversectxFrag['term'];
-            }
-
-            return $result;
-        }
-
-        foreach ($path[$level] as $entry) {
-            if (false === isset($inversectxFrag[$entry])) {
-                continue;
-            }
-
-            $tmpResult = $this->queryInverseContext($inversectxFrag[$entry], $path, $level + 1);
-
-            if (is_string($tmpResult)) {
-                if (null === $result) {
-                    return $tmpResult;
-                }
-
-                $tmpResult = array(
-                    'propGens' => array(),
-                    'term' => $tmpResult
-                );
-            }
-
-            if (null === $result) {
-                $result = $tmpResult;
-            } else {
-                foreach ($tmpResult['propGens'] as $propGen) {
-                    if (false === in_array($propGen, $result['propGens'])) {
-                        $result['propGens'][] = $propGen;
+        foreach ($containers as $container) {
+            foreach ($typeOrLangs as $typeOrLang) {
+                foreach ($typeOrLangValues as $typeOrLangValue) {
+                    if (isset($inversectx[$container][$typeOrLang][$typeOrLangValue])) {
+                        return $inversectx[$container][$typeOrLang][$typeOrLangValue];
                     }
                 }
-                if ((false === isset($result['term'])) && isset($tmpResult['term'])) {
-                    $result['term'] = $tmpResult['term'];
-                }
             }
         }
 
-        return $result;
+        return null;
     }
 
     /**
@@ -1644,13 +1401,7 @@ class Processor
             $result['isKeyword'] = true;
             $result['compactArrays'] = (bool) (('@list' !== $property) && ('@graph' !== $property));
         } else {
-            $def = null;
-
-            if (isset($activectx['@propertyGenerators'][$property])) {
-                $def = $activectx['@propertyGenerators'][$property];
-            } elseif (isset($activectx[$property])) {
-                $def = $activectx[$property];
-            }
+            $def = (isset($activectx[$property])) ? $activectx[$property] : null;
 
             if (null !== $def) {
                 $result['@id'] = $def['@id'];
@@ -1798,58 +1549,33 @@ class Processor
                         }
 
                         if (property_exists($value, '@id')) {
-                            if (is_array($value->{'@id'})) {
-                                // it's a property generator
-                                $expanded = array();
+if (is_array($value->{'@id'})) {
+    continue;
+}
 
-                                foreach ($value->{'@id'} as $item) {
-                                    $result = $this->doExpandIri($item, $activectx, false, true, $context);
+                            $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
 
-                                    if (false === strpos($result, ':')) {
-                                        throw new SyntaxException(
-                                            "\"$item\" in \"$key\" couldn't be expanded to an absolute IRI.",
-                                            $loclctx
-                                        );
-                                    }
-
-                                    $expanded[] =  $result;
-                                }
-
-                                sort($expanded);
-                            } else {
-                                $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
-
-                                if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
-                                    throw new SyntaxException(
-                                        "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
-                                    );
-                                }
+                            if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
+                                throw new SyntaxException(
+                                    "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
+                                );
                             }
                         } else {
                             $expanded = $this->doExpandIri($key, $activectx, false, true, $context);
                         }
 
-                        // Keep a reference to the place were we store the information. Property
-                        // generators are stored in a separate subtree in the active context
-                        if (is_array($expanded)) {
-                            // and are removed from the local context as they can't be used
-                            // in other term definitions
-                            $activectxKey = &$activectx['@propertyGenerators'][$key];
-                        } else {
-                            $activectxKey = &$activectx[$key];
 
-                            if ((null === $expanded) || in_array($expanded, self::$keywords)) {
-                                // if it's an aliased keyword or the IRI is null, we ignore all other properties
-                                // TODO Should we throw an exception if there are other properties?
-                                $activectxKey = array('@id' => $expanded, '@reverse' => false);
+                        if ((null === $expanded) || in_array($expanded, self::$keywords)) {
+                            // if it's an aliased keyword or the IRI is null, we ignore all other properties
+                            // TODO Should we throw an exception if there are other properties?
+                            $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
 
-                                continue;
-                            } elseif (false === strpos($expanded, ':')) {
-                                throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
-                            }
+                            continue;
+                        } elseif (false === strpos($expanded, ':')) {
+                            throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
                         }
 
-                        $activectxKey = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
+                        $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
 
                         if (isset($value->{'@type'})) {
                             $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
@@ -1858,19 +1584,19 @@ class Processor
                                 throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                             }
 
-                            $activectxKey['@type'] = $expanded;
+                            $activectx[$key]['@type'] = $expanded;
                         } elseif (property_exists($value, '@language')) {
                             if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
                                 throw new SyntaxException('The value of @language must be a string.', $context);
                             }
 
                             // Note the else. Language tagging applies just to term without type coercion
-                            $activectxKey['@language'] = $value->{'@language'};
+                            $activectx[$key]['@language'] = $value->{'@language'};
                         }
 
                         if (isset($value->{'@container'})) {
                             if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
-                                $activectxKey['@container'] = $value->{'@container'};
+                                $activectx[$key]['@container'] = $value->{'@container'};
                             }
                         }
                     }
@@ -1940,68 +1666,33 @@ class Processor
             }
 
             $container = (isset($def['@container'])) ? $def['@container'] : '@null';
-            $termOrPropertyGen = 'propGens';  // yes
+            $iri = $def['@id'];
 
-            if (false === is_array($def['@id'])) {
-                $termOrPropertyGen = 'term';  // no
-                if (false === isset($inverseContext[$def['@id']]['term']) && (false === $def['@reverse'])) {
-                    $inverseContext[$def['@id']]['term'] = $term;
-                }
-
-                $def['@id'] = array($def['@id']);
+            if (false === isset($inverseContext[$iri]['term']) && (false === $def['@reverse'])) {
+                $inverseContext[$iri]['term'] = $term;
             }
 
-            foreach ($def['@id'] as $iri) {
-                $typeOrLang = '@null';
-                $typeLangValue = '@null';
+            $typeOrLang = '@null';
+            $typeLangValue = '@null';
 
-                if (true === $def['@reverse']) {
-                    $typeOrLang = '@type';
-                    $typeLangValue = '@reverse';
-                } elseif (isset($def['@type'])) {
-                    $typeOrLang = '@type';
-                    $typeLangValue = $def['@type'];
-                } elseif (array_key_exists('@language', $def)) {  // can be null
-                    $typeOrLang = '@language';
-                    $typeLangValue = (null === $def['@language']) ? '@null' : $def['@language'];
-                } else {
-                    // Every untyped term is implicitly set to the default language
-                    if ('propGens' === $termOrPropertyGen) {
-                        // Only add property generator if no other generator expands to the same IRIs
-                        // (it's easier to add it and remove it again then to not add it at all)
-                        $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen][] = $term;
-
-                        $last = count($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen]) - 1;
-                        $propGens = $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen];
-
-                        for ($i = $last - 1; $i >= 0; $i--) {
-                            if ($activectx[$propGens[$i]] === $activectx[$propGens[$last]]) {
-                                array_pop($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen]);
-                                break;
-                            }
-                        }
-                    } elseif (false === isset($inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen])) {
-                        $inverseContext[$iri][$container]['@language'][$defaultLanguage][$termOrPropertyGen] = $term;
-                    }
+            if (true === $def['@reverse']) {
+                $typeOrLang = '@type';
+                $typeLangValue = '@reverse';
+            } elseif (isset($def['@type'])) {
+                $typeOrLang = '@type';
+                $typeLangValue = $def['@type'];
+            } elseif (array_key_exists('@language', $def)) {  // can be null
+                $typeOrLang = '@language';
+                $typeLangValue = (null === $def['@language']) ? '@null' : $def['@language'];
+            } else {
+                // Every untyped term is implicitly set to the default language
+                if (false === isset($inverseContext[$iri][$container]['@language'][$defaultLanguage])) {
+                    $inverseContext[$iri][$container]['@language'][$defaultLanguage] = $term;
                 }
+            }
 
-                if ('propGens' === $termOrPropertyGen) {
-                    // Only add property generator if no other generator expands to the same IRIs
-                    // (it's easier to add it and remove it again then to not add it at all)
-                    $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen][] = $term;
-
-                    $last = count($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen]) - 1;
-                    $propGens = $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen];
-
-                    for ($i = $last - 1; $i >= 0; $i--) {
-                        if ($activectx[$propGens[$i]] === $activectx[$propGens[$last]]) {
-                            array_pop($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen]);
-                            break;
-                        }
-                    }
-                } elseif (false === isset($inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen])) {
-                    $inverseContext[$iri][$container][$typeOrLang][$typeLangValue][$termOrPropertyGen] = $term;
-                }
+            if (false === isset($inverseContext[$iri][$container][$typeOrLang][$typeLangValue])) {
+                $inverseContext[$iri][$container][$typeOrLang][$typeLangValue] = $term;
             }
         }
 
