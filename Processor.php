@@ -898,6 +898,7 @@ class Processor
         // Otherwise, compact all properties
         $properties = get_object_vars($element);
         ksort($properties);
+
         $inReverse = ('@reverse' === $activeprty);
         $element = new Object();
 
@@ -991,7 +992,7 @@ class Processor
                         if ('@list' === $def['@container']) {
                             // a term can just hold one list if it has a @list container
                             // (we don't support lists of lists)
-                            self::setProperty($element, $activeprty,  $item->{'@list'});
+                            self::setProperty($element, $activeprty, $item->{'@list'});
 
                             continue;  // ... continue with next value
                         } else {
@@ -1549,10 +1550,6 @@ class Processor
                         }
 
                         if (property_exists($value, '@id')) {
-if (is_array($value->{'@id'})) {
-    continue;
-}
-
                             $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
 
                             if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
