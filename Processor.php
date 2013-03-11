@@ -341,26 +341,24 @@ class Processor
         foreach ($properties as $property => $value) {
             $expProperty = $this->expandIri($property, $activectx, false, true);
 
-            if (false === is_array($expProperty)) {
-                // Make sure to keep framing keywords if a frame is being expanded
-                if ($frame && in_array($expProperty, self::$framingKeywords)) {
-                    self::setProperty($element, $expProperty, $value);
-                    continue;
-                }
+            // Make sure to keep framing keywords if a frame is being expanded
+            if ($frame && in_array($expProperty, self::$framingKeywords)) {
+                self::setProperty($element, $expProperty, $value);
+                continue;
+            }
 
-                if (in_array($expProperty, self::$keywords)) {
-                    if ('@reverse' === $activeprty) {
-                        throw new SyntaxException(
-                            'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
-                        );
-                    }
-                    $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
-
-                    continue;
-                } elseif (false === strpos($expProperty, ':')) {
-                    // the expanded property is neither a keyword nor an IRI
-                    continue;
+            if (in_array($expProperty, self::$keywords)) {
+                if ('@reverse' === $activeprty) {
+                    throw new SyntaxException(
+                        'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
+                    );
                 }
+                $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
+
+                continue;
+            } elseif (false === strpos($expProperty, ':')) {
+                // the expanded property is neither a keyword nor an IRI
+                continue;
             }
 
             $propertyContainer = $this->getPropertyDefinition($activectx, $property, '@container');
@@ -930,6 +928,7 @@ class Processor
                     // Move reverse properties out of the map into element
                     foreach (get_object_vars($value) as $prop => $val) {
                         if ($this->getPropertyDefinition($activectx, $prop, '@reverse')) {
+                            // TODO Compact arrays!?
                             self::mergeIntoProperty($element, $prop, $val);
                             unset($value->{$prop});
                         }
