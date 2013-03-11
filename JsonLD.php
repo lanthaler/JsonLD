@@ -408,7 +408,7 @@ class JsonLD
     {
         $options = self::mergeOptions($options);
 
-        $input = self::expand($input, $options);
+        $input = self::flatten($input, null, $options);
 
         $processor = new Processor($options);
 
