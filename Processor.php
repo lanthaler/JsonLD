@@ -952,7 +952,7 @@ class Processor
 
             // Make sure that empty arrays are preserved
             if (0 === count($value)) {
-                $activeprty = $this->compactIri($property, $activectx, $inversectx, $value, true, $inReverse);
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, null, true, $inReverse);
 
                 self::mergeIntoProperty($element, $activeprty, $value);
 
@@ -1253,30 +1253,24 @@ class Processor
      *     of a language-tagged string (`@null` for all other strings); for
      *     all other values it is set to `null`
      *
-     * @param mixed $value      The value.
-     * @param array $inversectx The inverse context.
+     * @param Object $value      The value.
+     * @param array  $inversectx The inverse context.
      *
      * @return array The value profile.
      */
-    private function getValueProfile($value, $inversectx)
+    private function getValueProfile(Object $value, $inversectx)
     {
         $valueProfile = array(
             '@container' => '@set',
-            'typeLang' => null,
-            'typeLangValue' => null
+            'typeLang' => '@type',
+            'typeLangValue' => '@id'
         );
-
-        if (false === is_object($value)) {
-            return $valueProfile;
-        }
 
         if (property_exists($value, '@index')) {
             $valueProfile['@container'] = '@index';
         }
 
         if (property_exists($value, '@id')) {
-            $valueProfile['typeLang'] = '@type';
-
             if (isset($inversectx[$value->{'@id'}]['term'])) {
                 $valueProfile['typeLangValue'] = '@vocab';
             } else {
