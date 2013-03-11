@@ -1118,19 +1118,21 @@ class Processor
                     ? array('@list', '@null')
                     : array($valueProfile['@container'], '@set', '@null');
 
-                if (true === $reverse) {
-                    $typeOrLang = array('@type', '@null');
-                    $typeOrLangValue = array('@reverse', '@id', '@null');
-                } elseif (null === $valueProfile['typeLang']) {
+                if (null === $valueProfile['typeLang']) {
                     $typeOrLang = array('@null');
                     $typeOrLangValue = array('@null');
                 } else {
                     $typeOrLang = array($valueProfile['typeLang'], '@null');
+                    $typeOrLangValue = array();
+
+                    if (true === $reverse) {
+                        $typeOrLangValue[] = '@reverse';
+                    }
 
                     if (('@type' === $valueProfile['typeLang']) && ('@id' === $valueProfile['typeLangValue'])) {
-                        $typeOrLangValue = array($valueProfile['typeLangValue'], '@vocab', '@null');
+                        array_push($typeOrLangValue, '@id', '@vocab', '@null');
                     } elseif (('@type' === $valueProfile['typeLang']) && ('@vocab' === $valueProfile['typeLangValue'])) {
-                        $typeOrLangValue = array($valueProfile['typeLangValue'], '@id', '@null');
+                        array_push($typeOrLangValue, '@vocab', '@id', '@null');
                     } else {
                         $typeOrLangValue = array($valueProfile['typeLangValue'], '@null');
                     }
