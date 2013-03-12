@@ -408,14 +408,11 @@ class JsonLD
     {
         $options = self::mergeOptions($options);
 
-        $input = self::flatten($input, null, $options);
+        $expanded = self::expand($input, $options);
 
         $processor = new Processor($options);
 
-        $quads = array();
-        $processor->toRdf($input, $quads);
-
-        return $quads;
+        return $processor->toRdf($expanded);
     }
 
     /**

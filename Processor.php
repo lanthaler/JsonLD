@@ -1920,104 +1920,110 @@ class Processor
     }
 
     /**
-     * Converts a JSON-LD document to RDF quads
+     * Converts an expanded JSON-LD document to RDF quads
      *
-     * The result is an array of arrays each containing a quad:
+     * The result is an array of Quads.
      *
-     * <code>
-     * array(
-     *   array(id, property, value, graph)
-     * )
-     * </code>
+     * @param array $document The expanded JSON-LD document to be transformed into quads.
      *
-     * @param mixed  $element    A JSON-LD element to be transformed into quads.
-     * @param array  $result     The resulting quads.
-     * @param array  $activesubj The active subject.
-     * @param string $activeprty The active property.
-     * @param string $graph      The graph currently being processed.
-     *
-     * @return array The extracted quads.
+     * @return Quad[] The extracted quads.
      */
-    public function toRdf(&$element, &$result, $activesubj = null, $activeprty = null, $graph = null)
+    public function toRdf(array $document)
     {
-        if (is_array($element)) {
-            foreach ($element as &$item) {
-                $this->toRdf($item, $result, $activesubj, $activeprty, $graph);
-            }
+        $nodeMap = new Object();
+        $nodeMap->{Processor::DEFAULT_GRAPH} = new Object();
 
-            return;
-        }
+        $this->generateNodeMap($nodeMap, $document);
 
-        if (property_exists($element, '@value')) {
-            $value = Value::fromJsonLd($element);
-            $result[] = new Quad($activesubj, $activeprty, $value, $graph);
+        $result = array();
 
-            return;
-        } elseif (property_exists($element, '@list')) {
-            if (0 === ($len = count($element->{'@list'}))) {
-                $result[] = new Quad($activesubj, $activeprty, new IRI(RdfConstants::RDF_NIL), $graph);
+        foreach ($nodeMap as $graphName => $graph) {
+            $activegraph = (self::DEFAULT_GRAPH === $graphName)
+                ? null
+                : new IRI($graphName);
 
-                return;
-            }
+            foreach ($graph as $subject => $node) {
+                $activesubj = new IRI($subject);
 
-            $first_bn = new IRI($this->getBlankNodeId());
-            $result[] = new Quad($activesubj, $activeprty, $first_bn, $graph);
+                foreach ($node as $property => $values) {
+                    if ('@id' === $property) {
+                        continue;
+                    } elseif ('@type' === $property) {
+                        $activeprty = new IRI(RdfConstants::RDF_TYPE);
+                        foreach ($values as $value) {
+                            $result[] = new Quad($activesubj, $activeprty, new IRI($value), $activegraph);
+                        }
 
-            $i = 0;
-            while ($i < $len) {
-                $this->toRdf($element->{'@list'}[$i], $result, $first_bn, new IRI(RdfConstants::RDF_FIRST), $graph);
+                        continue;
+                    }
 
-                $i++;
-                $rest_bn = ($i < $len)
-                    ? new IRI($this->getBlankNodeId())
-                    : new IRI(RdfConstants::RDF_NIL);
+                    $activeprty = new IRI($property);
 
-                $result[] = new Quad($first_bn, new IRI(RdfConstants::RDF_REST), $rest_bn, $graph);
-                $first_bn = $rest_bn;
-            }
+                    foreach ($values as $value) {
+                        if (property_exists($value, '@list')) {
+                            $quads = array();
+                            $head = $this->listToRdf($value->{'@list'}, $quads, $activegraph);
 
-            return;
-        }
-
-        $prevsubj = $activesubj;
-        if (property_exists($element, '@id')) {
-            $activesubj = $element->{'@id'};
-
-            if (0 === strncmp($activesubj, '_:', 2)) {
-                $activesubj = $this->getBlankNodeId($activesubj);
-            }
-
-            unset($element->{'@id'});
-        } else {
-            $activesubj = $this->getBlankNodeId();
-        }
-
-        $activesubj = new IRI($activesubj);
-
-        if ($prevsubj) {
-            $result[] = new Quad($prevsubj, $activeprty, $activesubj, $graph);
-        }
-
-        $properties = get_object_vars($element);
-        ksort($properties);
-
-        foreach ($properties as $property => $value) {
-            if ('@type' === $property) {
-                foreach ($value as $val) {
-                    $result[] = new Quad($activesubj, new IRI(RdfConstants::RDF_TYPE), new IRI($val), $graph);
+                            $result[] = new Quad($activesubj, $activeprty, $head, $activegraph);
+                            foreach ($quads as $quad) {
+                                $result[] = $quad;
+                            }
+                        } else {
+                            $result[] = new Quad($activesubj, $activeprty, $this->elementToRdf($value), $activegraph);
+                        }
+                    }
                 }
-                continue;
-            } elseif ('@graph' === $property) {
-                $this->toRdf($value, $result, null, null, $activesubj);
-                continue;
-            } elseif (in_array($property, self::$keywords)) {
-                continue;
             }
-
-            $activeprty = new IRI($property);
-
-            $this->toRdf($value, $result, $activesubj, $activeprty, $graph);
         }
+
+        return $result;
+    }
+
+    /**
+     * Converts a JSON-LD element to a RDF Quad object
+     *
+     * @param Object $element The element to be converted.
+     *
+     * @return IRI|TypedValue|LanguageTagged The converted element to be used as Quad object.
+     */
+    private function elementToRdf(Object $element) {
+        if (property_exists($element, '@value')) {
+            return Value::fromJsonLd($element);
+        }
+
+        return new IRI($element->{'@id'});
+    }
+
+    /**
+     * Converts a JSON-LD list to a linked RDF list (quads)
+     *
+     * @param array    $entries The list entries
+     * @param array    $quads   The array to be used to hold the linked list
+     * @param null|IRI $graph   The graph to be used in the constructed Quads
+     *
+     * @return IRI Returns the IRI of the head of the list
+     */
+    private function listToRdf(array $entries, array &$quads, IRI $graph = null) {
+        if (0 === count($entries)) {
+            return new IRI(RdfConstants::RDF_NIL);
+        }
+
+        $head = new IRI($this->getBlankNodeId());
+        $quads[] = new Quad($head, new IRI(RdfConstants::RDF_FIRST), $this->elementToRdf($entries[0]), $graph);
+
+        $bnode = $head;
+        for ($i = 1, $len = count($entries); $i < $len; $i++) {
+            $next = new IRI($this->getBlankNodeId());
+
+            $quads[] = new Quad($bnode, new IRI(RdfConstants::RDF_REST), $next, $graph);
+            $quads[] = new Quad($next, new IRI(RdfConstants::RDF_FIRST), $this->elementToRdf($entries[$i]), $graph);
+
+            $bnode = $next;
+        }
+
+        $quads[] = new Quad($bnode, new IRI(RdfConstants::RDF_REST), new IRI(RdfConstants::RDF_NIL), $graph);
+
+        return $head;
     }
 
     /**
