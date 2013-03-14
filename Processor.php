@@ -1763,15 +1763,7 @@ class Processor
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
-
-            if (null === $activeprty) {
-                // This is a free-floating list, we can't store it anywhere, store it
-                // under a new blank node identifier in the node map
-                $storeAs = $this->getBlankNodeId();
-                $nodeMap->{$activegraph}->{$storeAs} = $result;
-            } else {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
-            }
+            $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
         } else {
             // and node objects
             $id = null;
