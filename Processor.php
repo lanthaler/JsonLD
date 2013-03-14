@@ -1460,8 +1460,8 @@ class Processor
                 if (property_exists($context, '@base')) {
                     if (null === $context->{'@base'}) {
                         $activectx['@base'] = $this->baseIri;
-                    } elseif (false === is_string($context->{'@base'})) {
-                        throw new SyntaxException("The value of @base must be an IRI or null.", $context);
+                    } elseif (false === is_string($context->{'@base'}) || (false === strpos($context->{'@base'}, ':'))) {
+                        throw new SyntaxException("The value of @base must be an absolute IRI or null.", $context);
                     } else {
                         $activectx['@base'] = new IRI($context->{'@base'});
                     }
