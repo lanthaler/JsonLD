@@ -623,6 +623,11 @@ class Processor
             }
 
             $this->expand($value, $activectx, $activeprty, $frame);
+
+            if (is_object($value) && property_exists($value, '@list')) {
+                throw new SyntaxException("List of lists detected.", $element);
+            }
+
             self::mergeIntoProperty($element, $keyword, $value, true);
 
             return;
