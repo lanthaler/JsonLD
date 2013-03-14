@@ -619,7 +619,7 @@ class Processor
         // TODO Optimize the following code, there's a lot of repetition, only the $activeprty param is changing
         if ('@list' === $keyword) {
             if ((null === $activeprty) || ('@graph' === $activeprty)) {
-                $activeprty = '@list';
+                return;
             }
 
             $this->expand($value, $activectx, $activeprty, $frame);
