@@ -2134,10 +2134,9 @@ class Processor
 
         // Reconstruct @list arrays from linked list structures for each graph
         foreach ($graphs as $graphName => $graph) {
-            foreach ($graph->listMap as $subject => $entry) {
+            foreach ($graph->listMap as $id => $entry) {
                 // If this node is a valid list head...
                 if (property_exists($entry, 'head') && property_exists($entry, 'first')) {
-                    $id = $subject;
                     $value = $entry->head;
 
                     // ... reconstruct the list
