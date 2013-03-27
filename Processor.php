@@ -705,11 +705,7 @@ class Processor
             $result->{'@value'} = $value;
 
             if (isset($def['@type'])) {
-                if ('_:' === substr($def['@type'], 0, 2)) {
-                    $result->{'@type'} = $this->getBlankNodeId($def['@type']);
-                } else {
-                    $result->{'@type'} = $def['@type'];
-                }
+                $result->{'@type'} = $def['@type'];
             } elseif (isset($def['@language']) && is_string($result->{'@value'})) {
                 $result->{'@language'} = $def['@language'];
             }
@@ -722,46 +718,21 @@ class Processor
      * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute
      * IRI and relabels blank nodes
      *
-     * This method is nothing else than a wrapper around {@link doExpandIri}
-     * ensuring that all blank nodes are relabeled.
-     *
      * @param mixed $value         The value to be expanded to an absolute IRI.
      * @param array $activectx     The active context.
      * @param bool  $relativeIri   Specifies whether $value should be treated as
      *                             relative IRI against the base IRI or not.
      * @param bool  $vocabRelative Specifies whether $value is relative to @vocab
      *                             if set or not.
+     * @param object $localctx     If the IRI is being expanded as part of context
+     *                             processing, the current local context has to be
+     *                             passed as well.
+     * @param array  $path         A path of already processed terms to detect
+     *                             circular dependencies
      *
      * @return string The expanded IRI.
      */
-    private function expandIri($value, $activectx, $relativeIri = false, $vocabRelative = false)
-    {
-        $result = $this->doExpandIri($value, $activectx, $relativeIri, $vocabRelative);
-
-        if ('_:' === substr($result, 0, 2)) {
-            return $this->getBlankNodeId($result);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute IRI
-     *
-     * @param mixed  $value         The value to be expanded to an absolute IRI.
-     * @param array  $activectx     The active context.
-     * @param bool   $relativeIri   Specifies whether $value should be treated as
-     *                              relative IRI against the base IRI or not.
-     * @param bool   $vocabRelative Specifies whether $value is relative to @vocab
-     *                              if set or not.
-     * @param object $localctx      If the IRI is being expanded as part of context
-     *                              processing, the current local context has to be
-     *                              passed as well.
-     * @param array  $path          A path of already processed terms.
-     *
-     * @return string The expanded IRI.
-     */
-    private function doExpandIri(
+    private function expandIri(
         $value,
         $activectx,
         $relativeIri = false,
@@ -792,7 +763,7 @@ class Processor
 
             if (isset($localctx->{$value})) {
                 if (is_string($localctx->{$value})) {
-                    return $this->doExpandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
+                    return $this->expandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
                 } elseif (isset($localctx->{$value}->{'@id'})) {
                     if (false === is_string($localctx->{$value}->{'@id'})) {
                         throw new SyntaxException(
@@ -801,7 +772,7 @@ class Processor
                         );
                     }
 
-                    return $this->doExpandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
+                    return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
                 }
             }
         }
@@ -821,7 +792,7 @@ class Processor
             }
 
             if ($localctx) {
-                $prefix = $this->doExpandIri($prefix, $activectx, false, true, $localctx, $path);
+                $prefix = $this->expandIri($prefix, $activectx, false, true, $localctx, $path);
 
                 // If prefix contains a colon, we have successfully expanded it
                 if (false !== strpos($prefix, ':')) {
@@ -1511,7 +1482,7 @@ class Processor
                     }
 
                     if (is_string($value)) {
-                        $expanded = $this->doExpandIri($value, $activectx, false, true, $context);
+                        $expanded = $this->expandIri($value, $activectx, false, true, $context);
 
                         if ((false === in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':'))) {
                             throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
@@ -1550,7 +1521,7 @@ class Processor
                         }
 
                         if (property_exists($value, '@id')) {
-                            $expanded = $this->doExpandIri($value->{'@id'}, $activectx, false, true, $context);
+                            $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
 
                             if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
                                 throw new SyntaxException(
@@ -1558,7 +1529,7 @@ class Processor
                                 );
                             }
                         } else {
-                            $expanded = $this->doExpandIri($key, $activectx, false, true, $context);
+                            $expanded = $this->expandIri($key, $activectx, false, true, $context);
                         }
 
 
@@ -1575,7 +1546,7 @@ class Processor
                         $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
 
                         if (isset($value->{'@type'})) {
-                            $expanded = $this->doExpandIri($value->{'@type'}, $activectx, false, true, $context);
+                            $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
 
                             if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
                                 throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
@@ -1846,6 +1817,10 @@ class Processor
             ksort($properties);
 
             foreach ($properties as $property => $value) {
+                if (0 === substr_compare($property, '_:', 0, 2)) {
+                    $property = $this->getBlankNodeId($property);
+                }
+
                 if (false === property_exists($nodeMap->{$activegraph}->{$id}, $property)) {
                     $nodeMap->{$activegraph}->{$id}->{$property} = array();
                 }
