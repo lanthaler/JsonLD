@@ -1124,6 +1124,13 @@ class Processor
             }
         }
 
+        // Compact using @vocab
+        if ($vocabRelative && isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
+            (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
+            (false === isset($activectx[$vocabIri]))) {
+            return $vocabIri;
+        }
+
         // Try to compact to a compact IRI
         $iriLen = strlen($iri);
 
@@ -1139,13 +1146,9 @@ class Processor
             }
         }
 
-        // Last resort, convert to a relative IRI or use @vocab if set
+        // Last resort, convert to a relative IRI
         if (false === $vocabRelative) {
             return (string) $activectx['@base']->baseFor($iri);
-        } elseif (isset($activectx['@vocab']) && (0 === strpos($iri, $activectx['@vocab'])) &&
-            (false !== ($vocabIri = substr($iri, strlen($activectx['@vocab'])))) &&
-            (false === isset($activectx[$vocabIri]))) {
-            return $vocabIri;
         }
 
         // IRI couldn't be compacted, return as is
