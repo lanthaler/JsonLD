@@ -1494,8 +1494,6 @@ class Processor
                         $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
                     } elseif (is_object($value)) {
                         $value = clone $value;    // make sure we don't modify context entries
-                        unset($activectx[$key]);  // delete previous definition
-
                         $expanded = null;
 
                         if (property_exists($value, '@reverse')) {
