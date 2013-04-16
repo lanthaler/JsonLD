@@ -27,6 +27,11 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     private $basedir;
 
     /**
+     * @var string The test's ID.
+     */
+    private $id;
+
+    /**
      * Constructs a test case with the given name.
      *
      * @param  string $name
@@ -35,8 +40,20 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function __construct($name = null, array $data = array(), $dataName = '')
     {
+        $this->id = $dataName;
+
         parent::__construct($name, $data, $dataName);
         $this->basedir = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR;
+    }
+
+    /**
+     * Returns the test identifier.
+     *
+     * @return string The test identifier
+     */
+    public function getTestId()
+    {
+        return $this->id;
     }
 
     /**

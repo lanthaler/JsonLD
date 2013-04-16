@@ -67,7 +67,7 @@ class TestManifestIterator implements \Iterator
      */
     public function key()
     {
-        return $this->key;
+        return $this->manifest->{'sequence'}[$this->key]->{'@id'};
     }
 
     /**
@@ -88,7 +88,8 @@ class TestManifestIterator implements \Iterator
         $test = array(
             'name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
             'test'    => $this->manifest->{'sequence'}[$this->key],
-            'options' => $options
+            'options' => $options,
+            'id'      => $this->manifest->{'sequence'}[$this->key]->{'@id'}
         );
 
         return $test;
