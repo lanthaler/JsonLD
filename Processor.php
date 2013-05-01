@@ -1471,13 +1471,13 @@ class Processor
 
                 foreach ($context as $key => $value) {
                     unset($context->{$key});
+                    unset($activectx[$key]);
 
                     if (in_array($key, self::$keywords)) {
                         throw new SyntaxException('Keywords cannot be redefined.', $key);
                     }
 
                     if (null === $value) {
-                        unset($activectx[$key]);
                         $activectx[$key]['@id'] = null;
                         $activectx[$key]['@reverse'] = false;
 
