@@ -187,7 +187,7 @@ class EarlReportGenerator extends \PHPUnit_Util_Printer implements \PHPUnit_Fram
             'dc:creator'                => $this->options['developer-url'],
             'doap:developer' => array(
                 '@id'           => $this->options['developer-url'],
-                '@type'         => [ 'foaf:Person', 'earl:Assertor' ],
+                '@type'         => array('foaf:Person', 'earl:Assertor'),
                 'foaf:name'     => $this->options['developer-name'],
                 'foaf:homepage' => $this->options['developer-homepage']
             ),
