@@ -1136,7 +1136,7 @@ class Processor
 
         foreach ($inversectx as $termIri => $def) {
             $termIriLen = strlen($termIri);
-            if (isset($def['term']) && (0 === substr_compare($iri, $termIri, 0, $termIriLen)) &&
+            if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen)) &&
                 (false !== ($compactIri = substr($iri, $termIriLen)))) {
                 $compactIri = $def['term'] . ':' . $compactIri;
                 if (false === isset($activectx[$compactIri]) ||
@@ -1711,7 +1711,7 @@ class Processor
             }
 
             foreach ($types as &$type) {
-                if (0 === substr_compare($type, '_:', 0, 2)) {
+                if (0 === strncmp($type, '_:', 2)) {
                     $type = $this->getBlankNodeId($type);
                 }
 
@@ -1742,7 +1742,7 @@ class Processor
 
             if (false === property_exists($element, '@id')) {
                 $id = $this->getBlankNodeId();
-            } elseif (0 === substr_compare($element->{'@id'}, '_:', 0, 2)) {
+            } elseif (0 === strncmp($element->{'@id'}, '_:', 2)) {
                 $id = $this->getBlankNodeId($element->{'@id'});
             } else {
                 $id = $element->{'@id'};
@@ -1818,7 +1818,7 @@ class Processor
             ksort($properties);
 
             foreach ($properties as $property => $value) {
-                if (0 === substr_compare($property, '_:', 0, 2)) {
+                if (0 === strncmp($property, '_:', 2)) {
                     $property = $this->getBlankNodeId($property);
                 }
 
