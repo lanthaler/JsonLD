@@ -177,7 +177,7 @@ class EarlReportGenerator extends \PHPUnit_Util_Printer implements \PHPUnit_Fram
                 'dc:date'         => array('@type' => 'xsd:date')
             ),
             '@id'                       => $this->options['project-url'],
-            '@type'                     => [ 'doap:Project', 'earl:TestSubject', 'earl:Software'],
+            '@type'                     => array('doap:Project', 'earl:TestSubject', 'earl:Software'),
             'doap:name'                 => $this->options['project-name'],
             'dc:title'                  => $this->options['project-name'],
             'doap:homepage'             => $this->options['project-homepage'],
