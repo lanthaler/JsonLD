@@ -2012,10 +2012,8 @@ class Processor
      */
     public function fromRdf(array $quads)
     {
-        $graphs = array();
-        $graphs[self::DEFAULT_GRAPH] = new Object();
-        $graphs[self::DEFAULT_GRAPH]->nodeMap = array();
-        $graphs[self::DEFAULT_GRAPH]->listMap = array();
+        $graphs = new Object();
+        $graphs->{self::DEFAULT_GRAPH} = new Object();
 
         foreach ($quads as $quad) {
             $graphName = self::DEFAULT_GRAPH;
@@ -2025,18 +2023,16 @@ class Processor
 
                 // Add a reference to this graph to the default graph if it
                 // doesn't exist yet
-                if (false === isset($graphs[self::DEFAULT_GRAPH]->nodeMap[$graphName])) {
-                    $graphs[self::DEFAULT_GRAPH]->nodeMap[$graphName] =
+                if (false === isset($graphs->{self::DEFAULT_GRAPH}->{$graphName})) {
+                    $graphs->{self::DEFAULT_GRAPH}->{$graphName} =
                         self::objectToJsonLd($quad->getGraph());
                 }
             }
 
-            if (false === isset($graphs[$graphName])) {
-                $graphs[$graphName] = new Object();
-                $graphs[$graphName]->nodeMap = array();
-                $graphs[$graphName]->listMap = array();
+            if (false === isset($graphs->{$graphName})) {
+                $graphs->{$graphName} = new Object();
             }
-            $graph = $graphs[$graphName];
+            $graph = $graphs->{$graphName};
 
             // Subjects and properties are always IRIs (blank nodes are IRIs
             // as well): convert them to a string representation
@@ -2044,52 +2040,25 @@ class Processor
             $property = (string) $quad->getProperty();
             $object = $quad->getObject();
 
-            // All list nodes are stored in listMap
-            if ($property === RdfConstants::RDF_FIRST) {
-                if (false === isset($graph->listMap[$subject])) {
-                    $graph->listMap[$subject] = new Object();
-                }
-
-                $graph->listMap[$subject]->first =
-                    self::objectToJsonLd($object, $this->useNativeTypes);
-
-                continue;
+            // All nodes are stored in nodeMap
+            if (false === isset($graph->{$subject})) {
+                $graph->{$subject} = self::objectToJsonLd($quad->getSubject());
             }
-
-            if ($property === RdfConstants::RDF_REST) {
-                if (false === ($object instanceof IRI)) {
-                    throw new InvalidQuadException(
-                        'The value of rdf:rest must be an IRI or blank node.',
-                        $quad
-                    );
-                }
-
-                if (false === isset($graph->listMap[$subject])) {
-                    $graph->listMap[$subject] = new Object();
-                }
-
-                $graph->listMap[$subject]->rest = (string) $object;
-
-                continue;
-            }
+            $node = $graph->{$subject};
 
 
-            // All other nodes (not list nodes) are stored in nodeMap
-            if (false === isset($graph->nodeMap[$subject])) {
-                $graph->nodeMap[$subject] =
-                    self::objectToJsonLd($quad->getSubject());
-            }
-            $node = $graph->nodeMap[$subject];
-
-
-            if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType)) {
-                if (false === ($object instanceof IRI)) {
-                    throw new InvalidQuadException('The value of rdf:type must be an IRI.', $quad);
-                }
-
+            if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
+                ($object instanceof IRI)) {
                 self::mergeIntoProperty($node, '@type', (string) $object, true);
             } else {
-                $value = self::objectToJsonLd($object, $this->useNativeTypes);
+                if ((RdfConstants::RDF_REST !== $property) &&
+                    ($object instanceof IRI) && (RdfConstants::RDF_NIL === (string)$object)) {
+                    // rdf:nil represents an empty list if it is not the value of rdf:rest
+                    $value = new Object();
+                    $value->{'@list'} = array();
+                } else {
+                    $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
+                }
                 self::mergeIntoProperty($node, $property, $value, true);
 
                 // If the object is an IRI or blank node it might be the
@@ -2097,82 +2066,108 @@ class Processor
                 // reference to the value in the nodeMap in the entry's
                 // "head" property so that we can easily replace it with an
                 //  @list object if it turns out to be really a list
-                if (property_exists($value, '@id')) {
-                    $id = $value->{'@id'};
-                    if (false === isset($graph->listMap[$id])) {
-                        $graph->listMap[$id] = new Object();
+                if (($object instanceof IRI) && ($object->getScheme() === '_') &&
+                    ($property != RdfConstants::RDF_FIRST) &&
+                    ($property != RdfConstants::RDF_REST)) {
+                    $iri = (string) $object;
+                    if (false === isset($graph->{$iri})) {
+                        $graph->{$iri} = self::objectToJsonLd($object);
                     }
-
-                    $graph->listMap[$id]->head = $value;
+                    $graph->{$iri}->usages[] = $value;
                 }
             }
         }
 
-        // Reconstruct @list arrays from linked list structures for each graph
-        foreach ($graphs as $graphName => $graph) {
-            foreach ($graph->listMap as $id => $entry) {
-                // If this node is a valid list head...
-                if (property_exists($entry, 'head') && property_exists($entry, 'first')) {
-                    $value = $entry->head;
-
-                    // ... reconstruct the list
-                    $list = array();
-
-                    do {
-                        if (false === isset($graph->listMap[$id])) {
-                            throw new ProcessException(
-                                sprintf('Invalid RDF list reference. "%s" doesn\'t exist.', $id)
-                            );
-                        }
-
-                        $entry = $graph->listMap[$id];
-
-                        if (false === property_exists($entry, 'first')) {
-                            throw new ProcessException(
-                                sprintf('Invalid RDF list entry: rdf:first of "%s" missing.', $id)
-                            );
-                        }
-                        if (false === property_exists($entry, 'rest')) {
-                            throw new ProcessException(
-                                sprintf('Invalid RDF list entry: rdf:rest of "%s" missing.', $id)
-                            );
-                        }
-
-                        $list[] = $entry->first;
-
-                        $id = $entry->rest;
-                    } while (RdfConstants::RDF_NIL !== $id);
-
-                    // and replace the object in the nodeMap with the list
-                    unset($value->{'@id'});
-                    $value->{'@list'} = $list;
-                }
-            }
-        }
+        // Transform linked lists to @list objects
+        $this->createListObjects($graphs);
 
         // Generate the resulting document starting with the default graph
         $document = array();
 
-        $nodes = $graphs[self::DEFAULT_GRAPH]->nodeMap;
+        $nodes = get_object_vars($graphs->{self::DEFAULT_GRAPH});
         ksort($nodes);
 
         foreach ($nodes as $id => $node) {
+            unset($node->usages);
             $document[] = $node;
 
             // is it a named graph?
-            if (isset($graphs[$id])) {
+            if (isset($graphs->{$id})) {
                 $node->{'@graph'} = array();
 
-                $graphNodes = $graphs[$id]->nodeMap;
+                $graphNodes = $graphs->{$id};
                 ksort($nodes);
 
                 foreach ($graphNodes as $gnId => $graphNode) {
+                    unset($graphNode->usages);
                     $node->{'@graph'}[] = $graphNode;
                 }
             }
         }
 
         return $document;
+    }
+
+    /**
+     * Reconstruct @list arrays from linked list structures
+     *
+     * @param  Object $graphs The graph map
+     */
+    private function createListObjects($graphs)
+    {
+        foreach ($graphs as $graphName => $graph) {
+            foreach ($graph as $id => $node) {
+                // Check if the node is still there or if it has been removed because it was part of a list
+                if (false === isset($graph->{$id})) {
+                    continue;
+                }
+
+                // If this node is a valid list head...
+                if (isset($node->usages) && (1 === count($node->usages))) {
+                    $value = $node->usages[0];
+
+                    // Initialize empty list. If an error occurs, $list will be set to null
+                    $list = array();
+                    $eliminatedNodes = array();
+
+                    do {
+                        $node = (isset($graph->{$id})) ? $graph->{$id} : null;
+
+                        // Ensure that the linked list is valid, i.e., the list entry is
+                        // represented by a blank node having two properties (4 including
+                        // @id and "usages") rdf:first and rdf:rest (both of which have a
+                        // single value)
+                        if ((null === $node) || (0 !== strncmp($node->{'@id'}, '_:', 2)) ||
+                            (4 !== count(get_object_vars($node))) ||
+                            (false === property_exists($node, RdfConstants::RDF_FIRST)) ||
+                            (false === property_exists($node, RdfConstants::RDF_REST)) ||
+                            (count($node->{RdfConstants::RDF_FIRST}) !== 1) ||
+                            (count($node->{RdfConstants::RDF_REST}) !== 1) ||
+                            (false === isset($node->{RdfConstants::RDF_REST}[0]->{'@id'}))) {
+                            $list = null;
+                            break;
+                        }
+
+                        $list[] = $node->{RdfConstants::RDF_FIRST}[0];
+                        $eliminatedNodes[] = $node->{'@id'};
+
+                        $id = $node->{RdfConstants::RDF_REST}[0]->{'@id'};
+                    } while (RdfConstants::RDF_NIL !== $id);
+
+                    if (null === $list) {
+                        continue;
+                    }
+
+                    // and replace the object in the nodeMap with the list
+                    unset($value->{'@id'});
+                    $value->{'@list'} = $list;
+
+                    foreach ($eliminatedNodes as $id) {
+                        unset($graph->{$id});
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -2623,24 +2618,25 @@ class Processor
      *                                for xsd:integer, xsd:double, and
      *                                xsd:boolean, otherwise typed strings
      *                                will be used instead.
+     * @param boolean $addUsages      If set to true, an "usages" property
+     *                                is added to the resulting JSON-LD object
+     *                                if an IRI has been passed as object. This
+     *                                is used for the construction of @list
+     *                                objects.
      *
      * @return mixed The JSON-LD representation of the object.
      */
-    private static function objectToJsonLd($object, $useNativeTypes = true)
+    private static function objectToJsonLd($object, $useNativeTypes = true, $addUsages = true)
     {
         if ($object instanceof IRI) {
             $iri = (string) $object;
             $result = new Object();
 
-            // rdf:nil represents the end of a list and is at the same
-            // time used to represent empty lists
-            if (RdfConstants::RDF_NIL === $iri) {
-                $result->{'@list'} = array();
-
-                return $result;
-            }
-
             $result->{'@id'} = $iri;
+
+            if ($addUsages) {
+                $result->usages = array();
+            }
 
             return $result;
         } elseif ($object instanceof Value) {
