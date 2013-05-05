@@ -2046,6 +2046,14 @@ class Processor
             }
             $node = $graph->{$subject};
 
+            // ... as are all objects that are IRIs or blank nodes (except rdf:nil)
+            if ($object instanceof IRI) {
+                $iri = (string) $object;
+                if ((RdfConstants::RDF_NIL !== $iri) && (false === isset($graph->{$iri}))) {
+                    $graph->{$iri} = self::objectToJsonLd($object);
+                }
+            }
+
             if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
                 ($object instanceof IRI)) {
                 self::mergeIntoProperty($node, '@type', (string) $object, true);
@@ -2066,11 +2074,7 @@ class Processor
                 if (($object instanceof IRI) && ($object->getScheme() === '_') &&
                     ($property != RdfConstants::RDF_FIRST) &&
                     ($property != RdfConstants::RDF_REST)) {
-                    $iri = (string) $object;
-                    if (false === isset($graph->{$iri})) {
-                        $graph->{$iri} = self::objectToJsonLd($object);
-                    }
-                    $graph->{$iri}->usages[] = $value;
+                    $graph->{(string) $object}->usages[] = $value;
                 }
             }
         }
