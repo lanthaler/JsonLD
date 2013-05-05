@@ -2040,12 +2040,11 @@ class Processor
             $property = (string) $quad->getProperty();
             $object = $quad->getObject();
 
-            // All nodes are stored in nodeMap
+            // All nodes are stored in the node map
             if (false === isset($graph->{$subject})) {
                 $graph->{$subject} = self::objectToJsonLd($quad->getSubject());
             }
             $node = $graph->{$subject};
-
 
             if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
                 ($object instanceof IRI)) {
@@ -2062,10 +2061,8 @@ class Processor
                 self::mergeIntoProperty($node, $property, $value, true);
 
                 // If the object is an IRI or blank node it might be the
-                // beginning of a list. Add it to the list map storing a
-                // reference to the value in the nodeMap in the entry's
-                // "head" property so that we can easily replace it with an
-                //  @list object if it turns out to be really a list
+                // beginning of a list. Store a reference to its usage so
+                // that we can replace it with a list object later
                 if (($object instanceof IRI) && ($object->getScheme() === '_') &&
                     ($property != RdfConstants::RDF_FIRST) &&
                     ($property != RdfConstants::RDF_REST)) {
@@ -2130,9 +2127,7 @@ class Processor
                     $list = array();
                     $eliminatedNodes = array();
 
-                    do {
-                        $node = (isset($graph->{$id})) ? $graph->{$id} : null;
-
+                    while (RdfConstants::RDF_NIL !== $id) {
                         // Ensure that the linked list is valid, i.e., the list entry is
                         // represented by a blank node having two properties (4 including
                         // @id and "usages") rdf:first and rdf:rest (both of which have a
@@ -2152,7 +2147,8 @@ class Processor
                         $eliminatedNodes[] = $node->{'@id'};
 
                         $id = $node->{RdfConstants::RDF_REST}[0]->{'@id'};
-                    } while (RdfConstants::RDF_NIL !== $id);
+                        $node = (isset($graph->{$id})) ? $graph->{$id} : null;
+                    }
 
                     if (null === $list) {
                         continue;
