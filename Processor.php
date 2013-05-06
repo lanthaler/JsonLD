@@ -2142,7 +2142,8 @@ class Processor
                             (false === property_exists($node, RdfConstants::RDF_REST)) ||
                             (count($node->{RdfConstants::RDF_FIRST}) !== 1) ||
                             (count($node->{RdfConstants::RDF_REST}) !== 1) ||
-                            (false === isset($node->{RdfConstants::RDF_REST}[0]->{'@id'}))) {
+                            (false === isset($node->{RdfConstants::RDF_REST}[0]->{'@id'})) ||
+                            (true === in_array($id, $eliminatedNodes))) {
                             $list = null;
                             break;
                         }
