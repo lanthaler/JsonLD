@@ -1826,7 +1826,7 @@ class Processor
                     $nodeMap->{$activegraph}->{$id}->{$property} = array();
                 }
 
-                $this->generateNodeMap($nodeMap, $value, $activegraph, $id, $property, $list);
+                $this->generateNodeMap($nodeMap, $value, $activegraph, $id, $property);
             }
         }
     }
