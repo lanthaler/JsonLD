@@ -2312,7 +2312,7 @@ class Processor
                 continue;
             }
 
-            if (false === property_exists($node, $property)) {
+            if ((false === property_exists($node, $property)) || (0 === count($node->{$property}))) {
                 // The property does not exist, check if it's @graph and the referenced graph exists
                 if ('@graph' === $property) {
                     if (isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})) {
