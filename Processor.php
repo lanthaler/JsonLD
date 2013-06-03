@@ -2312,8 +2312,9 @@ class Processor
                 continue;
             }
 
+            // If the property does not exist or is empty
             if ((false === property_exists($node, $property)) || (0 === count($node->{$property}))) {
-                // The property does not exist, check if it's @graph and the referenced graph exists
+                // first check if it's @graph and whether the referenced graph exists
                 if ('@graph' === $property) {
                     if (isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})) {
                         $result->{'@graph'} = array();
@@ -2385,6 +2386,7 @@ class Processor
             foreach ($validValues as $validValue) {
                 if (is_object($validValue)) {
                     // Extract framing options from subframe ($validValue is a subframe)
+                    $validValue = clone $validValue;
                     $newOptions = clone $options;
                     unset($newOptions->{'@default'});
 
@@ -2486,7 +2488,7 @@ class Processor
 
             if (true === $options->{'@embedChildren'}) {
                 if (false === is_array($value)) {
-                    $result->{$property} = $value;
+                    $result->{$property} = unserialize(serialize($value));  // create a deep-copy
                     continue;
                 }
 
@@ -2505,7 +2507,7 @@ class Processor
 
             } else {
                 // TODO Perform deep object copy??
-                $result->{$property} = $value;
+                $result->{$property} = unserialize(serialize($value));  // create a deep-copy
             }
         }
     }
