@@ -852,14 +852,6 @@ class Processor
             return;
         }
 
-        // element is an object
-        if (property_exists($element, '@null')) {
-            // @null objects are used in framing
-            $element = null;
-
-            return;
-        }
-
         if (property_exists($element, '@value') || property_exists($element, '@id')) {
             $def = $this->getPropertyDefinition($activectx, $activeprty);
             $element = $this->compactValue($element, $def, $activectx, $inversectx);
@@ -923,6 +915,17 @@ class Processor
                 self::setProperty($element, $activeprty, $value);
 
                 // ... continue with next property
+                continue;
+            }
+
+            // handle @null-objects as used in framing
+            if (is_object($value) && property_exists($value, '@null')) {
+                $activeprty = $this->compactIri($property, $activectx, $inversectx, null, true, $inReverse);
+
+                if (false === property_exists($element, $activeprty)) {
+                    $element->{$activeprty} = null;
+                }
+
                 continue;
             }
 
@@ -2352,7 +2355,7 @@ class Processor
                             $result->{$property} = new Object();
                             $result->{$property}->{'@null'} = true;
                         } else {
-                            $result->{$property} = $validValue->{'@default'};
+                            $result->{$property} = array($validValue->{'@default'});
                         }
                         $defaultFound = true;
                         break;
