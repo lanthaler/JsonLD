@@ -11,7 +11,6 @@ namespace ML\JsonLD\Exception;
 
 use ML\JsonLD\JsonLD;
 
-
 /**
  * Exception class thrown when a JSON-LD syntax error is detected.
  *
@@ -39,7 +38,6 @@ class SyntaxException extends \RuntimeException
      * @var string
      */
     private $rawMessage;
-
 
     /**
      * Constructor.
@@ -120,7 +118,7 @@ class SyntaxException extends \RuntimeException
         }
 
         if (null !== $this->parsedFile) {
-            $this->message .= sprintf(' in %s', json_encode($this->parsedFile));
+            $this->message .= sprintf(' in %s', $this->parsedFile);
         }
 
         if ($this->snippet) {

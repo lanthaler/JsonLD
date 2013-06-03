@@ -9,19 +9,21 @@
 
 namespace ML\JsonLD;
 
+
 /**
- * Quad serializer interface
+ * DefaultDocumentFactory creates new Documents
+ *
+ * @see Document
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-interface QuadSerializerInterface
+class DefaultDocumentFactory implements DocumentFactoryInterface
 {
     /**
-     * Serializes quads to a string.
-     *
-     * @param Quad[] $quads Array of quads to be serialized.
-     *
-     * @return string The serialized quads.
+     * {@inheritdoc}
      */
-    public function serialize(array $quads);
+    public function createDocument($iri = null)
+    {
+        return new Document($iri);
+    }
 }

@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD;
 
+use stdClass as Object;
 
 /**
  * A LanguageTaggedString is a string which is tagged with a language.
@@ -24,7 +25,6 @@ final class LanguageTaggedString extends Value
      * @var string
      */
     private $language;
-
 
     /**
      * Constructor
@@ -43,17 +43,20 @@ final class LanguageTaggedString extends Value
      *
      * @param string $language The language.
      *
+     * @return self
+     *
      * @throws \InvalidArgumentException If the language is not a string. No
      *                                   further checks are currently done.
      */
     public function setLanguage($language)
     {
-        if (!is_string($language))
-        {
+        if (!is_string($language)) {
             throw new \InvalidArgumentException('language must be a string.');
         }
 
         $this->language = $language;
+
+        return $this;
     }
 
     /**
@@ -71,7 +74,7 @@ final class LanguageTaggedString extends Value
      */
     public function toJsonLd($useNativeTypes = true)
     {
-        $result = new \stdClass();
+        $result = new Object();
         $result->{'@value'} = $this->value;
         $result->{'@language'} = $this->language;
 
@@ -83,8 +86,7 @@ final class LanguageTaggedString extends Value
      */
     public function equals($other)
     {
-        if (get_class($this) !== get_class($other))
-        {
+        if (get_class($this) !== get_class($other)) {
             return false;
         }
 

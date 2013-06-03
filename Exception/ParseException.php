@@ -30,7 +30,6 @@ class ParseException extends \RuntimeException
      */
     private $rawMessage;
 
-
     /**
      * Constructor.
      *
@@ -86,7 +85,7 @@ class ParseException extends \RuntimeException
         }
 
         if ($this->parsedFile) {
-            $this->message .= sprintf(' in %s', json_encode($this->parsedFile));
+            $this->message .= sprintf(' in %s', $this->parsedFile);
         }
 
         if ($dot) {

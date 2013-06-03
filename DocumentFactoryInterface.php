@@ -9,19 +9,22 @@
 
 namespace ML\JsonLD;
 
+
 /**
- * Quad serializer interface
+ * Interface for factories to create DocumentInterface objects
+ *
+ * @see DocumentInterface
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-interface QuadSerializerInterface
+interface DocumentFactoryInterface
 {
     /**
-     * Serializes quads to a string.
+     * Creates a new document
      *
-     * @param Quad[] $quads Array of quads to be serialized.
+     * @param null|string $iri The document's IRI.
      *
-     * @return string The serialized quads.
+     * @return DocumentInterface The document.
      */
-    public function serialize(array $quads);
+    public function createDocument($iri = null);
 }

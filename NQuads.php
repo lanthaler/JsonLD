@@ -12,7 +12,6 @@ namespace ML\JsonLD;
 use ML\JsonLD\Exception\ParseException;
 use ML\IRI\IRI;
 
-
 /**
  * NQuads serializes quads to the NQuads format
  *
@@ -26,8 +25,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
     public function serialize(array $quads)
     {
         $result = '';
-        foreach ($quads as $quad)
-        {
+        foreach ($quads as $quad) {
             $result .= ('_' === $quad->getSubject()->getScheme())
                 ? $quad->getSubject()
                 : '<' . $quad->getSubject() . '>';
@@ -38,23 +36,21 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
                 : '<' . $quad->getProperty() . '>';
             $result .= ' ';
 
-            if ($quad->getObject() instanceof IRI)
-            {
+            if ($quad->getObject() instanceof IRI) {
                 $result .= ('_' === $quad->getObject()->getScheme())
                     ? $quad->getObject()
                     : '<' . $quad->getObject() . '>';
-            }
-            else
-            {
+            } else {
                 $result .= '"' . $quad->getObject()->getValue() . '"';
                 $result .= ($quad->getObject() instanceof TypedValue)
-                    ? (RdfConstants::XSD_STRING === $quad->getObject()->getType()) ? '' : '^^<' . $quad->getObject()->getType() . '>'
+                    ? (RdfConstants::XSD_STRING === $quad->getObject()->getType())
+                        ? ''
+                        : '^^<' . $quad->getObject()->getType() . '>'
                     : '@' . $quad->getObject()->getLanguage();
             }
             $result .= ' ';
 
-            if ($quad->getGraph())
-            {
+            if ($quad->getGraph()) {
                 $result .= ('_' === $quad->getGraph()->getScheme())
                     ? $quad->getGraph() :
                     '<' . $quad->getGraph() . '>';
@@ -71,7 +67,6 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
      *
      * This method is heavily based on DigitalBazaar's implementation used
      * in their {@link https://github.com/digitalbazaar/php-json-ld php-json-ld}.
-     *
      */
     public function parse($input)
     {
@@ -102,21 +97,23 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
         $lines = preg_split($eoln, $input);
         $line_number = 0;
 
-        foreach($lines as $line) {
+        foreach ($lines as $line) {
             $line_number++;
 
             // skip empty lines
-            if(preg_match($ignoreRegex, $line)) {
+            if (preg_match($ignoreRegex, $line)) {
                 continue;
             }
 
             // parse quad
-            if(!preg_match($quadRegex, $line, $match))
-            {
-                throw new ParseException(sprintf(
-                    'Error while parsing N-Quads. Invalid quad in line %d: %s',
-                    $line_number,
-                    $line));
+            if (!preg_match($quadRegex, $line, $match)) {
+                throw new ParseException(
+                    sprintf(
+                        'Error while parsing N-Quads. Invalid quad in line %d: %s',
+                        $line_number,
+                        $line
+                    )
+                );
             }
 
             $subject = null;
@@ -125,10 +122,9 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
             $graph = null;
 
             // get subject
-            if($match[1] !== '') {
+            if ($match[1] !== '') {
                 $subject = new IRI($match[1]);
-            }
-            else {
+            } else {
                 $subject = new IRI($match[2]);
             }
 
@@ -136,40 +132,34 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
             $property = new IRI($match[3]);
 
             // get object
-            if($match[4] !== '') {
+            if ($match[4] !== '') {
                 $object = new IRI($match[4]);  // IRI
-            }
-            else if($match[5] !== '') {
+            } elseif ($match[5] !== '') {
                 $object = new IRI($match[5]);  // bnode
-            }
-            else {
+            } else {
                 $unescaped = str_replace(
-                     array('\"', '\t', '\n', '\r', '\\\\'),
-                     array('"', "\t", "\n", "\r", '\\'),
-                     $match[6]);
+                    array('\"', '\t', '\n', '\r', '\\\\'),
+                    array('"', "\t", "\n", "\r", '\\'),
+                    $match[6]
+                );
 
-                if(isset($match[7]) && $match[7] !== '') {
+                if (isset($match[7]) && $match[7] !== '') {
                     $object = new TypedValue($unescaped, $match[7]);
-                }
-                elseif(isset($match[8]) && $match[8] !== '') {
+                } elseif (isset($match[8]) && $match[8] !== '') {
                     $object = new LanguageTaggedString($unescaped, $match[8]);
-                }
-                else
-                {
+                } else {
                     $object = new TypedValue($unescaped, RdfConstants::XSD_STRING);
                 }
             }
 
             // get graph
-            if(isset($match[9]) && $match[9] !== '') {
+            if (isset($match[9]) && $match[9] !== '') {
                 $graph = new IRI($match[9]);
-            }
-            else if(isset($match[10]) && $match[10] !== '') {
+            } elseif (isset($match[10]) && $match[10] !== '') {
                 $graph = new IRI($match[10]);
             }
 
             $quad = new Quad($subject, $property, $object, $graph);
-
 
             // TODO Make sure that quads are unique??
             $statements[] = $quad;
