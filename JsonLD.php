@@ -49,9 +49,9 @@ class JsonLD
             return $input;
         }
 
-        // if input is a file, process it
+        // if input looks like a file, try to retrieve it
         $input = trim($input);
-        if ((isset($input[0]) && ("{" !== $input[0]) && ("[" !== $input[0])) || @is_readable($input)) {
+        if (false == (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
             $context = stream_context_create(
                 array(
                     'http' => array(
