@@ -1931,6 +1931,8 @@ class Processor
                         }
 
                         continue;
+                    } elseif ('@' === $property[0]) {
+                        continue;
                     }
 
                     $activeprty = new IRI($property);
