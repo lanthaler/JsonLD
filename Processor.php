@@ -343,6 +343,11 @@ class Processor
 
             // Make sure to keep framing keywords if a frame is being expanded
             if ($frame && in_array($expProperty, self::$framingKeywords)) {
+                // and that the default value is expanded
+                if ('@default' === $expProperty) {
+                    $this->expand($value, $activectx, $activeprty, $frame);
+                }
+
                 self::setProperty($element, $expProperty, $value);
                 continue;
             }
@@ -2358,7 +2363,9 @@ class Processor
                             $result->{$property} = new Object();
                             $result->{$property}->{'@null'} = true;
                         } else {
-                            $result->{$property} = array($validValue->{'@default'});
+                            $result->{$property} = (is_array($validValue->{'@default'}))
+                                ? $validValue->{'@default'}
+                                : array($validValue->{'@default'});
                         }
                         $defaultFound = true;
                         break;
