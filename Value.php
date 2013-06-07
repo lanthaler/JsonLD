@@ -81,16 +81,24 @@ abstract class Value implements JsonLdSerializable
             : null;
 
         if (is_int($value) || is_float($value)) {
-            if ($value == (int) $value) {
-                return new TypedValue(sprintf('%d', $value), RdfConstants::XSD_INTEGER);
+            if (($value != (int) $value) || (RdfConstants::XSD_DOUBLE === $type)) {
+                $value = preg_replace('/(0{0,14})E(\+?)/', 'E', sprintf('%1.15E', $value));
+
+                if ((null === $type) && (null === $language)) {
+                    return new TypedValue($value, RdfConstants::XSD_DOUBLE);
+                }
             } else {
-                return new TypedValue(
-                    preg_replace('/(0{0,14})E(\+?)/', 'E', sprintf('%1.15E', $value)),
-                    RdfConstants::XSD_DOUBLE
-                );
+                $value = sprintf('%d', $value);
+                if ((null === $type) && (null === $language)) {
+                    return new TypedValue($value, RdfConstants::XSD_INTEGER);
+                }
             }
         } elseif (is_bool($value)) {
-            return new TypedValue(($value) ? 'true' : 'false', RdfConstants::XSD_BOOLEAN);
+            $value = ($value) ? 'true' : 'false';
+
+            if ((null === $type) && (null === $language)) {
+                return new TypedValue($value, RdfConstants::XSD_BOOLEAN);
+            }
         } elseif (false === is_string($value)) {
             return false;
         }
