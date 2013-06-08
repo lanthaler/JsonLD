@@ -166,8 +166,7 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         $processor = new Processor($options);
-        $activectx = array('@base' => new IRI($options->base));
-
+        $activectx = array('@base' => $options->base);
         if (null !== $options->expandContext) {
             $processor->processContext($options->expandContext, $activectx);
         }
@@ -275,7 +274,7 @@ class JsonLD
             $context = $context->{'@context'};
         }
 
-        $activectx = array('@base' => new IRI($options->base));
+        $activectx = array('@base' => $options->base);
         $processor = new Processor($options);
 
         $processor->processContext($context, $activectx);
@@ -586,7 +585,7 @@ class JsonLD
     private static function mergeOptions($options)
     {
         $result = (object) array(
-            'base' => '',
+            'base' => null,
             'expandContext' => null,
             'compactArrays' => true,
             'optimize' => false,
@@ -598,8 +597,14 @@ class JsonLD
 
         if (is_array($options) || is_object($options)) {
             $options = (object) $options;
-            if (property_exists($options, 'base') && is_string($options->base)) {
-                $result->base = $options->base;
+            if (isset($options->{'base'})) {
+                if (is_string($options->{'base'})) {
+                    $result->base = new IRI($options->{'base'});
+                } elseif (($options->{'base'} instanceof IRI) && $options->{'base'}->isAbsolute()) {
+                    $result->base = clone $options->{'base'};
+                } else {
+                    throw \InvalidArgumentException('The "base" option must be set to null or an absolute IRI.');
+                }
             }
             if (property_exists($options, 'expandContext')) {
                 if (is_string($options->expandContext)) {

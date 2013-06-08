@@ -810,7 +810,7 @@ class Processor
         } else {
             if ($vocabRelative && array_key_exists('@vocab', $activectx)) {
                 return $activectx['@vocab'] . $value;
-            } elseif ($relativeIri) {
+            } elseif (($relativeIri) && (null !== $activectx['@base'])) {
                 return (string) $activectx['@base']->resolve($value);
             }
         }
@@ -1155,7 +1155,7 @@ class Processor
         }
 
         // Last resort, convert to a relative IRI
-        if (false === $vocabRelative) {
+        if ((false === $vocabRelative) && (null !== $activectx['@base'])) {
             return (string) $activectx['@base']->baseFor($iri);
         }
 
@@ -1445,12 +1445,23 @@ class Processor
                 $context = clone $context;
 
                 if (property_exists($context, '@base')) {
-                    if (null === $context->{'@base'}) {
-                        $activectx['@base'] = $this->baseIri;
-                    } elseif (false === is_string($context->{'@base'}) || (false === strpos($context->{'@base'}, ':'))) {
-                        throw new SyntaxException("The value of @base must be an absolute IRI or null.", $context);
+                    if (count($remotectxs) > 0) {
+                        // do nothing, @base is ignored in a remote context
+                    } elseif (null === $context->{'@base'}) {
+                        $activectx['@base'] = null;
+                    } elseif (false === is_string($context->{'@base'})) {
+                        throw new SyntaxException('The value of @base must be an IRI or null.', $context);
                     } else {
-                        $activectx['@base'] = new IRI($context->{'@base'});
+                        $base = new IRI($context->{'@base'});
+                        if (false === $base->isAbsolute()) {
+                            if (null === $activectx['@base']) {
+                                throw new SyntaxException('The relative base IRI cannot be resolved to an absolute IRI.', $context);
+                            }
+
+                            $activectx['@base'] = $activectx['@base']->resolve($base);
+                        } else {
+                            $activectx['@base'] = $base;
+                        }
                     }
 
                     unset($context->{'@base'});
