@@ -14,7 +14,7 @@ use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
 /**
- * The official JSON-LD test suite.
+ * The offical JSON-LD test suite.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
@@ -195,7 +195,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testToRdf($name, $test, $options)
     {
-        $expected = file_get_contents($this->basedir . $test->{'expect'});
+        $expected = trim(file_get_contents($this->basedir . $test->{'expect'}));
         $quads = JsonLD::toRdf($this->basedir . $test->{'input'}, $options);
 
         $serializer = new NQuads();
@@ -205,7 +205,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $result = explode("\n", trim($result));
         sort($result);
         $result = implode("\n", $result);
-        $result .= "\n";
 
         $this->assertEquals($expected, $result);
     }
