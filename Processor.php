@@ -901,8 +901,8 @@ class Processor
                     // Move reverse properties out of the map into element
                     foreach (get_object_vars($value) as $prop => $val) {
                         if ($this->getPropertyDefinition($activectx, $prop, '@reverse')) {
-                            // TODO Compact arrays!?
-                            self::mergeIntoProperty($element, $prop, $val);
+                            $alwaysArray = ('@set' === $this->getPropertyDefinition($activectx, $prop, '@container'));
+                            self::mergeIntoProperty($element, $prop, $val, $alwaysArray);
                             unset($value->{$prop});
                         }
                     }
@@ -1516,25 +1516,20 @@ class Processor
                         $expanded = null;
 
                         if (property_exists($value, '@reverse')) {
-                            $maxEntries = 1;
-
-                            if (isset($value->{'@container'})) {
-                                if ('@index' !== $value->{'@container'}) {
-                                    throw new SyntaxException(
-                                        "Terms using the @reverse feature support only @index-containers.",
-                                        $value
-                                    );
-                                }
-
-                                $maxEntries++;
+                            if (property_exists($value, '@id')) {
+                                throw new SyntaxException("Invalid term definition using both @reverse and @id detected", $value);
                             }
 
-                            if (count(get_object_vars($value)) > $maxEntries) {
-                                throw new SyntaxException("Invalid term definition using @reverse detected", $value);
+                            if (property_exists($value, '@container') &&
+                                ('@index' !== $value->{'@container'}) &&
+                                ('@set' !== $value->{'@container'})) {
+                                throw new SyntaxException(
+                                    "Terms using the @reverse feature support only @set- and @index-containers.",
+                                    $value
+                                );
                             }
 
                             $value->{'@id'} = $value->{'@reverse'};
-                            $value->{'@type'} = '@id';
                             $value->{'@reverse'} = true;
                         } else {
                             $value->{'@reverse'} = false;
