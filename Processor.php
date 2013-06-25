@@ -497,9 +497,11 @@ class Processor
 
                 $numProps--;
             } elseif (property_exists($element, '@type')) {
-                if ((false === $frame) && (false === is_string($element->{'@type'}))) {
+                if ((false === $frame) && ((false === is_string($element->{'@type'})) ||
+                    (false === strpos($element->{'@type'}, ':')) ||
+                    ('_:' === substr($element->{'@type'}, 0, 2)))) {
                     throw new SyntaxException(
-                        'Invalid value for @type detected (must be a string).',
+                        'Invalid value for @type detected (must be an IRI).',
                         $element
                     );
                 }
