@@ -1898,14 +1898,17 @@ class Processor
 
             $graph = (array) $graph;
             ksort($graph);
-
-            $defaultGraph->{$graphName}->{'@graph'} = array_values($graph);
+            $defaultGraph->{$graphName}->{'@graph'} = array_values(
+                array_filter($graph, array($this, 'hasNodeProperties'))
+            );
         }
 
         $defaultGraph = (array) $defaultGraph;
         ksort($defaultGraph);
 
-        return array_values($defaultGraph);
+        return array_values(
+            array_filter($defaultGraph, array($this, 'hasNodeProperties'))
+        );
     }
 
     /**
@@ -2107,9 +2110,6 @@ class Processor
         ksort($nodes);
 
         foreach ($nodes as $id => $node) {
-            unset($node->usages);
-            $document[] = $node;
-
             // is it a named graph?
             if (isset($graphs->{$id})) {
                 $node->{'@graph'} = array();
@@ -2119,8 +2119,17 @@ class Processor
 
                 foreach ($graphNodes as $gnId => $graphNode) {
                     unset($graphNode->usages);
-                    $node->{'@graph'}[] = $graphNode;
+
+                    if (count(get_object_vars($graphNode)) > 1) {
+                        $node->{'@graph'}[] = $graphNode;
+                    }
                 }
+            }
+
+            unset($node->usages);
+
+            if (count(get_object_vars($node)) > 1) {
+                $document[] = $node;
             }
         }
 
@@ -2667,5 +2676,21 @@ class Processor
         }
 
         return $object;
+    }
+
+    /**
+     * Checks whether a node has properties and not just an @id
+     *
+     * This is used to filter nodes consisting just of an @id-member when
+     * flattening and converting from RDF.
+     *
+     * @param object $node The node
+     *
+     * @return boolean True if the node has properties (other than @id),
+     *                 false otherwise.
+     */
+    private function hasNodeProperties($node)
+    {
+        return (count(get_object_vars($node)) > 1);
     }
 }
