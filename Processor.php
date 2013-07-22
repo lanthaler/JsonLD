@@ -1730,11 +1730,6 @@ class Processor
                 if (0 === strncmp($type, '_:', 2)) {
                     $type = $this->getBlankNodeId($type);
                 }
-
-                if (false === property_exists($nodeMap->{$activegraph}, $type)) {
-                    $nodeMap->{$activegraph}->{$type} = new Object();
-                    $nodeMap->{$activegraph}->{$type}->{'@id'} = $type;
-                }
             }
         }
 
