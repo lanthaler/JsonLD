@@ -2168,8 +2168,7 @@ class Processor
                 $list = array();
                 $listNodes = array();
 
-                while (
-                    (RdfConstants::RDF_REST === $prop) &&
+                while ((RdfConstants::RDF_REST === $prop) &&
                     (1 === count($node->usages)) &&
                     property_exists($node, RdfConstants::RDF_FIRST) &&
                     property_exists($node, RdfConstants::RDF_REST) &&
