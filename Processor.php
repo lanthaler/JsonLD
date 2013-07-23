@@ -2062,35 +2062,30 @@ class Processor
             }
             $node = $graph->{$subject};
 
-            // ... as are all objects that are IRIs or blank nodes (except rdf:nil)
+            // ... as are all objects that are IRIs or blank nodes
             if ($object instanceof IRI) {
                 $iri = (string) $object;
-                if ((RdfConstants::RDF_NIL !== $iri) && (false === isset($graph->{$iri}))) {
+                if (false === isset($graph->{$iri})) {
                     $graph->{$iri} = self::objectToJsonLd($object);
                 }
             }
 
             if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
                 ($object instanceof IRI)) {
-                self::mergeIntoProperty($node, '@type', (string) $object, true);
+                self::mergeIntoProperty($node, '@type', (string) $object, true, true);
             } else {
-                if ((RdfConstants::RDF_REST !== $property) &&
-                    ($object instanceof IRI) && (RdfConstants::RDF_NIL === (string)$object)) {
-                    // rdf:nil represents an empty list if it is not the value of rdf:rest
-                    $value = new Object();
-                    $value->{'@list'} = array();
-                } else {
-                    $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
-                }
-                self::mergeIntoProperty($node, $property, $value, true);
+                $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
+
+                self::mergeIntoProperty($node, $property, $value, true, true);
 
                 // If the object is an IRI or blank node it might be the
                 // beginning of a list. Store a reference to its usage so
                 // that we can replace it with a list object later
-                if (($object instanceof IRI) && ($object->getScheme() === '_') &&
-                    ($property != RdfConstants::RDF_FIRST) &&
-                    ($property != RdfConstants::RDF_REST)) {
-                    $graph->{(string) $object}->usages[] = $value;
+                if ($object instanceof IRI) {
+                    $graph->{(string) $object}->usages[] = array(
+                        'node' => $node,
+                        'prop' => $property,
+                        'value' => $value);
                 }
             }
         }
@@ -2139,55 +2134,69 @@ class Processor
     private function createListObjects($graphs)
     {
         foreach ($graphs as $graphName => $graph) {
-            foreach ($graph as $id => $node) {
-                // Check if the node is still there or if it has been removed because it was part of a list
-                if (false === isset($graph->{$id})) {
-                    continue;
-                }
+            if (false === isset($graph->{RdfConstants::RDF_NIL})) {
+                continue;
+            }
 
-                // If this node is a valid list head...
-                if (isset($node->usages) && (1 === count($node->usages))) {
-                    $value = $node->usages[0];
+            $nil = $graph->{RdfConstants::RDF_NIL};
 
-                    // Initialize empty list. If an error occurs, $list will be set to null
-                    $list = array();
-                    $eliminatedNodes = array();
+            foreach ($nil->usages as $usage) {
+                $u = $usage;
 
-                    while (RdfConstants::RDF_NIL !== $id) {
-                        // Ensure that the linked list is valid, i.e., the list entry is
-                        // represented by a blank node having two properties (4 including
-                        // @id and "usages") rdf:first and rdf:rest (both of which have a
-                        // single value)
-                        if ((null === $node) || (0 !== strncmp($node->{'@id'}, '_:', 2)) ||
-                            (4 !== count(get_object_vars($node))) ||
-                            (false === property_exists($node, RdfConstants::RDF_FIRST)) ||
-                            (false === property_exists($node, RdfConstants::RDF_REST)) ||
-                            (count($node->{RdfConstants::RDF_FIRST}) !== 1) ||
-                            (count($node->{RdfConstants::RDF_REST}) !== 1) ||
-                            (false === isset($node->{RdfConstants::RDF_REST}[0]->{'@id'})) ||
-                            (true === in_array($id, $eliminatedNodes))) {
-                            $list = null;
-                            break;
-                        }
+                $node = $u['node'];
+                $prop = $u['prop'];
+                $head = $u['value'];
 
-                        $list[] = $node->{RdfConstants::RDF_FIRST}[0];
-                        $eliminatedNodes[] = $node->{'@id'};
+                $list = array();
+                $listNodes = array();
 
-                        $id = $node->{RdfConstants::RDF_REST}[0]->{'@id'};
-                        $node = (isset($graph->{$id})) ? $graph->{$id} : null;
+                while (
+                    (RdfConstants::RDF_REST === $prop) &&
+                    (1 === count($node->usages)) &&
+                    property_exists($node, RdfConstants::RDF_FIRST) &&
+                    property_exists($node, RdfConstants::RDF_REST) &&
+                    (1 === count($node->{RdfConstants::RDF_FIRST})) &&
+                    (1 === count($node->{RdfConstants::RDF_REST})) &&
+                    ((4 === count(get_object_vars($node))) ||
+                        ((5 === count(get_object_vars($node))) &&
+                        property_exists($node, '@type') &&
+                        ($node->{'@type'} === array(RdfConstants::RDF_LIST)))
+                    )
+                ) {
+                    $list[] = reset($node->{RdfConstants::RDF_FIRST});
+                    $listNodes[] = $node->{'@id'};
+
+
+                    $u = reset($node->usages);
+                    $node = $u['node'];
+                    $prop = $u['prop'];
+                    $head = $u['value'];
+
+                    if (0 !== strncmp($node->{'@id'}, '_:', 2)) {
+                        break;
                     }
+                };
 
-                    if (null === $list) {
+                // The list is nested in another list
+                if (RdfConstants::RDF_FIRST === $prop) {
+                    // If it is empty, we can't do anything but keep the rdf:nil node
+                    if (RdfConstants::RDF_NIL === $head->{'@id'}) {
                         continue;
                     }
 
-                    // and replace the object in the nodeMap with the list
-                    unset($value->{'@id'});
-                    $value->{'@list'} = $list;
+                    // ... otherwise we keep the head and convert the rest to @list
+                    $head = $graph->{$head->{'@id'}};
+                    $head = reset($head->{RdfConstants::RDF_REST});
 
-                    foreach ($eliminatedNodes as $id) {
-                        unset($graph->{$id});
-                    }
+                    array_pop($list);
+                    array_pop($listNodes);
+                }
+
+                unset($head->{'@id'});
+                $head->{'@list'} = array_reverse($list);
+
+                foreach ($listNodes as $node) {
+                    unset($graph->{$node});
                 }
             }
         }

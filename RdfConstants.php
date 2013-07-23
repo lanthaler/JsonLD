@@ -17,6 +17,7 @@ namespace ML\JsonLD;
 abstract class RdfConstants
 {
     const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+    const RDF_LIST = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#List';
     const RDF_FIRST = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#first';
     const RDF_REST = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#rest';
     const RDF_NIL = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#nil';
