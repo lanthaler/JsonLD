@@ -100,6 +100,16 @@ class Processor
     private $useRdfType;
 
     /**
+     * Produce generalized RDF
+     *
+     * Unless set to true, triples/quads with a blank node predicate are
+     * dropped when converting to RDF.
+     *
+     * @var bool
+     */
+    private $generalizedRdf;
+
+    /**
      * @var array Blank node map
      */
     private $blankNodeMap = array();
@@ -148,6 +158,7 @@ class Processor
         $this->optimize = (bool) $options->optimize;
         $this->useNativeTypes = (bool) $options->useNativeTypes;
         $this->useRdfType = (bool) $options->useRdfType;
+        $this->generalizedRdf = (bool) $options->produceGeneralizedRdf;
         $this->documentFactory = $options->documentFactory;
     }
 
@@ -1946,6 +1957,11 @@ class Processor
                         continue;
                     }
 
+                    // Exclude triples/quads with a blank node predicate if generalized RDF isn't enabled
+                    if ((0 === strncmp($property, '_:', 2)) && (false === $this->generalizedRdf)) {
+                        continue;
+                    }
+
                     $activeprty = new IRI($property);
 
                     foreach ($values as $value) {
@@ -2241,6 +2257,7 @@ class Processor
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
         $procOptions->useRdfType = $this->useRdfType;
+        $procOptions->produceGeneralizedRdf = $this->generalizedRdf;
         $procOptions->documentFactory = $this->documentFactory;
 
         $processor = new Processor($procOptions);

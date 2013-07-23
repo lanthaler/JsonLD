@@ -592,6 +592,7 @@ class JsonLD
             'graph' => null,
             'useNativeTypes' => true,
             'useRdfType' => false,
+            'produceGeneralizedRdf' => false,
             'documentFactory' => null
         );
 
@@ -627,6 +628,9 @@ class JsonLD
             }
             if (property_exists($options, 'useRdfType') && is_bool($options->useRdfType)) {
                 $result->useRdfType = $options->useRdfType;
+            }
+            if (property_exists($options, 'produceGeneralizedRdf') && is_bool($options->produceGeneralizedRdf)) {
+                $result->produceGeneralizedRdf = $options->produceGeneralizedRdf;
             }
             if (property_exists($options, 'documentFactory') &&
                 ($options->documentFactory instanceof DocumentFactoryInterface)) {
