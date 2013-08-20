@@ -1936,12 +1936,22 @@ class Processor
         $result = array();
 
         foreach ($nodeMap as $graphName => $graph) {
-            $activegraph = (self::DEFAULT_GRAPH === $graphName)
-                ? null
-                : new IRI($graphName);
+            if (self::DEFAULT_GRAPH === $graphName) {
+                $activegraph = null;
+            } else {
+                $activegraph = new IRI($graphName);
+
+                if (false === $activegraph->isAbsolute()) {
+                    continue;
+                }
+            }
 
             foreach ($graph as $subject => $node) {
                 $activesubj = new IRI($subject);
+
+                if (false === $activesubj->isAbsolute()) {
+                    continue;
+                }
 
                 foreach ($node as $property => $values) {
                     if ('@id' === $property) {
@@ -1963,6 +1973,9 @@ class Processor
                     }
 
                     $activeprty = new IRI($property);
+                    if (false === $activeprty->isAbsolute()) {
+                        continue;
+                    }
 
                     foreach ($values as $value) {
                         if (property_exists($value, '@list')) {
@@ -1974,7 +1987,13 @@ class Processor
                                 $result[] = $quad;
                             }
                         } else {
-                            $result[] = new Quad($activesubj, $activeprty, $this->elementToRdf($value), $activegraph);
+                            $object = $this->elementToRdf($value);
+
+                            if (null === $object) {
+                                continue;
+                            }
+
+                            $result[] = new Quad($activesubj, $activeprty, $object, $activegraph);
                         }
                     }
                 }
@@ -1989,7 +2008,7 @@ class Processor
      *
      * @param Object $element The element to be converted.
      *
-     * @return IRI|TypedValue|LanguageTagged The converted element to be used as Quad object.
+     * @return IRI|TypedValue|LanguageTagged|null The converted element to be used as Quad object.
      */
     private function elementToRdf(Object $element)
     {
@@ -1997,7 +2016,9 @@ class Processor
             return Value::fromJsonLd($element);
         }
 
-        return new IRI($element->{'@id'});
+        $iri = new IRI($element->{'@id'});
+
+        return $iri->isAbsolute() ? $iri : null;
     }
 
     /**
@@ -2023,7 +2044,11 @@ class Processor
             $next = new IRI($this->getBlankNodeId());
 
             $quads[] = new Quad($bnode, new IRI(RdfConstants::RDF_REST), $next, $graph);
-            $quads[] = new Quad($next, new IRI(RdfConstants::RDF_FIRST), $this->elementToRdf($entries[$i]), $graph);
+
+            $object = $this->elementToRdf($entries[$i]);
+            if (null !== $object) {
+                $quads[] = new Quad($next, new IRI(RdfConstants::RDF_FIRST), $object, $graph);
+            }
 
             $bnode = $next;
         }
