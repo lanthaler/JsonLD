@@ -184,13 +184,13 @@ class EarlReportGenerator extends \PHPUnit_Util_Printer implements \PHPUnit_Fram
             'doap:license'              => $this->options['license-url'],
             'doap:description'          => $this->options['project-description'],
             'doap:programming-language' => $this->options['programming-language'],
-            'dc:creator'                => $this->options['developer-url'],
             'doap:developer' => array(
                 '@id'           => $this->options['developer-url'],
                 '@type'         => array('foaf:Person', 'earl:Assertor'),
                 'foaf:name'     => $this->options['developer-name'],
                 'foaf:homepage' => $this->options['developer-homepage']
             ),
+            'dc:creator' => $this->options['developer-url'],
             'dc:date' => array(
                 '@value' => date('Y-m-d'),
                 '@type'  => 'xsd:date'

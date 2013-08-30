@@ -23,6 +23,9 @@ class TestManifestIterator implements \Iterator
     /** The test manifest. */
     private $manifest;
 
+    /** The URL of the test manifest. */
+    private $url;
+
     /** The total number of tests. */
     private $numberTests = 0;
 
@@ -30,12 +33,14 @@ class TestManifestIterator implements \Iterator
      * Constructor
      *
      * @param string $file The manifest's filename.
+     * @param string $url  The manifest's URL.
      */
-    public function __construct($file)
+    public function __construct($file, $url)
     {
         try {
             $this->manifest = json_decode(file_get_contents($file));
             $this->numberTests = count($this->manifest->{'sequence'});
+            $this->url = $url;
         } catch (Exception $e) {
             echo "Exception while parsing file: '$file'";
             throw $e;
@@ -67,7 +72,7 @@ class TestManifestIterator implements \Iterator
      */
     public function key()
     {
-        return $this->manifest->{'sequence'}[$this->key]->{'@id'};
+        return $this->url . $this->manifest->{'sequence'}[$this->key]->{'@id'};
     }
 
     /**
@@ -78,18 +83,22 @@ class TestManifestIterator implements \Iterator
      */
     public function current()
     {
-        $options = new \stdClass();
-        if (property_exists($this->manifest, 'baseIri')) {
-            $options->base = $this->manifest->baseIri . $this->manifest->{'sequence'}[$this->key]->input;
-        } else {
-            $options->base = $this->manifest->{'sequence'}[$this->key]->input;
+        $options = isset($this->manifest->{'sequence'}[$this->key]->{'option'})
+            ? $this->manifest->{'sequence'}[$this->key]->{'option'}
+            : new \stdClass();
+
+        if (false === property_exists($options, 'base')) {
+            if (property_exists($this->manifest, 'baseIri')) {
+                $options->base = $this->manifest->baseIri . $this->manifest->{'sequence'}[$this->key]->input;
+            } else {
+                $options->base = $this->manifest->{'sequence'}[$this->key]->input;
+            }
         }
 
         $test = array(
             'name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
             'test'    => $this->manifest->{'sequence'}[$this->key],
-            'options' => $options,
-            'id'      => $this->manifest->{'sequence'}[$this->key]->{'@id'}
+            'options' => $options
         );
 
         return $test;

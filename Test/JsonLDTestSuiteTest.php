@@ -14,7 +14,7 @@ use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
 /**
- * The offical JSON-LD test suite.
+ * The official JSON-LD test suite.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
@@ -25,6 +25,11 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      * files should be read.
      */
     private $basedir;
+
+    /**
+     * The URL corresponding to the base directory
+     */
+    private $baseurl = 'http://json-ld.org/test-suite/tests/';
 
     /**
      * @var string The test's ID.
@@ -79,7 +84,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function expansionProvider()
     {
-        return new TestManifestIterator($this->basedir . 'expand-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'expand-manifest.jsonld',
+            $this->baseurl . 'expand-manifest.jsonld'
+        );
     }
 
     /**
@@ -110,7 +118,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function compactionProvider()
     {
-        return new TestManifestIterator($this->basedir . 'compact-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'compact-manifest.jsonld',
+            $this->baseurl . 'compact-manifest.jsonld'
+        );
     }
 
     /**
@@ -126,7 +137,11 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testFlatten($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::flatten($this->basedir . $test->{'input'}, null, $options);
+        $context = (isset($test->{'context'}))
+            ? $this->basedir . $test->{'context'}
+            : null;
+
+        $result = JsonLD::flatten($this->basedir . $test->{'input'}, $context, $options);
 
         $this->assertJsonEquals($expected, $result);
     }
@@ -136,7 +151,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function flattenProvider()
     {
-        return new TestManifestIterator($this->basedir . 'flatten-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'flatten-manifest.jsonld',
+            $this->baseurl . 'flatten-manifest.jsonld'
+        );
     }
 
     /**
@@ -180,7 +198,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function framingProvider()
     {
-        return new TestManifestIterator($this->basedir . 'frame-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'frame-manifest.jsonld',
+            $this->baseurl . 'frame-manifest.jsonld'
+        );
     }
 
     /**
@@ -221,7 +242,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function toRdfProvider()
     {
-        return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'toRdf-manifest.jsonld',
+            $this->baseurl . 'toRdf-manifest.jsonld'
+        );
     }
 
     /**
@@ -251,7 +275,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function fromRdfProvider()
     {
-        return new TestManifestIterator($this->basedir . 'fromRdf-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'fromRdf-manifest.jsonld',
+            $this->baseurl . 'fromRdf-manifest.jsonld'
+        );
     }
 
     /**
