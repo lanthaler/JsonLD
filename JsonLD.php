@@ -148,7 +148,7 @@ class JsonLD
      *
      * @param string|array|object $input   The JSON-LD document to expand.
      * @param null|array|object   $options Options to configure the expansion
-     *                                    process.
+     *                                     process.
      *
      * @return array The expanded JSON-LD document.
      *
@@ -215,10 +215,11 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param string|array|object $input   The JSON-LD document to compact.
-     * @param string|object       $context The context.
-     * @param null|array|object   $options Options to configure the compaction
-     *                                   process.
+     * @param array               $input       The expandedJSON-LD document to
+     *                                         compact.
+     * @param string|object|array $context     The context.
+     * @param null|array|object   $options     Options to configure the
+     *                                         compaction process.
      *
      * @return object The compacted JSON-LD document.
      *
@@ -244,15 +245,15 @@ class JsonLD
      * In contrast to {@link compact()} this method assumes that the input
      * has already been expanded.
      *
-     * @param array             $input       The expandedJSON-LD document to
-     *                                       compact.
-     * @param string|object     $context     The context.
-     * @param null|array|object $options     Options to configure the
-     *                                       compaction process.
-     * @param bool              $alwaysGraph If set to true, the resulting
-     *                                       document will always explicitly
-     *                                       contain the default graph at
-     *                                       the top-level.
+     * @param array               $input       The expandedJSON-LD document to
+     *                                         compact.
+     * @param string|object|array $context     The context.
+     * @param null|array|object   $options     Options to configure the
+     *                                         compaction process.
+     * @param bool                $alwaysGraph If set to true, the resulting
+     *                                         document will always explicitly
+     *                                         contain the default graph at
+     *                                         the top-level.
      *
      * @return object The compacted JSON-LD document.
      *
@@ -268,10 +269,14 @@ class JsonLD
             $context = self::parse($context);
         }
 
-        if (false === is_object($context) || (false === property_exists($context, '@context'))) {
-            $context = null;
-        } else {
+        if (is_object($context) && property_exists($context, '@context')) {
             $context = $context->{'@context'};
+        }
+
+        if (is_object($context) && (0 === count(get_object_vars($context)))) {
+            $context = null;
+        } elseif (is_array($context) && (0 === count($context))) {
+            $context = null;
         }
 
         $activectx = array('@base' => $options->base);
@@ -336,13 +341,13 @@ class JsonLD
      * The options parameter might be passed as an associative array or an
      * object.
      *
-     * @param string|array|object $input   The JSON-LD document to flatten.
-     * @param null|string|object  $context The context to compact the
-     *                                     flattened document. If `null` is
-     *                                     passed, the result will not be
-     *                                     compacted.
-     * @param null|array|object   $options Options to configure the
-     *                                     flattening process.
+     * @param string|array|object      $input   The JSON-LD document to flatten.
+     * @param null|string|object|array $context The context to compact the
+     *                                          flattened document. If `null`
+     *                                          is passed, the result will
+     *                                          not be compacted.
+     * @param null|array|object        $options Options to configure the
+     *                                          flattening process.
      *
      * @return object The flattened JSON-LD document.
      *
