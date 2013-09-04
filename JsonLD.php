@@ -595,7 +595,7 @@ class JsonLD
             'compactArrays' => true,
             'optimize' => false,
             'graph' => null,
-            'useNativeTypes' => true,
+            'useNativeTypes' => false,
             'useRdfType' => false,
             'produceGeneralizedRdf' => false,
             'documentFactory' => null
@@ -617,6 +617,10 @@ class JsonLD
                     $result->expandContext = self::parse($options->expandContext);
                 } elseif (is_object($options->expandContext)) {
                     $result->expandContext = $options->expandContext;
+                }
+
+                if (is_object($result->expandContext) && property_exists($result->expandContext, '@context')) {
+                    $result->expandContext = $result->expandContext->{'@context'};
                 }
             }
             if (property_exists($options, 'compactArrays') && is_bool($options->compactArrays)) {
