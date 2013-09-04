@@ -20,6 +20,9 @@ class TestManifestIterator implements \Iterator
     /** The current position. */
     private $key = 0;
 
+    /** The test directory. */
+    private $directory;
+
     /** The test manifest. */
     private $manifest;
 
@@ -41,6 +44,7 @@ class TestManifestIterator implements \Iterator
             $this->manifest = json_decode(file_get_contents($file));
             $this->numberTests = count($this->manifest->{'sequence'});
             $this->url = $url;
+            $this->directory = dirname($file) . DIRECTORY_SEPARATOR;
         } catch (Exception $e) {
             echo "Exception while parsing file: '$file'";
             throw $e;
@@ -83,21 +87,26 @@ class TestManifestIterator implements \Iterator
      */
     public function current()
     {
-        $options = isset($this->manifest->{'sequence'}[$this->key]->{'option'})
-            ? $this->manifest->{'sequence'}[$this->key]->{'option'}
+        $test = $this->manifest->{'sequence'}[$this->key];
+        $options = isset($test->{'option'})
+            ? $test->{'option'}
             : new \stdClass();
 
         if (false === property_exists($options, 'base')) {
             if (property_exists($this->manifest, 'baseIri')) {
-                $options->base = $this->manifest->baseIri . $this->manifest->{'sequence'}[$this->key]->input;
+                $options->base = $this->manifest->{'baseIri'} . $test->{'input'};
             } else {
-                $options->base = $this->manifest->{'sequence'}[$this->key]->input;
+                $options->base = $test->{'input'};
             }
         }
 
+        if (isset($options->{'expandContext'}) && (false === strpos($options->{'expandContext'}, ':'))) {
+            $options->{'expandContext'} = $this->directory . $options->{'expandContext'};
+        }
+
         $test = array(
-            'name'    => $this->manifest->{'sequence'}[$this->key]->{'name'},
-            'test'    => $this->manifest->{'sequence'}[$this->key],
+            'name'    => $test->{'name'},
+            'test'    => $test,
             'options' => $options
         );
 
