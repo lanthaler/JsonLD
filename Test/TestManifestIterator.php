@@ -89,7 +89,7 @@ class TestManifestIterator implements \Iterator
     {
         $test = $this->manifest->{'sequence'}[$this->key];
         $options = isset($test->{'option'})
-            ? $test->{'option'}
+            ? clone $test->{'option'}  // cloning because we are modifying it
             : new \stdClass();
 
         if (false === property_exists($options, 'base')) {
