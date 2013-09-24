@@ -472,13 +472,8 @@ class Processor
         }
 
         // All properties have been processed. Make sure the result is valid
-        // and optimize object where possible
+        // and optimize it where possible
         $numProps = count(get_object_vars($element));
-
-        // Indexes are allowed everywhere
-        if (property_exists($element, '@index')) {
-            $numProps--;
-        }
 
         // Remove free-floating nodes
         if ((false === $frame) && ((null === $activeprty) || ('@graph' === $activeprty)) &&
@@ -487,6 +482,11 @@ class Processor
 
             $element = null;
             return;
+        }
+
+        // Indexes are allowed everywhere
+        if (property_exists($element, '@index')) {
+            $numProps--;
         }
 
         if (property_exists($element, '@value')) {
