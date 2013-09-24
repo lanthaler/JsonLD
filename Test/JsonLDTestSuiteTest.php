@@ -158,6 +158,38 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * Tests errors (uses flattening).
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @group errors
+     * @dataProvider errorProvider
+     */
+    public function testError($name, $test, $options)
+    {
+        $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+
+        $result = JsonLD::flatten(
+            $this->basedir . $test->{'input'},
+            (isset($test->{'context'})) ? $this->basedir . $test->{'context'} : null,
+            $options
+        );
+    }
+
+    /**
+     * Provides error test cases.
+     */
+    public function errorProvider()
+    {
+        return new TestManifestIterator(
+            $this->basedir . 'error-manifest.jsonld',
+            $this->baseurl . 'error-manifest.jsonld'
+        );
+    }
+
+    /**
      * Tests framing.
      *
      * @param string $name    The test name.

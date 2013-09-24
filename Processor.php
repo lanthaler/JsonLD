@@ -10,9 +10,7 @@
 namespace ML\JsonLD;
 
 use stdClass as Object;
-use ML\JsonLD\Exception\ParseException;
-use ML\JsonLD\Exception\SyntaxException;
-use ML\JsonLD\Exception\ProcessException;
+use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
@@ -169,13 +167,16 @@ class Processor
      *
      * @return mixed A PHP value.
      *
-     * @throws ParseException If the JSON-LD document is not valid.
+     * @throws JsonLdException If the JSON-LD document is not valid.
      */
     public static function parse($document)
     {
         if (function_exists('mb_detect_encoding') &&
             (false === mb_detect_encoding($document, 'UTF-8', true))) {
-            throw new ParseException('The JSON-LD document does not appear to be valid UTF-8.');
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                'The JSON-LD document does not appear to be valid UTF-8.'
+            );
         }
 
         $data = json_decode($document, false, 512);
@@ -184,17 +185,35 @@ class Processor
             case JSON_ERROR_NONE:
                 break;  // no error
             case JSON_ERROR_DEPTH:
-                throw new ParseException('The maximum stack depth has been exceeded.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'The maximum stack depth has been exceeded.'
+                );
             case JSON_ERROR_STATE_MISMATCH:
-                throw new ParseException('Invalid or malformed JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Invalid or malformed JSON.'
+                );
             case JSON_ERROR_CTRL_CHAR:
-                throw new ParseException('Control character error (possibly incorrectly encoded).');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Control character error (possibly incorrectly encoded).'
+                );
             case JSON_ERROR_SYNTAX:
-                throw new ParseException('Syntax error, malformed JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Syntax error, malformed JSON.'
+                );
             case JSON_ERROR_UTF8:
-                throw new ParseException('Malformed UTF-8 characters (possibly incorrectly encoded).');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Malformed UTF-8 characters (possibly incorrectly encoded).'
+                );
             default:
-                throw new ParseException('Unknown error while parsing JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Unknown error while parsing JSON.'
+                );
         }
 
         return (empty($data)) ? null : $data;
@@ -207,7 +226,7 @@ class Processor
      *
      * @return Document The parsed JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document is invalid.
+     * @throws JsonLdException If the JSON-LD input document is invalid.
      */
     public function getDocument($input)
     {
@@ -292,9 +311,7 @@ class Processor
      *
      * @return mixed The expanded document.
      *
-     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
-     * @throws ProcessException If the expansion failed.
-     * @throws ParseException   If a remote context couldn't be processed.
+     * @throws JsonLdException
      */
     public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false)
     {
@@ -322,7 +339,11 @@ class Processor
                 if (('@list' === $this->getPropertyDefinition($activectx, $activeprty, '@container')) ||
                     ('@list' === $activeprty)) {
                     if (is_array($item) || (is_object($item) && property_exists($item, '@list'))) {
-                        throw new SyntaxException("List of lists detected in property \"$activeprty\".", $element);
+                        throw new JsonLdException(
+                            JsonLdException::LIST_OF_LISTS,
+                            "List of lists detected in property \"$activeprty\".",
+                            $element
+                        );
                     }
                 }
 
@@ -359,14 +380,14 @@ class Processor
                     $this->expand($value, $activectx, $activeprty, $frame);
                 }
 
-                self::setProperty($element, $expProperty, $value);
+                self::setProperty($element, $expProperty, $value, JsonLdException::COLLIDING_KEYWORDS);
                 continue;
             }
 
             if (in_array($expProperty, self::$keywords)) {
                 if ('@reverse' === $activeprty) {
-                    throw new SyntaxException(
-                        'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_REVERSE_PROPERTY_MAP, 'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
                     );
                 }
                 $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
@@ -395,7 +416,8 @@ class Processor
 
                         foreach ($val as $item) {
                             if (false === is_string($item)) {
-                                throw new SyntaxException(
+                                throw new JsonLdException(
+                                    JsonLdException::INVALID_LANGUAGE_MAP_VALUE,
                                     "Detected invalid value in $property->$key: it must be a string as it " .
                                     "is part of a language map.",
                                     $item
@@ -463,7 +485,7 @@ class Processor
 
                 foreach ($value as $val) {
                     if (property_exists($val, '@value') || property_exists($val, '@list')) {
-                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $val);
+                        throw new JsonLdException(JsonLdException::INVALID_REVERSE_PROPERTY_VALUE, 'Detected invalid value in @reverse-map (only nodes are allowed', $val);
                     }
                 }
             }
@@ -494,14 +516,16 @@ class Processor
             if (property_exists($element, '@language')) {
                 if (false === $frame) {
                     if (false === is_string($element->{'@language'})) {
-                        throw new SyntaxException(
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_LANGUAGE_TAGGED_STRING,
                             'Invalid value for @language detected (must be a string).',
                             $element
                         );
                     }
 
                     if (false === is_string($element->{'@value'})) {
-                        throw new SyntaxException(
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_LANGUAGE_TAGGED_VALUE,
                             'Only strings can be language tagged.',
                             $element
                         );
@@ -513,7 +537,7 @@ class Processor
                 if ((false === $frame) && ((false === is_string($element->{'@type'})) ||
                     (false === strpos($element->{'@type'}, ':')) ||
                     ('_:' === substr($element->{'@type'}, 0, 2)))) {
-                    throw new SyntaxException(
+                    throw new JsonLdException(JsonLdException::INVALID_TYPED_VALUE,
                         'Invalid value for @type detected (must be an IRI).',
                         $element
                     );
@@ -523,7 +547,7 @@ class Processor
             }
 
             if ($numProps > 0) {
-                throw new SyntaxException('Detected an invalid @value object.', $element);
+                throw new JsonLdException(JsonLdException::INVALID_VALUE_OBJECT, 'Detected an invalid @value object.', $element);
             } elseif (null === $element->{'@value'}) {
                 // object has just an @value property that is null, can be replaced with that value
                 $element = $element->{'@value'};
@@ -537,7 +561,8 @@ class Processor
             $element->{'@type'} = array($element->{'@type'});
         }
         if (($numProps > 1) && ((property_exists($element, '@list') || property_exists($element, '@set')))) {
-            throw new SyntaxException(
+            throw new JsonLdException(
+                JsonLdException::INVALID_SET_OR_LIST_OBJECT,
                 'An object with a @list or @set property can\'t contain other properties.',
                 $element
             );
@@ -560,7 +585,7 @@ class Processor
      * @param array   $activectx  The active context.
      * @param boolean $frame      True if a frame is being expanded, otherwise false.
      *
-     * @throws SyntaxException If the JSON-LD document contains syntax errors.
+     * @throws JsonLdException
      */
     private function expandKeywordValue(&$element, $activeprty, $keyword, $value, $activectx, $frame)
     {
@@ -572,11 +597,11 @@ class Processor
 
         if ('@id' === $keyword) {
             if (false === is_string($value)) {
-                throw new SyntaxException('Invalid value for @id detected (must be a string).', $element);
+                throw new JsonLdException(JsonLdException::INVALID_ID_VALUE, 'Invalid value for @id detected (must be a string).', $element);
             }
 
             $value = $this->expandIri($value, $activectx, true);
-            self::setProperty($element, $keyword, $value);
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS);
 
             return;
         }
@@ -584,7 +609,7 @@ class Processor
         if ('@type' === $keyword) {
             if (is_string($value)) {
                 $value = $this->expandIri($value, $activectx, true, true);
-                self::setProperty($element, $keyword, $value);
+                self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS);
 
                 return;
             }
@@ -600,7 +625,7 @@ class Processor
                     $result[] = $this->expandIri($item, $activectx, true, true);
                 } else {
                     if (false === $frame) {
-                        throw new SyntaxException("Invalid value for $keyword detected.", $value);
+                        throw new JsonLdException(JsonLdException::INVALID_TYPE_VALUE, "Invalid value for $keyword detected.", $value);
                     }
 
                     self::mergeIntoProperty($element, $keyword, $item);
@@ -613,25 +638,33 @@ class Processor
             }
         }
 
-        if (('@value' === $keyword) || ('@language' === $keyword) || ('@index' === $keyword)) {
+        if (('@value' === $keyword)) {
             if (false === $frame) {
-                if (is_array($value) && (1 === count($value))) {
-                    $value = $value[0];
-                }
-
-                if ('@value' !== $keyword) {
-                    if (false === is_string($value)) {
-                        throw new SyntaxException("Invalid value for $keyword detected; must be a string.", $value);
-                    }
-                } elseif ((null !== $value) && (false === is_scalar($value))) {
+                if ((null !== $value) && (false === is_scalar($value))) {
                     // we need to preserve @value: null to distinguish values form nodes
-                    throw new SyntaxException("Invalid value for $keyword detected (must be a scalar).", $value);
+                    throw new JsonLdException(JsonLdException::INVALID_VALUE_OBJECT_VALUE, "Invalid value for @value detected (must be a scalar).", $value);
                 }
             } elseif (false === is_array($value)) {
                 $value = array($value);
             }
 
-            self::setProperty($element, $keyword, $value);
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS);
+
+            return;
+        }
+
+        if (('@language' === $keyword) || ('@index' === $keyword)) {
+            if (false === $frame) {
+                if (false === is_string($value)) {
+                    throw ('@language' === $keyword)
+                        ? new JsonLdException(JsonLdException::INVALID_LANGUAGE_TAGGED_STRING, '@language must be a string', $value)
+                        : new JsonLdException(JsonLdException::INVALID_INDEX_VALUE, '@index must be a string', $value);
+                }
+            } elseif (false === is_array($value)) {
+                $value = array($value);
+            }
+
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS);
 
             return;
         }
@@ -650,7 +683,7 @@ class Processor
 
             foreach ($value as $val) {
                 if (is_object($val) && property_exists($val, '@list')) {
-                    throw new SyntaxException('List of lists detected.', $element);
+                    throw new JsonLdException(JsonLdException::LIST_OF_LISTS, 'List of lists detected.', $element);
                 }
             }
 
@@ -668,7 +701,7 @@ class Processor
 
         if ('@reverse' === $keyword) {
             if (false === is_object($value)) {
-                throw new SyntaxException('Detected invalid value for @reverse (must be an object).', $value);
+                throw new JsonLdException(JsonLdException::INVALID_REVERSE_VALUE, 'Detected invalid value for @reverse (must be an object).', $value);
             }
 
             $this->expand($value, $activectx, $keyword, $frame);
@@ -691,7 +724,7 @@ class Processor
             foreach ($value as $prop => $val) {
                 foreach ($val as $v) {
                     if (property_exists($v, '@value') || property_exists($v, '@list')) {
-                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $v);
+                        throw new JsonLdException(JsonLdException::INVALID_REVERSE_PROPERTY_VALUE, 'Detected invalid value in @reverse-map (only nodes are allowed', $v);
                     }
                     self::mergeIntoProperty($element->{$keyword}, $prop, $v, true);
                 }
@@ -772,7 +805,8 @@ class Processor
 
         if ($localctx) {
             if (in_array($value, $path)) {
-                throw new ProcessException(
+                throw new JsonLdException(
+                    JsonLdException::CYCLIC_IRI_MAPPING,
                     'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
                     $localctx
                 );
@@ -780,7 +814,8 @@ class Processor
                 $path[] = $value;
 
                 if (count($path) >= self::CONTEXT_MAX_IRI_RECURSIONS) {
-                    throw new ProcessException(
+                    throw new JsonLdException(
+                        JsonLdException::UNSPECIFIED,
                         'Too many recursions in term definition: ' . join(' -> ', $path) . ' -> ' . $path[0],
                         $localctx
                     );
@@ -788,17 +823,16 @@ class Processor
             }
 
             if (isset($localctx->{$value})) {
-                if (is_string($localctx->{$value})) {
-                    return $this->expandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
-                } elseif (isset($localctx->{$value}->{'@id'})) {
-                    if (false === is_string($localctx->{$value}->{'@id'})) {
-                        throw new SyntaxException(
-                            'Detected invalid IRI mapping for term ' . $value,
-                            $localctx
-                        );
-                    }
+                $nested = null;
 
-                    return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
+                if (is_string($localctx->{$value})) {
+                    $nested = $localctx->{$value};
+                } elseif (isset($localctx->{$value}->{'@id'})) {
+                    $nested = $localctx->{$value}->{'@id'};
+                }
+
+                if ($nested && (end($path) !== $nested)) {
+                    return $this->expandIri($nested, $activectx, false, true, $localctx, $path);
                 }
             }
         }
@@ -938,7 +972,7 @@ class Processor
                     ? $inversectx[$property]['term']
                     : $property;
 
-                self::setProperty($element, $activeprty, $value);
+                self::setProperty($element, $activeprty, $value, JsonLdException::COLLIDING_KEYWORDS);
 
                 // ... continue with next property
                 continue;
@@ -996,7 +1030,7 @@ class Processor
                         if ('@list' === $def['@container']) {
                             // a term can just hold one list if it has a @list container
                             // (we don't support lists of lists)
-                            self::setProperty($element, $activeprty, $item->{'@list'});
+                            self::setProperty($element, $activeprty, $item->{'@list'}, JsonLdException::COMPACTION_TO_LIST_OF_LISTS);
 
                             continue;  // ... continue with next value
                         } else {
@@ -1442,8 +1476,7 @@ class Processor
      * @param array $activectx  The active context.
      * @param array $remotectxs The already included remote contexts.
      *
-     * @throws ProcessException If processing of the context failed.
-     * @throws ParseException   If a remote context couldn't be processed.
+     * @throws JsonLdException
      */
     public function processContext($loclctx, &$activectx, $remotectxs = array())
     {
@@ -1471,12 +1504,12 @@ class Processor
                     } elseif (null === $context->{'@base'}) {
                         $activectx['@base'] = null;
                     } elseif (false === is_string($context->{'@base'})) {
-                        throw new SyntaxException('The value of @base must be an IRI or null.', $context);
+                        throw new JsonLdException(JsonLdException::INVALID_BASE_IRI, 'The value of @base must be an IRI or null.', $context);
                     } else {
                         $base = new IRI($context->{'@base'});
                         if (false === $base->isAbsolute()) {
                             if (null === $activectx['@base']) {
-                                throw new SyntaxException('The relative base IRI cannot be resolved to an absolute IRI.', $context);
+                                throw new JsonLdException(JsonLdException::INVALID_BASE_IRI, 'The relative base IRI cannot be resolved to an absolute IRI.', $context);
                             }
 
                             $activectx['@base'] = $activectx['@base']->resolve($base);
@@ -1492,7 +1525,7 @@ class Processor
                     if (null === $context->{'@vocab'}) {
                         unset($activectx['@vocab']);
                     } elseif ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
-                        throw new SyntaxException("The value of @vocab must be an absolute IRI or null.", $context);
+                        throw new JsonLdException(JsonLdException::INVALID_VOCAB_MAPPING, 'The value of @vocab must be an absolute IRI or null.invalid vocab mapping, ', $context);
                     } else {
                         $activectx['@vocab'] = $context->{'@vocab'};
                     }
@@ -1502,7 +1535,7 @@ class Processor
 
                 if (property_exists($context, '@language')) {
                     if ((null !== $context->{'@language'}) && (false === is_string($context->{'@language'}))) {
-                        throw new SyntaxException('The value of @language must be a string.', $context);
+                        throw new JsonLdException(JsonLdException::INVALID_DEFAULT_LANGUAGE, 'The value of @language must be a string.', $context);
                     }
 
                     $activectx['@language'] = $context->{'@language'};
@@ -1514,7 +1547,7 @@ class Processor
                     unset($activectx[$key]);
 
                     if (in_array($key, self::$keywords)) {
-                        throw new SyntaxException('Keywords cannot be redefined.', $key);
+                        throw new JsonLdException(JsonLdException::KEYWORD_REDEFINITION, null, $key);
                     }
 
                     if ((null === $value) || is_string($value)) {
@@ -1522,20 +1555,24 @@ class Processor
                     } elseif (is_object($value)) {
                         $value = clone $value;    // make sure we don't modify context entries
                     } else {
-                        throw new SyntaxException('Invalid term definition', $value);
+                        throw new JsonLdException(JsonLdException::INVALID_TERM_DEFINITION);
                     }
 
                     $expanded = null;
 
                     if (property_exists($value, '@reverse')) {
                         if (property_exists($value, '@id')) {
-                            throw new SyntaxException("Invalid term definition using both @reverse and @id detected", $value);
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_REVERSE_PROPERTY,
+                                "Invalid term definition using both @reverse and @id detected", $value
+                            );
                         }
 
                         if (property_exists($value, '@container') &&
                             ('@index' !== $value->{'@container'}) &&
                             ('@set' !== $value->{'@container'})) {
-                            throw new SyntaxException(
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_REVERSE_PROPERTY,
                                 "Terms using the @reverse feature support only @set- and @index-containers.",
                                 $value
                             );
@@ -1548,14 +1585,28 @@ class Processor
                     }
 
                     if (property_exists($value, '@id')) {
-                        $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                        if ((null !== $value->{'@id'}) && (false === is_string($value->{'@id'}))) {
+                            throw new JsonLdException(JsonLdException::INVALID_IRI_MAPPING, null, $value->{'@id'});
+                        }
+
+                        $path = array();
+                        if ($key !== $value->{'@id'}) {
+                            $path[] = $key;
+                        }
+
+                        $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context, $path);
 
                         if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
-                            throw new SyntaxException(
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_IRI_MAPPING,
                                 "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
                             );
                         } elseif ('@context' === $expanded) {
-                            throw new SyntaxException('Aliases for @context are not supported', $value);
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_KEYWORD_ALIAS,
+                                'Aliases for @context are not supported',
+                                $value
+                            );
                         }
                     } else {
                         $expanded = $this->expandIri($key, $activectx, false, true, $context);
@@ -1569,22 +1620,38 @@ class Processor
 
                         continue;
                     } elseif (false === strpos($expanded, ':')) {
-                        throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_IRI_MAPPING,
+                            "Failed to expand \"$key\" to an absolute IRI.",
+                            $loclctx
+                        );
                     }
 
                     $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
 
                     if (isset($value->{'@type'})) {
+                        if (false === is_string($value->{'@type'})) {
+                            throw new JsonLdException(JsonLdException::INVALID_TYPE_MAPPING);
+                        }
+
                         $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
 
-                        if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
-                            throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
+                        if (('@id' !== $expanded) && ('@vocab' !== $expanded) &&
+                            ((false === strpos($expanded, ':') || (0 === strpos($expanded, '_:'))))) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_TYPE_MAPPING,
+                                "Failed to expand $expanded to an absolute IRI.", $loclctx
+                            );
                         }
 
                         $activectx[$key]['@type'] = $expanded;
                     } elseif (property_exists($value, '@language')) {
                         if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
-                            throw new SyntaxException('The value of @language must be a string.', $context);
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_LANGUAGE_MAPPING,
+                                'The value of @language must be a string or null.',
+                                $value
+                            );
                         }
 
                         // Note the else. Language tagging applies just to term without type coercion
@@ -1594,27 +1661,44 @@ class Processor
                     if (isset($value->{'@container'})) {
                         if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
                             $activectx[$key]['@container'] = $value->{'@container'};
+                        } else {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_CONTAINER_MAPPING,
+                                'A container mapping of ' . $value->{'@container'} . ' is not supported.'
+                            );
                         }
                     }
                 }
-            } else {
+            } elseif (is_string($context)) {
                 $remoteContext = (string) $activectx['@base']->resolve($context);
                 if (in_array($remoteContext, $remotectxs)) {
-                    throw new ProcessException(
+                    throw new JsonLdException(JsonLdException::RECURSIVE_CONTEXT_INCLUSION,
                         'Recursive inclusion of remote context: ' . join(' -> ', $remotectxs) . ' -> ' .
                         $remoteContext
                     );
                 }
                 $remotectxs[] = $remoteContext;
 
-                $remoteContext = JsonLD::parse($remoteContext);
+                try {
+                    $remoteContext = JsonLD::parse($remoteContext);
+                } catch (JsonLdException $e) {
+                    throw new JsonLdException(
+                        JsonLdException::LOADING_REMOTE_CONTEXT_FAILED,
+                        "Loading $remoteContext failed",
+                        null,
+                        null,
+                        $e
+                    );
+                }
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context')) {
                     // TODO Use the context's IRI as base IRI when processing remote contexts (ISSUE-24)
                     $this->processContext($remoteContext->{'@context'}, $activectx, $remotectxs);
                 } else {
-                    throw new ProcessException('Remote context "' . $context . '" is invalid.', $remoteContext);
+                    throw new JsonLdException(JsonLdException::INVALID_REMOTE_CONTEXT, 'Remote context "' . $context . '" is invalid.', $remoteContext);
                 }
+            } else {
+                throw new JsonLdException(JsonLdException::INVALID_LOCAL_CONTEXT);
             }
         }
     }
@@ -1801,7 +1885,12 @@ class Processor
             }
 
             if (property_exists($element, '@index')) {
-                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index', $element->{'@index'});
+                $this->setProperty(
+                    $nodeMap->{$activegraph}->{$id},
+                    '@index',
+                    $element->{'@index'},
+                    JsonLdException::CONFLICTING_INDEXES
+                );
                 unset($element->{'@index'});
             }
 
@@ -2252,14 +2341,16 @@ class Processor
      *
      * @return array $result The framed element in expanded form.
      *
-     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
-     * @throws ProcessException If framing failed.
+     * @throws JsonLdException
      */
     public function frame($element, $frame)
     {
         if ((false === is_array($frame)) || (1 !== count($frame)) || (false === is_object($frame[0]))) {
-            throw new SyntaxException('The frame is invalid. It must be a single object.', $frame);
+            throw new JsonLdException(
+                JsonLdException::UNSPECIFIED,
+                'The frame is invalid. It must be a single object.',
+                $frame
+            );
         }
 
         $frame = $frame[0];
@@ -2499,7 +2590,8 @@ class Processor
                         }
                     }
                 } elseif (is_array($validValue)) {
-                    throw new SyntaxException(
+                    throw new JsonLdException(
+                        JsonLdException::UNSPECIFIED,
                         "Invalid frame detected. Property \"$property\" must not be an array of arrays.",
                         $frame
                     );
@@ -2595,13 +2687,26 @@ class Processor
      * @param string $property The name of the property.
      * @param mixed  $value    The value of the property.
      *
-     * @throws SyntaxException If the property exists already JSON-LD.
+     * @throws JsonLdException If the property exists already JSON-LD.
      */
-    private static function setProperty(&$object, $property, $value)
+    private static function setProperty(&$object, $property, $value, $errorCode = null)
     {
         if (property_exists($object, $property) &&
             (false === self::subtreeEquals($object->{$property}, $value))) {
-            throw new SyntaxException("Object already contains a property \"$property\".", $object);
+
+            if ($errorCode) {
+                throw new JsonLdException(
+                    $errorCode,
+                    "Object already contains a property \"$property\".",
+                    $object
+                );
+            }
+
+            throw new JsonLdException(
+                JsonLdException::UNSPECIFIED,
+                "Object already contains a property \"$property\".",
+                $object
+            );
         }
 
         $object->{$property} = $value;

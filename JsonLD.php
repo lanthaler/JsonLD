@@ -10,9 +10,7 @@
 namespace ML\JsonLD;
 
 use stdClass as Object;
-use ML\JsonLD\Exception\ParseException;
-use ML\JsonLD\Exception\SyntaxException;
-use ML\JsonLD\Exception\ProcessException;
+use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
@@ -40,7 +38,7 @@ class JsonLD
      *
      * @return mixed The JSON-LD document converted to a PHP representation.
      *
-     * @throws ParseException If the JSON-LD input document is invalid.
+     * @throws JsonLdException
      */
     public static function parse($input)
     {
@@ -67,20 +65,15 @@ class JsonLD
                 )
             );
 
-            if (false === ($input = file_get_contents($input, false, $context))) {
-                throw new ParseException(sprintf('Unable to parse "%s" as the file is not readable.', $input));
+            if (false === ($input = @file_get_contents($input, false, $context))) {
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    sprintf('Unable to parse "%s" as the file is not readable.', $input)
+                );
             }
         }
 
-        try {
-            return Processor::parse($input);
-        } catch (ParseException $e) {
-            if ($input) {
-                $e->setParsedFile($input);
-            }
-
-            throw $e;
-        }
+        return Processor::parse($input);
     }
 
     /**
@@ -111,7 +104,7 @@ class JsonLD
      *
      * @return Document The parsed JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document is invalid.
+     * @throws JsonLdException
      */
     public static function getDocument($input, $options = null)
     {
@@ -152,11 +145,7 @@ class JsonLD
      *
      * @return array The expanded JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If expanding the JSON-LD document failed.
+     * @throws JsonLdException
      */
     public static function expand($input, $options = null)
     {
@@ -223,11 +212,7 @@ class JsonLD
      *
      * @return object The compacted JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If compacting the JSON-LD document failed.
+     * @throws JsonLdException
      */
     public static function compact($input, $context = null, $options = null)
     {
@@ -257,11 +242,7 @@ class JsonLD
      *
      * @return object The compacted JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If compacting the JSON-LD document failed.
+     * @throws JsonLdException
      */
     private static function doCompact($input, $context = null, $options = null, $alwaysGraph = false)
     {
@@ -351,11 +332,7 @@ class JsonLD
      *
      * @return object The flattened JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If flattening the JSON-LD document failed.
+     * @throws JsonLdException
      */
     public static function flatten($input, $context = null, $options = null)
     {
@@ -402,11 +379,7 @@ class JsonLD
      *
      * @return array The extracted quads.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If converting the JSON-LD document to quads failed.
+     * @throws JsonLdException
      */
     public static function toRdf($input, $options = null)
     {
@@ -448,7 +421,7 @@ class JsonLD
      * @return array The JSON-LD document in expanded form.
      *
      * @throws InvalidQuadException If an invalid quad was detected.
-     * @throws ProcessException     If converting the quads to a JSON-LD document failed.
+     * @throws JsonLdException      If converting the quads to a JSON-LD document failed.
      */
     public static function fromRdf(array $quads, $options = null)
     {
@@ -496,11 +469,7 @@ class JsonLD
      *
      * @return mixed The resulting JSON-LD document.
      *
-     * @throws ParseException   If the JSON-LD input document or context
-     *                          couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD input document or context
-     *                          contains syntax errors.
-     * @throws ProcessException If framing the JSON-LD document failed.
+     * @throws JsonLdException
      */
     public static function frame($input, $frame, $options = null)
     {
@@ -511,7 +480,11 @@ class JsonLD
         $frame = self::parse($frame);
 
         if (false === is_object($frame)) {
-            throw new SyntaxException('Invalid frame detected. It must be an object.', $frame);
+            throw new JsonLdException(
+                JsonLdException::UNSPECIFIED,
+                'Invalid frame detected. It must be an object.',
+                $fram
+            );
         }
 
         $processor = new Processor($options);
