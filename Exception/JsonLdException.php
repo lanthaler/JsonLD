@@ -16,7 +16,7 @@ use ML\JsonLD\JsonLD;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class JsonLDException extends \RuntimeException
+class JsonLdException extends \RuntimeException
 {
     /**
      * An unspecified error code (none was standardized yet)
