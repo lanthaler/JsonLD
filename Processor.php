@@ -1554,6 +1554,8 @@ class Processor
                             throw new SyntaxException(
                                 "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
                             );
+                        } elseif ('@context' === $expanded) {
+                            throw new SyntaxException('Aliases for @context are not supported', $value);
                         }
                     } else {
                         $expanded = $this->expandIri($key, $activectx, false, true, $context);
