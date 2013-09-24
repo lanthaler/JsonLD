@@ -498,7 +498,9 @@ class Processor
                             'Invalid value for @language detected (must be a string).',
                             $element
                         );
-                    } elseif (false === is_string($element->{'@value'})) {
+                    }
+
+                    if (false === is_string($element->{'@value'})) {
                         throw new SyntaxException(
                             'Only strings can be language tagged.',
                             $element
