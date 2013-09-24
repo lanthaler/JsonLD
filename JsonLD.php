@@ -483,7 +483,7 @@ class JsonLD
             throw new JsonLdException(
                 JsonLdException::UNSPECIFIED,
                 'Invalid frame detected. It must be an object.',
-                $fram
+                $frame
             );
         }
 
