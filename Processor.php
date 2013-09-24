@@ -1517,91 +1517,81 @@ class Processor
                         throw new SyntaxException('Keywords cannot be redefined.', $key);
                     }
 
-                    if (null === $value) {
-                        $activectx[$key]['@id'] = null;
-                        $activectx[$key]['@reverse'] = false;
-
-                        continue;
+                    if ((null === $value) || is_string($value)) {
+                        $value = (object) array('@id' => $value);
+                    } elseif (is_object($value)) {
+                        $value = clone $value;    // make sure we don't modify context entries
+                    } else {
+                        throw new SyntaxException('Invalid term definition', $value);
                     }
 
-                    if (is_string($value)) {
-                        $expanded = $this->expandIri($value, $activectx, false, true, $context);
+                    $expanded = null;
 
-                        if ((false === in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':'))) {
+                    if (property_exists($value, '@reverse')) {
+                        if (property_exists($value, '@id')) {
+                            throw new SyntaxException("Invalid term definition using both @reverse and @id detected", $value);
+                        }
+
+                        if (property_exists($value, '@container') &&
+                            ('@index' !== $value->{'@container'}) &&
+                            ('@set' !== $value->{'@container'})) {
+                            throw new SyntaxException(
+                                "Terms using the @reverse feature support only @set- and @index-containers.",
+                                $value
+                            );
+                        }
+
+                        $value->{'@id'} = $value->{'@reverse'};
+                        $value->{'@reverse'} = true;
+                    } else {
+                        $value->{'@reverse'} = false;
+                    }
+
+                    if (property_exists($value, '@id')) {
+                        $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+
+                        if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
+                            throw new SyntaxException(
+                                "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
+                            );
+                        }
+                    } else {
+                        $expanded = $this->expandIri($key, $activectx, false, true, $context);
+                    }
+
+
+                    if ((null === $expanded) || in_array($expanded, self::$keywords)) {
+                        // if it's an aliased keyword or the IRI is null, we ignore all other properties
+                        // TODO Should we throw an exception if there are other properties?
+                        $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
+
+                        continue;
+                    } elseif (false === strpos($expanded, ':')) {
+                        throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
+                    }
+
+                    $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
+
+                    if (isset($value->{'@type'})) {
+                        $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
+
+                        if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
                             throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
                         }
 
-                        $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
-                    } elseif (is_object($value)) {
-                        $value = clone $value;    // make sure we don't modify context entries
-                        $expanded = null;
-
-                        if (property_exists($value, '@reverse')) {
-                            if (property_exists($value, '@id')) {
-                                throw new SyntaxException("Invalid term definition using both @reverse and @id detected", $value);
-                            }
-
-                            if (property_exists($value, '@container') &&
-                                ('@index' !== $value->{'@container'}) &&
-                                ('@set' !== $value->{'@container'})) {
-                                throw new SyntaxException(
-                                    "Terms using the @reverse feature support only @set- and @index-containers.",
-                                    $value
-                                );
-                            }
-
-                            $value->{'@id'} = $value->{'@reverse'};
-                            $value->{'@reverse'} = true;
-                        } else {
-                            $value->{'@reverse'} = false;
+                        $activectx[$key]['@type'] = $expanded;
+                    } elseif (property_exists($value, '@language')) {
+                        if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
+                            throw new SyntaxException('The value of @language must be a string.', $context);
                         }
 
-                        if (property_exists($value, '@id')) {
-                            $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                        // Note the else. Language tagging applies just to term without type coercion
+                        $activectx[$key]['@language'] = $value->{'@language'};
+                    }
 
-                            if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
-                                throw new SyntaxException(
-                                    "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
-                                );
-                            }
-                        } else {
-                            $expanded = $this->expandIri($key, $activectx, false, true, $context);
-                        }
-
-
-                        if ((null === $expanded) || in_array($expanded, self::$keywords)) {
-                            // if it's an aliased keyword or the IRI is null, we ignore all other properties
-                            // TODO Should we throw an exception if there are other properties?
-                            $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
-
-                            continue;
-                        } elseif (false === strpos($expanded, ':')) {
-                            throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
-                        }
-
-                        $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
-
-                        if (isset($value->{'@type'})) {
-                            $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
-
-                            if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
-                                throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
-                            }
-
-                            $activectx[$key]['@type'] = $expanded;
-                        } elseif (property_exists($value, '@language')) {
-                            if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
-                                throw new SyntaxException('The value of @language must be a string.', $context);
-                            }
-
-                            // Note the else. Language tagging applies just to term without type coercion
-                            $activectx[$key]['@language'] = $value->{'@language'};
-                        }
-
-                        if (isset($value->{'@container'})) {
-                            if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
-                                $activectx[$key]['@container'] = $value->{'@container'};
-                            }
+                    if (isset($value->{'@container'})) {
+                        if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
+                            $activectx[$key]['@container'] = $value->{'@container'};
                         }
                     }
                 }
