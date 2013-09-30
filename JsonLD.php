@@ -47,33 +47,9 @@ class JsonLD
             return $input;
         }
 
-        // if input looks like a file, try to retrieve it
-        $input = trim($input);
-        if (false == (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
-            $context = stream_context_create(
-                array(
-                    'http' => array(
-                      'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json\r\n",
-                      'timeout' => Processor::REMOTE_TIMEOUT,
-                    ),
-                    'https' => array(
-                      'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json\r\n",
-                      'timeout' => Processor::REMOTE_TIMEOUT,
-                    )
-                )
-            );
+        $document = FileGetContentsLoader::loadDocument($input);
 
-            if (false === ($input = @file_get_contents($input, false, $context))) {
-                throw new JsonLdException(
-                    JsonLdException::LOADING_DOCUMENT_FAILED,
-                    sprintf('Unable to parse "%s" as the file is not readable.', $input)
-                );
-            }
-        }
-
-        return Processor::parse($input);
+        return $document->document;
     }
 
     /**
@@ -149,13 +125,25 @@ class JsonLD
      */
     public static function expand($input, $options = null)
     {
-        // TODO $input can be an IRI, if so overwrite base iri accordingly
-        $input = self::parse($input);
-
         $options = self::mergeOptions($options);
 
         $processor = new Processor($options);
-        $activectx = array('@base' => $options->base);
+
+        if (is_string($input)) {
+            $remoteDocument = FileGetContentsLoader::loadDocument($input);
+
+            $input = $remoteDocument->document;
+            $activectx = array('@base' => new IRI($remoteDocument->documentUrl));
+
+            if (null !== $remoteDocument->contextUrl) {
+                $processor->processContext($remoteDocument->contextUrl, $activectx);
+            }
+        }
+
+        if ($options->base) {
+            $activectx['@base'] = $options->base;
+        }
+
         if (null !== $options->expandContext) {
             $processor->processContext($options->expandContext, $activectx);
         }

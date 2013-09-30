@@ -158,6 +158,44 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * Tests remote document loading.
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @group remote
+     * @dataProvider remoteDocumentLoadingProvider
+     */
+    public function testRemoteDocumentLoading($name, $test, $options)
+    {
+        if (in_array('jld:NegativeEvaluationTest', $test->{'@type'})) {
+            $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+        } else {
+            $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
+        }
+
+        unset($options->base);
+
+        $result = JsonLD::expand($this->baseurl . $test->{'input'}, $options);
+
+        if (isset($expected)) {
+            $this->assertJsonEquals($expected, $result);
+        }
+    }
+
+    /**
+     * Provides remote document loading test cases.
+     */
+    public function remoteDocumentLoadingProvider()
+    {
+        return new TestManifestIterator(
+            $this->basedir . 'remote-doc-manifest.jsonld',
+            $this->baseurl . 'remote-doc-manifest.jsonld'
+        );
+    }
+
+    /**
      * Tests errors (uses flattening).
      *
      * @param string $name    The test name.
