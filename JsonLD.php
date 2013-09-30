@@ -84,7 +84,6 @@ class JsonLD
      */
     public static function getDocument($input, $options = null)
     {
-        // TODO $input can be an IRI, if so overwrite base iri accordingly
         $input = self::expand($input, $options);
 
         $processor = new Processor(self::mergeOptions($options));
@@ -206,7 +205,6 @@ class JsonLD
     {
         $options = self::mergeOptions($options);
 
-        // TODO $input can be an IRI, if so overwrite $baseiri accordingly!?
         $expanded = self::expand($input, $options);
 
         return self::doCompact($expanded, $context, $options);
@@ -463,7 +461,6 @@ class JsonLD
     {
         $options = self::mergeOptions($options);
 
-        // TODO $input can be an IRI, if so overwrite $baseiri accordingly!?
         $input = self::expand($input, $options);
         $frame = self::parse($frame);
 
