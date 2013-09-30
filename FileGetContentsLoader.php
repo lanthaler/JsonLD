@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\IRI\IRI;
 
