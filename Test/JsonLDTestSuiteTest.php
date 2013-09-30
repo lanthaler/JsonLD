@@ -209,7 +209,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     {
         $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
 
-        $result = JsonLD::flatten(
+        JsonLD::flatten(
             $this->basedir . $test->{'input'},
             (isset($test->{'context'})) ? $this->basedir . $test->{'context'} : null,
             $options
@@ -286,13 +286,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testToRdf($name, $test, $options)
     {
-        if ('toRdf-0100-in.jsonld' === $test->{'input'}) {
-            $this->markTestSkipped(
-                'It is unclear how un-resolvable relative IRIs should be handled.'
-                // See https://github.com/json-ld/json-ld.org/commit/177b5041c9fc145d84ddb307b8f11c86c805fca2#commitcomment-3374027
-            );
-        }
-
         $expected = trim(file_get_contents($this->basedir . $test->{'expect'}));
         $quads = JsonLD::toRdf($this->basedir . $test->{'input'}, $options);
 
@@ -386,7 +379,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
             ksort($element);
             $element = (object) $element;
 
-            foreach ($element as $key => &$item) {
+            foreach ($element as &$item) {
                 $item = self::normalizeJson($item);
             }
         }
