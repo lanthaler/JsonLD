@@ -1524,9 +1524,6 @@ class Processor
      */
     public function processContext($loclctx, &$activectx, $remotectxs = array())
     {
-        // Initialize variable
-        $activectxKey = null;
-
         if (is_object($loclctx)) {
             $loclctx = clone $loclctx;
         }
