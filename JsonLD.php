@@ -127,12 +127,13 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         $processor = new Processor($options);
+        $activectx = array('@base' => null);
 
         if (is_string($input)) {
             $remoteDocument = FileGetContentsLoader::loadDocument($input);
 
             $input = $remoteDocument->document;
-            $activectx = array('@base' => new IRI($remoteDocument->documentUrl));
+            $activectx['@base'] = new IRI($remoteDocument->documentUrl);
 
             if (null !== $remoteDocument->contextUrl) {
                 $processor->processContext($remoteDocument->contextUrl, $activectx);
