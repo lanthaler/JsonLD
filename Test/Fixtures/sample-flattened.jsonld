@@ -22,7 +22,13 @@
         "@value": "v3"
       },
       "term4": 4,
-      "term5": [50, 51]
+      "term5": [ 50, 51 ],
+      "http://example.com/term6": [
+        { "@value": "1", "@type": "t1" },
+        { "@value": "2", "@type": "t2" },
+        { "@value": "3", "@language": "en" },
+        { "@value": "4", "@language": "de" }
+      ]
     }
   ]
 }

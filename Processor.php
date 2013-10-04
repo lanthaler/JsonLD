@@ -275,7 +275,7 @@ class Processor
                 foreach ($value as $val) {
                     if (property_exists($val, '@value')) {
                         if (property_exists($val, '@type')) {
-                            $node->setProperty($property, new TypedValue($val->{'@value'}, $val->{'@type'}));
+                            $node->addPropertyValue($property, new TypedValue($val->{'@value'}, $val->{'@type'}));
                         } elseif (property_exists($val, '@language')) {
                             $node->addPropertyValue(
                                 $property,

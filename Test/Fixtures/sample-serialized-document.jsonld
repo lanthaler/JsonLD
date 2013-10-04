@@ -7,8 +7,8 @@
     "http://example.com/term3": [ {"@value": "v3", "@language": "en"} ],
     "http://example.com/term4": [ {"@value": 4} ],
     "http://example.com/term5": [
-      { "@value": 50 },
-      { "@value": 51 }
+      {"@value": 50 },
+      {"@value": 51 }
     ],
     "http://example.com/term6": [
       { "@value": "1", "@type": "http://example.com/t1" },
@@ -16,5 +16,8 @@
       { "@value": "3", "@language": "en" },
       { "@value": "4", "@language": "de" }
     ]
+  },
+  {
+    "@id": "http://example.com/t1"
   }
 ]

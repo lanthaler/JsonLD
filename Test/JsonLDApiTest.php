@@ -108,4 +108,25 @@ class JsonLDApiTest extends JsonTestCase
         $context = json_decode($context);
         $this->assertJsonEquals($expected, JsonLD::frame($input, $context), 'Passing the parsed object');
     }
+
+    /**
+     * Tests the document API
+     *
+     * This test intentionally uses the same fixtures as the flattening tests.
+     */
+    public function testGetDocument()
+    {
+
+        $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
+        $expected = json_decode(file_get_contents($path . 'sample-serialized-document.jsonld'));
+
+        $input   = $path . 'sample-in.jsonld';
+        $this->assertJsonEquals($expected, JsonLD::getDocument($input)->toJsonLd(), 'Passing the file path');
+
+        $input   = file_get_contents($input);
+        $this->assertJsonEquals($expected, JsonLD::getDocument($input)->toJsonLd(), 'Passing the raw input (string)');
+
+        $input   = json_decode($input);
+        $this->assertJsonEquals($expected, JsonLD::getDocument($input)->toJsonLd(), 'Passing the parsed object');
+    }
 }
