@@ -271,24 +271,15 @@ class Processor
                 unset($item->{'@type'});
             }
 
-            foreach ($item as $property => $value) {
-                foreach ($value as $val) {
-                    if (property_exists($val, '@value')) {
-                        if (property_exists($val, '@type')) {
-                            $node->addPropertyValue($property, new TypedValue($val->{'@value'}, $val->{'@type'}));
-                        } elseif (property_exists($val, '@language')) {
-                            $node->addPropertyValue(
-                                $property,
-                                new LanguageTaggedString($val->{'@value'}, $val->{'@language'})
-                            );
-                        } else {
-                            $node->addPropertyValue($property, $val->{'@value'});
+            foreach ($item as $property => $values) {
+                foreach ($values as $value) {
+                    if (property_exists($value, '@value')) {
+                        $node->addPropertyValue($property, Value::fromJsonLd($value));
+                    } elseif (property_exists($value, '@id')) {
+                        if (!isset($nodes[$value->{'@id'}])) {
+                            $nodes[$value->{'@id'}] = $graph->createNode($value->{'@id'});
                         }
-                    } elseif (property_exists($val, '@id')) {
-                        if (!isset($nodes[$val->{'@id'}])) {
-                            $nodes[$val->{'@id'}] = $graph->createNode($val->{'@id'});
-                        }
-                        $node->addPropertyValue($property, $nodes[$val->{'@id'}]);
+                        $node->addPropertyValue($property, $nodes[$value->{'@id'}]);
                     } else {
                         // TODO Handle lists
                         throw new \Exception('Not implemented yet');
