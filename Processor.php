@@ -975,7 +975,7 @@ class Processor
                     if (is_string($value)) {
                         $value = $this->compactIri($value, $activectx, $inversectx, null, true);
                     } else {
-                        foreach ($value as $key => &$iri) {
+                        foreach ($value as &$iri) {
                             $iri = $this->compactIri($iri, $activectx, $inversectx, null, true);
                         }
 
@@ -1239,13 +1239,13 @@ class Processor
         }
 
         // Try to compact to a compact IRI
-        $iriLen = strlen($iri);
-
         foreach ($inversectx as $termIri => $def) {
             $termIriLen = strlen($termIri);
+
             if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen)) &&
                 (false !== ($compactIri = substr($iri, $termIriLen)))) {
                 $compactIri = $def['term'] . ':' . $compactIri;
+
                 if (false === isset($activectx[$compactIri]) ||
                     ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
                     return $compactIri;
@@ -2302,7 +2302,7 @@ class Processor
                 $graphNodes = $graphs->{$id};
                 ksort($nodes);
 
-                foreach ($graphNodes as $gnId => $graphNode) {
+                foreach ($graphNodes as $graphNode) {
                     unset($graphNode->usages);
 
                     if (count(get_object_vars($graphNode)) > 1) {
@@ -2328,7 +2328,7 @@ class Processor
      */
     private function createListObjects($graphs)
     {
-        foreach ($graphs as $graphName => $graph) {
+        foreach ($graphs as $graph) {
             if (false === isset($graph->{RdfConstants::RDF_NIL})) {
                 continue;
             }
@@ -2454,7 +2454,7 @@ class Processor
         // Sort the node map to ensure a deterministic output
         // TODO Move this to a separate function as basically the same is done in flatten()?
         $nodeMap = (array) $nodeMap;
-        foreach ($nodeMap as $graphName => &$nodes) {
+        foreach ($nodeMap as &$nodes) {
             $nodes = (array) $nodes;
             ksort($nodes);
             $nodes = (object) $nodes;
