@@ -61,7 +61,7 @@ class EarlReportGenerator extends \PHPUnit_Util_Printer implements \PHPUnit_Fram
     /**
      * @var string
      */
-    protected $testTypeOfInterest = 'ML\\JsonLD\\Test\\JsonLDTestSuiteTest';
+    protected $testTypeOfInterest = 'ML\\JsonLD\\Test\\W3CTestSuiteTest';
 
     /**
      * @var array Lookup table for EARL statuses

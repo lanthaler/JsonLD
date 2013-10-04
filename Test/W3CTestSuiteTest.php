@@ -14,11 +14,13 @@ use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
 /**
- * The official JSON-LD test suite.
+ * The official W3C JSON-LD test suite.
+ *
+ * @link http://www.w3.org/2013/json-ld-tests/ Official W3C JSON-LD test suite
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class JsonLDTestSuiteTest extends JsonTestCase
+class W3CTestSuiteTest extends JsonTestCase
 {
     /**
      * The base directory from which the test manifests, input, and output
