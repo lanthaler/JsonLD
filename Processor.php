@@ -1916,7 +1916,9 @@ class Processor
             }
 
             // Add reference to active property
-            if (null !== $activeprty) {
+            if (is_object($activeid)) {
+                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$id}, $activeprty, $activeid, true, true);
+            } elseif (null !== $activeprty) {
                 $reference = new Object();
                 $reference->{'@id'} = $id;
 
@@ -1949,14 +1951,13 @@ class Processor
             }
 
             if (property_exists($element, '@reverse')) {
-                $reference = array('@id' => $id);
+                $reference = (object) array('@id' => $id);
 
                 // First, add the reverse property to all nodes pointing to this node and then
                 // add them to the node mape
                 foreach (get_object_vars($element->{'@reverse'}) as $property => $value) {
                     foreach ($value as $val) {
-                        $this->mergeIntoProperty($val, $property, (object)$reference, true, true);
-                        $this->generateNodeMap($nodeMap, $val, $activegraph);
+                        $this->generateNodeMap($nodeMap, $val, $activegraph, $reference, $property);
                     }
                 }
 
