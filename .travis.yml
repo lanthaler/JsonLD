@@ -4,6 +4,7 @@ php:
   - 5.3
   - 5.4
   - 5.5
+  - hhvm
 
 before_script:
   - git clone git://github.com/json-ld/json-ld.org.git
