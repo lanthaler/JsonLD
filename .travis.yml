@@ -6,6 +6,10 @@ php:
   - 5.5
   - hhvm
 
+matrix:
+  allow_failures:
+    - hhvm
+
 before_script:
   - git clone git://github.com/json-ld/json-ld.org.git
   - mv ./json-ld.org/test-suite/tests ./Test/
