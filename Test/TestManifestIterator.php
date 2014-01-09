@@ -40,14 +40,11 @@ class TestManifestIterator implements \Iterator
      */
     public function __construct($file, $url)
     {
-        try {
+        if (file_exists($file)) {
             $this->manifest = json_decode(file_get_contents($file));
             $this->numberTests = count($this->manifest->{'sequence'});
             $this->url = $url;
             $this->directory = dirname($file) . DIRECTORY_SEPARATOR;
-        } catch (Exception $e) {
-            echo "Exception while parsing file: '$file'";
-            throw $e;
         }
     }
 
