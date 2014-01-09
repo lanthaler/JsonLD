@@ -50,7 +50,7 @@ class W3CTestSuiteTest extends JsonTestCase
         $this->id = $dataName;
 
         parent::__construct($name, $data, $dataName);
-        $this->basedir = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR;
+        $this->basedir = dirname(__FILE__) . '/../vendor/json-ld/tests/';
     }
 
     /**
