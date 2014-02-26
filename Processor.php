@@ -1720,7 +1720,11 @@ class Processor
                     }
                 }
             } elseif (is_string($context)) {
-                $remoteContext = (string) $activectx['@base']->resolve($context);
+                if(isset($activectx['base']) && is_object($activectx['base'])){
+                    $remoteContext = (string) $activectx['@base']->resolve($context);
+                }else{
+                    $remoteContext = $context;
+                }
                 if (in_array($remoteContext, $remotectxs)) {
                     throw new JsonLdException(
                         JsonLdException::RECURSIVE_CONTEXT_INCLUSION,
