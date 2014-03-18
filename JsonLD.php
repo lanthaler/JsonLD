@@ -15,33 +15,52 @@ use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
 /**
- * JsonLD offers convenience methods to load, process, and dump JSON-LD.
+ * JsonLD
+ *
+ * JsonLD implements the algorithms defined by the
+ * {@link http://www.w3.org/TR/json-ld-api/ JSON-LD 1.0 API and Processing Algorithms specification}.
+ * Its interface is, apart from the usage of Promises, exactly the same as the one
+ * defined by the specification.
+ *
+ * Furthermore, it implements an enhanced version of the
+ * {@link http://json-ld.org/spec/latest/json-ld-framing/ JSON-LD Framing 1.0 draft}
+ * and an object-oriented interface to access and manipulate JSON-LD documents.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
 class JsonLD
 {
     /**
-     * Parses a JSON-LD document and converts it to a {@link Document}
+     * Load and parse a JSON-LD document
      *
-     * The document can be supplied directly as a string or by passing a
-     * file path or an IRI.
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
      *
      * Usage:
      *  <code>
      *    $document = JsonLD::getDocument('document.jsonld');
+     *    print_r($document->getGraphNames());
      *  </code>
      *
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>            The base IRI of the input document.
-     *   - <em>expandContext</em>   An optional context to use additionally
-     *                              to the context embedded in input when
-     *                              expanding the input.
-     *   - <em>documentFactory</em> The document factory.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * @param string|array|object $input   The JSON-LD document to process.
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     *
+     *   <dt>documentFactory</dt>
+     *   <dd>The document factory.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
+     * object.
+     *
+     * @param string|object|array $input   The JSON-LD document to process.
      * @param null|array|object   $options Options to configure the processing.
      *
      * @return Document The parsed JSON-LD document.
@@ -58,10 +77,10 @@ class JsonLD
     }
 
     /**
-     * Expands a JSON-LD document
+     * Expand a JSON-LD document
      *
-     * The document can be supplied directly as a string or by passing a
-     * file path or an IRI.
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
      *
      * Usage:
      *  <code>
@@ -72,15 +91,19 @@ class JsonLD
      * It is possible to configure the expansion process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|array|object $input   The JSON-LD document to expand.
+     * @param string|object|array $input   The JSON-LD document to expand.
      * @param null|array|object   $options Options to configure the expansion
      *                                     process.
      *
@@ -129,10 +152,10 @@ class JsonLD
     }
 
     /**
-     * Compacts a JSON-LD document according a supplied context
+     * Compact a JSON-LD document according a supplied context
      *
-     * Both, the document and context can be supplied directly as strings or
-     * by passing a file path or an IRI.
+     * Both the document and the context can be supplied directly as string,
+     * by passing a file path, or by passing a URL.
      *
      * Usage:
      *  <code>
@@ -143,26 +166,32 @@ class JsonLD
      * It is possible to configure the compaction process by setting the
      * options parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
-     *   - <em>optimize</em>      If set to true, the processor is free to optimize
-     *                            the result to produce an even compacter
-     *                            representation than the algorithm described by
-     *                            the official JSON-LD specification.
-     *   - <em>compactArrays</em> If set to true, arrays holding just one element
-     *                            are compacted to scalars, otherwise the arrays
-     *                            are kept as arrays.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     *
+     *   <dt>optimize</dt>
+     *   <dd>If set to true, the processor is free to optimize the result to
+     *     produce an even compacter representation than the algorithm
+     *     described by the official JSON-LD specification.</dd>
+     *
+     *   <dt>compactArrays</dt>
+     *   <dd>If set to true, arrays holding just one element are compacted
+     *     to scalars, otherwise the arrays are kept as arrays.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param array               $input       The expandedJSON-LD document to
-     *                                         compact.
-     * @param string|object|array $context     The context.
-     * @param null|array|object   $options     Options to configure the
-     *                                         compaction process.
+     * @param array                    $input       The JSON-LD document to
+     *                                              compact.
+     * @param null|string|object|array $context     The context.
+     * @param null|array|object        $options     Options to configure the
+     *                                              compaction process.
      *
      * @return object The compacted JSON-LD document.
      *
@@ -178,20 +207,20 @@ class JsonLD
     }
 
     /**
-     * Compacts a JSON-LD document according a supplied context
+     * Compact a JSON-LD document according a supplied context
      *
-     * In contrast to {@link compact()} this method assumes that the input
+     * In contrast to {@link compact()}, this method assumes that the input
      * has already been expanded.
      *
-     * @param array               $input       The expandedJSON-LD document to
-     *                                         compact.
-     * @param string|object|array $context     The context.
-     * @param null|array|object   $options     Options to configure the
-     *                                         compaction process.
-     * @param bool                $alwaysGraph If set to true, the resulting
-     *                                         document will always explicitly
-     *                                         contain the default graph at
-     *                                         the top-level.
+     * @param array                    $input       The JSON-LD document to
+     *                                              compact.
+     * @param null|string|object|array $context     The context.
+     * @param null|array|object        $options     Options to configure the
+     *                                              compaction process.
+     * @param bool                     $alwaysGraph If set to true, the resulting
+     *                                              document will always explicitly
+     *                                              contain the default graph at
+     *                                              the top-level.
      *
      * @return object The compacted JSON-LD document.
      *
@@ -248,10 +277,10 @@ class JsonLD
     }
 
     /**
-     * Flattens a JSON-LD document
+     * Flatten a JSON-LD document
      *
-     * The document can be supplied directly as a string or by passing a
-     * file path or an IRI.
+     * Both the document and the context can be supplied directly as string,
+     * by passing a file path, or by passing a URL.
      *
      * Usage:
      *  <code>
@@ -262,24 +291,29 @@ class JsonLD
      * It is possible to configure the flattening process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
-     *   - <em>graph</em>         The graph whose flattened representation
-     *                            should be returned. The default graph is
-     *                            identified by `@default` and the merged
-     *                            graph by `@merged`. If `null` is passed,
-     *                            all graphs will be returned.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     *
+     *   <dt>graph</dt>
+     *   <dd>The graph whose flattened representation should be returned.
+     *     The default graph is identified by <em>@default</em> and the
+     *     merged graph by <em>@union</em>. If <em>null</em> is passed, all
+     *     graphs will be returned.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|array|object      $input   The JSON-LD document to flatten.
+     * @param string|object|array      $input   The JSON-LD document to flatten.
      * @param null|string|object|array $context The context to compact the
-     *                                          flattened document. If `null`
-     *                                          is passed, the result will
-     *                                          not be compacted.
+     *                                          flattened document. If
+     *                                          <em>null</em> is passed, the
+     *                                          result will not be compacted.
      * @param null|array|object        $options Options to configure the
      *                                          flattening process.
      *
@@ -304,33 +338,37 @@ class JsonLD
     }
 
     /**
-     * Converts a JSON-LD document to RDF quads
+     * Convert a JSON-LD document to RDF quads
      *
-     * The document can be supplied directly as a string or by passing a
-     * file path or an IRI.
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
      *
      * Usage:
      *  <code>
      *    $quads = JsonLD::toRdf('document.jsonld');
-     *    print_r($expanded);
+     *    print_r($quads);
      *  </code>
      *
      * It is possible to configure the extraction process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|array|object $input   The JSON-LD document to expand.
+     * @param string|object|array $input   The JSON-LD document to expand.
      * @param null|array|object   $options Options to configure the expansion
      *                                    process.
      *
-     * @return array The extracted quads.
+     * @return Quad[] The extracted quads.
      *
      * @throws JsonLdException
      */
@@ -346,25 +384,31 @@ class JsonLD
     }
 
     /**
-     * Converts an array of RDF quads to a JSON-LD document
+     * Convert an array of RDF quads to a JSON-LD document
      *
      * Usage:
      *  <code>
      *    $document = JsonLD::fromRdf($quads);
-     *    JsonLD::toString($document, true);
+     *    print(JsonLD::toString($document, true));
      *  </code>
      *
      * It is possible to configure the conversion process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>           The base IRI of the input document.
-     *   - <em>useNativeTypes</em> If set to true, native types are used for
-     *                             xsd:integer, xsd:double, and xsd:boolean,
-     *                             otherwise typed strings will be used instead.
-     *   - <em>useRdfType</em>     If set to true, rdf:type will be used instead
-     *                             of @type in document.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>useNativeTypes</dt>
+     *   <dd>If set to true, native types are used for <em>xsd:integer</em>,
+     *     <em>xsd:double</em>, and <em>xsd:boolean</em>; otherwise,
+     *     typed strings will be used instead.</dd>
+     *
+     *   <dt>useRdfType</dt>
+     *   <dd>If set to true, <em>rdf:type</em> will be used instead of <em>@type</em>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
      * @param Quad[]            $quads   Array of quads.
@@ -388,8 +432,8 @@ class JsonLD
     /**
      * Frame a JSON-LD document according a supplied frame
      *
-     * Both, the document and context can be supplied directly as strings or
-     * by passing a file path or an IRI.
+     * Both the document and the frame can be supplied directly as string,
+     * by passing a file path, or by passing a URL.
      *
      * Usage:
      *  <code>
@@ -400,27 +444,33 @@ class JsonLD
      * It is possible to configure the framing process by setting the options
      * parameter accordingly. Available options are:
      *
-     *   - <em>base</em>          The base IRI of the input document.
-     *   - <em>expandContext</em> An optional context to use additionally
-     *                            to the context embedded in input when
-     *                            expanding the input.
-     *   - <em>optimize</em>      If set to true, the processor is free to optimize
-     *                            the result to produce an even compacter
-     *                            representation than the algorithm described by
-     *                            the official JSON-LD specification.
-     *   - <em>compactArrays</em> If set to true, arrays holding just one element
-     *                            are compacted to scalars, otherwise the arrays
-     *                            are kept as arrays.
+     * <dl>
+     *   <dt>base</dt>
+     *   <dd>The base IRI of the input document.</dd>
      *
-     * The options parameter might be passed as an associative array or an
+     *   <dt>expandContext</dt>
+     *   <dd>An optional context to use additionally to the context embedded
+     *     in input when expanding the input.</dd>
+     *
+     *   <dt>optimize</dt>
+     *   <dd>If set to true, the processor is free to optimize the result to
+     *     produce an even compacter representation than the algorithm
+     *     described by the official JSON-LD specification.</dd>
+     *
+     *   <dt>compactArrays</dt>
+     *   <dd>If set to true, arrays holding just one element are compacted
+     *     to scalars, otherwise the arrays are kept as arrays.</dd>
+     * </dl>
+     *
+     * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|array|object $input   The JSON-LD document to compact.
+     * @param string|object|array $input   The JSON-LD document to compact.
      * @param string|object       $frame   The frame.
      * @param null|array|object   $options Options to configure the framing
      *                                     process.
      *
-     * @return mixed The resulting JSON-LD document.
+     * @return mixed The framed JSON-LD document.
      *
      * @throws JsonLdException
      */
@@ -467,16 +517,21 @@ class JsonLD
     }
 
     /**
-     * Converts a PHP value to a JSON-LD string.
+     * Convert the PHP structure returned by the various processing methods
+     * to a string
      *
-     * The dump method will do its best to convert the supplied value into
-     * a JSON-LD string.
+     * Usage:
+     *  <code>
+     *    $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
+     *    $prettyString = JsonLD::toString($compacted, true);
+     *    print($prettyString);
+     *  </code>
      *
      * @param mixed $value  The value to convert.
      * @param bool  $pretty Use whitespace in returned string to format it
      *                      (this just works in PHP >=5.4)?
      *
-     * @return string A JSON-LD string.
+     * @return string
      */
     public static function toString($value, $pretty = false)
     {
@@ -506,7 +561,7 @@ class JsonLD
     }
 
     /**
-     * Merge the passed options with the option's default values.
+     * Merge the passed options with the options' default values.
      *
      * @param null|array|object $options The options.
      *
