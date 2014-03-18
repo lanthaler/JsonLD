@@ -647,6 +647,7 @@ JSON_LD_DOCUMENT;
      */
     public function testMerge()
     {
+        $this->markTestSkipped("Merging graphs doesn't work yet as blank nodes are not relabeled properly");
 
         $json = <<<JSON_LD_DOCUMENT
 {

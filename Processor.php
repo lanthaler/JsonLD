@@ -262,62 +262,59 @@ class Processor
      */
     public function getDocument($input)
     {
-        // TODO Add support for named graphs
         $nodeMap = new Object();
-        $nodeMap->{self::UNION_GRAPH} = new Object();
-        $this->generateNodeMap($nodeMap, $input, self::UNION_GRAPH);
-
-        // As we do not support named graphs yet we are currently just
-        // interested in the union graph
-        $nodeMap = $nodeMap->{self::UNION_GRAPH};
+        $nodeMap->{self::DEFAULT_GRAPH} = new Object();
+        $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
         // inserted into the Document
+        $nodes = array();
 
         if (null === $this->documentFactory) {
             $this->documentFactory = new DefaultDocumentFactory();
         }
 
         $document = $this->documentFactory->createDocument($this->baseIri);
-        $graph = $document->getGraph();
-        $nodes = array();
 
-        foreach ($nodeMap as $id => &$item) {
-            if (!isset($nodes[$id])) {
-                $nodes[$id] = $graph->createNode($item->{'@id'});
+        foreach ($nodeMap as $graphName => &$nodes) {
+            if (self::DEFAULT_GRAPH === $graphName) {
+                $graph = $document->getGraph();
+            } else {
+                $graph = $document->createGraph($graphName);
             }
 
-            $node = $nodes[$id];
-            unset($item->{'@id'});
+            foreach ($nodes as $id => &$item) {
+                $node = $graph->createNode($item->{'@id'}, true);
+                unset($item->{'@id'});
 
-            // Process node type as it needs to be handled differently than
-            // other properties
-            if (property_exists($item, '@type')) {
-                foreach ($item->{'@type'} as $type) {
-                    if (!isset($nodes[$type])) {
-                        $nodes[$type] = $graph->createNode($type);
+                // Process node type as it needs to be handled differently than
+                // other properties
+                // TODO Could this be avoided by enforcing rdf:type instead of @type?
+                if (property_exists($item, '@type')) {
+                    foreach ($item->{'@type'} as $type) {
+                        $node->addType($graph->createNode($type), true);
                     }
-                    $node->addType($nodes[$type]);
+                    unset($item->{'@type'});
                 }
-                unset($item->{'@type'});
-            }
 
-            foreach ($item as $property => $values) {
-                foreach ($values as $value) {
-                    if (property_exists($value, '@value')) {
-                        $node->addPropertyValue($property, Value::fromJsonLd($value));
-                    } elseif (property_exists($value, '@id')) {
-                        if (!isset($nodes[$value->{'@id'}])) {
-                            $nodes[$value->{'@id'}] = $graph->createNode($value->{'@id'});
+                foreach ($item as $property => $values) {
+                    foreach ($values as $value) {
+                        if (property_exists($value, '@value')) {
+                            $node->addPropertyValue($property, Value::fromJsonLd($value));
+                        } elseif (property_exists($value, '@id')) {
+                            $node->addPropertyValue(
+                                $property,
+                                $graph->createNode($value->{'@id'}, true)
+                            );
+                        } else {
+                            // TODO Handle lists
+                            throw new \Exception('Lists are not supported by getDocument() yet');
                         }
-                        $node->addPropertyValue($property, $nodes[$value->{'@id'}]);
-                    } else {
-                        // TODO Handle lists
-                        throw new \Exception('Not implemented yet');
                     }
                 }
             }
         }
+
 
         unset($nodeMap);
 

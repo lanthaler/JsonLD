@@ -1,0 +1,36 @@
+{
+  "@context": {
+    "@vocab": "http://example.com/vocab#",
+    "references": { "@type": "@id" }
+  },
+  "@graph": [
+    {
+      "@id": "/node1",
+      "references": [ "_:graphBn", "/named-graph" ]
+    },
+    {
+      "@id": "_:graphBn",
+      "@graph": [
+        {
+          "@id": "_:graphBn/node1",
+          "name": "_:graphBn/node1",
+          "references": [ "_:bnode", "/node1", "/named-graph/node1" ]
+        }
+      ]
+    },
+    {
+      "@id": "/named-graph",
+      "@graph": [
+        {
+          "@id": "/named-graph/node1",
+          "name": "/named-graph/node1",
+          "references": [ "_:bnode", "/node1", "_:graphBn/node1" ]
+        }
+      ]
+    },
+    {
+      "@id": "_:bnode",
+      "name": "_:bnode"
+    }
+  ]
+}

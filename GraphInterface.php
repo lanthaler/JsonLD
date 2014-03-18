@@ -26,11 +26,15 @@ interface GraphInterface
      * If there exists already a node with the passed ID in the document,
      * that node will be returned instead of creating a new one.
      *
-     * @param null|string $id The ID of the node.
+     * @param null|string $id              The ID of the node.
+     * @param bool        $preserveBnodeId If set to false, blank nodes are
+     *                                     relabeled to avoid collisions;
+     *                                     otherwise the blank node identifier
+     *                                     is preserved.
      *
      * @return Node The newly created node.
      */
-    public function createNode($id = null);
+    public function createNode($id = null, $preserveBnodeId = false);
 
     /**
      * Removes a node from the document

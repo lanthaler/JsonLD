@@ -32,9 +32,6 @@ class JsonLD
      *    $document = JsonLD::getDocument('document.jsonld');
      *  </code>
      *
-     * <strong>Please note that currently all data is merged into one graph,
-     *   named graphs are not supported yet!</strong>
-     *
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
      *

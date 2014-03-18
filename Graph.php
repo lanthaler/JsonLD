@@ -54,9 +54,9 @@ class Graph implements GraphInterface, JsonLdSerializable
     /**
      * {@inheritdoc}
      */
-    public function createNode($id = null)
+    public function createNode($id = null, $preserveBnodeId = false)
     {
-        if (!is_string($id) || ('_:' === substr($id, 0, 2))) {
+        if (!is_string($id) || (!$preserveBnodeId && ('_:' === substr($id, 0, 2)))) {
             $id = $this->createBlankNodeId();
         } else {
             $id = (string) $this->resolveIri($id);
