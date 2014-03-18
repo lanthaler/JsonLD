@@ -162,6 +162,37 @@ class Processor
     }
 
     /**
+     * Load a JSON-LD document
+     *
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
+     *
+     * Usage:
+     *  <code>
+     *    $document = Processor::loadDocument('document.jsonld');
+     *    print_r($document);
+     *  </code>
+     *
+     * @param string $input The JSON-LD document or a path or URL pointing
+     *                      to one.
+     *
+     * @return mixed The loaded JSON-LD document
+     *
+     * @throws JsonLdException
+     */
+    public static function loadDocument($input)
+    {
+        if (false === is_string($input)) {
+            // Return as is - it has already been parsed
+            return $input;
+        }
+
+        $document = FileGetContentsLoader::loadDocument($input);
+
+        return $document->document;
+    }
+
+    /**
      * Parses a JSON-LD document to a PHP value
      *
      * @param string $document A JSON-LD document.
@@ -1730,7 +1761,7 @@ class Processor
                 $remotectxs[] = $remoteContext;
 
                 try {
-                    $remoteContext = JsonLD::parse($remoteContext);
+                    $remoteContext = self::loadDocument($remoteContext);
                 } catch (JsonLdException $e) {
                     throw new JsonLdException(
                         JsonLdException::LOADING_REMOTE_CONTEXT_FAILED,

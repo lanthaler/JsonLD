@@ -783,7 +783,7 @@ JSON_LD_DOCUMENT;
      */
     public function testSerializeNode()
     {
-        $expected = JsonLD::parse(
+        $expected = Processor::loadDocument(
             '{
                 "@id": "http://example.com/node/1",
                 "@type": [ "http://vocab.com/type/node" ],
@@ -804,7 +804,7 @@ JSON_LD_DOCUMENT;
     {
         // This is the expanded and flattened version of the test document
         // (the blank node labels have been renamed from _:t... to _:b...)
-        $expected = JsonLD::parse(
+        $expected = Processor::loadDocument(
             '[{
                "@id": "_:b0",
                "http://vocab.com/nested": [{

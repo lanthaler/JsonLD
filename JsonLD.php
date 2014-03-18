@@ -22,38 +22,7 @@ use ML\IRI\IRI;
 class JsonLD
 {
     /**
-     * Parses a JSON-LD document
-     *
-     * The document can be supplied directly as a string or by passing a
-     * file path or an IRI.
-     *
-     * Usage:
-     *  <code>
-     *    $document = JsonLD::parse('document.jsonld');
-     *    print_r($document);
-     *  </code>
-     *
-     * @param string $input Path to a JSON-LD document or a string
-     *                      containing a JSON-LD document.
-     *
-     * @return mixed The JSON-LD document converted to a PHP representation.
-     *
-     * @throws JsonLdException
-     */
-    public static function parse($input)
-    {
-        if (false === is_string($input)) {
-            // Return as is - it has already been parsed
-            return $input;
-        }
-
-        $document = FileGetContentsLoader::loadDocument($input);
-
-        return $document->document;
-    }
-
-    /**
-     * Parses a JSON-LD document and returns it as a {@link Document}.
+     * Parses a JSON-LD document and converts it to a {@link Document}
      *
      * The document can be supplied directly as a string or by passing a
      * file path or an IRI.
@@ -234,7 +203,7 @@ class JsonLD
     private static function doCompact($input, $context = null, $options = null, $alwaysGraph = false)
     {
         if (null !== $context) {
-            $context = self::parse($context);
+            $context = Processor::loadDocument($context);
         }
 
         if (is_object($context) && property_exists($context, '@context')) {
@@ -463,7 +432,7 @@ class JsonLD
         $options = self::mergeOptions($options);
 
         $input = self::expand($input, $options);
-        $frame = self::parse($frame);
+        $frame = Processor::loadDocument($frame);
 
         if (false === is_object($frame)) {
             throw new JsonLdException(
@@ -573,7 +542,7 @@ class JsonLD
             }
             if (property_exists($options, 'expandContext')) {
                 if (is_string($options->expandContext)) {
-                    $result->expandContext = self::parse($options->expandContext);
+                    $result->expandContext = Processor::loadDocument($options->expandContext);
                 } elseif (is_object($options->expandContext)) {
                     $result->expandContext = $options->expandContext;
                 }
