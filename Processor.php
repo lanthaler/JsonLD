@@ -28,12 +28,6 @@ class Processor
     /** Maximum number of recursion that are allowed to resolve an IRI */
     const CONTEXT_MAX_IRI_RECURSIONS = 10;
 
-    /** Identifier for the default graph as used in the node map */
-    const DEFAULT_GRAPH = '@default';
-
-    /** Identifier for the union graph as used in the node map */
-    const UNION_GRAPH = '@union';
-
     /**
      * @var array A list of all defined keywords
      */
@@ -270,7 +264,7 @@ class Processor
     public function getDocument($input)
     {
         $nodeMap = new Object();
-        $nodeMap->{self::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
         $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
@@ -284,7 +278,7 @@ class Processor
         $document = $this->documentFactory->createDocument($this->baseIri);
 
         foreach ($nodeMap as $graphName => &$nodes) {
-            if (self::DEFAULT_GRAPH === $graphName) {
+            if (JsonLD::DEFAULT_GRAPH === $graphName) {
                 $graph = $document->getGraph();
             } else {
                 $graph = $document->createGraph($graphName);
@@ -1887,7 +1881,7 @@ class Processor
     private function generateNodeMap(
         &$nodeMap,
         $element,
-        $activegraph = self::DEFAULT_GRAPH,
+        $activegraph = JsonLD::DEFAULT_GRAPH,
         $activeid = null,
         $activeprty = null,
         &$list = null
@@ -2001,7 +1995,7 @@ class Processor
 
             // This node also represent a named graph, process it
             if (property_exists($element, '@graph')) {
-                if (self::UNION_GRAPH !== $activegraph) {
+                if (JsonLD::MERGED_GRAPH !== $activegraph) {
                     if (false === property_exists($nodeMap, $id)) {
                         $nodeMap->{$id} = new Object();
                     }
@@ -2066,12 +2060,12 @@ class Processor
     public function flatten($element)
     {
         $nodeMap = new Object();
-        $nodeMap->{self::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $element);
 
-        $defaultGraph = $nodeMap->{self::DEFAULT_GRAPH};
-        unset($nodeMap->{self::DEFAULT_GRAPH});
+        $defaultGraph = $nodeMap->{JsonLD::DEFAULT_GRAPH};
+        unset($nodeMap->{JsonLD::DEFAULT_GRAPH});
 
         // Store named graphs in the @graph property of the node representing
         // the graph in the default graph
@@ -2108,14 +2102,14 @@ class Processor
     public function toRdf(array $document)
     {
         $nodeMap = new Object();
-        $nodeMap->{Processor::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $document);
 
         $result = array();
 
         foreach ($nodeMap as $graphName => $graph) {
-            if (self::DEFAULT_GRAPH === $graphName) {
+            if (JsonLD::DEFAULT_GRAPH === $graphName) {
                 $activegraph = null;
             } else {
                 $activegraph = new IRI($graphName);
@@ -2251,18 +2245,18 @@ class Processor
     public function fromRdf(array $quads)
     {
         $graphs = new Object();
-        $graphs->{self::DEFAULT_GRAPH} = new Object();
+        $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
 
         foreach ($quads as $quad) {
-            $graphName = self::DEFAULT_GRAPH;
+            $graphName = JsonLD::DEFAULT_GRAPH;
 
             if ($quad->getGraph()) {
                 $graphName = (string) $quad->getGraph();
 
                 // Add a reference to this graph to the default graph if it
                 // doesn't exist yet
-                if (false === isset($graphs->{self::DEFAULT_GRAPH}->{$graphName})) {
-                    $graphs->{self::DEFAULT_GRAPH}->{$graphName} =
+                if (false === isset($graphs->{JsonLD::DEFAULT_GRAPH}->{$graphName})) {
+                    $graphs->{JsonLD::DEFAULT_GRAPH}->{$graphName} =
                         self::objectToJsonLd($quad->getGraph());
                 }
             }
@@ -2318,7 +2312,7 @@ class Processor
         // Generate the resulting document starting with the default graph
         $document = array();
 
-        $nodes = get_object_vars($graphs->{self::DEFAULT_GRAPH});
+        $nodes = get_object_vars($graphs->{JsonLD::DEFAULT_GRAPH});
         ksort($nodes);
 
         foreach ($nodes as $id => $node) {
@@ -2469,9 +2463,9 @@ class Processor
 
         $processor = new Processor($procOptions);
 
-        $graph = self::UNION_GRAPH;
+        $graph = JsonLD::MERGED_GRAPH;
         if (property_exists($frame, '@graph')) {
-            $graph = self::DEFAULT_GRAPH;
+            $graph = JsonLD::DEFAULT_GRAPH;
         }
 
         $nodeMap = new Object();

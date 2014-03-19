@@ -32,6 +32,12 @@ use ML\IRI\IRI;
  */
 class JsonLD
 {
+    /** Identifier for the default graph */
+    const DEFAULT_GRAPH = '@default';
+
+    /** Identifier for the merged graph */
+    const MERGED_GRAPH = '@merged';
+
     /**
      * Load and parse a JSON-LD document
      *
@@ -305,9 +311,9 @@ class JsonLD
      *
      *   <dt>graph</dt>
      *   <dd>The graph whose flattened representation should be returned.
-     *     The default graph is identified by <em>@default</em> and the
-     *     merged graph by <em>@union</em>. If <em>null</em> is passed, all
-     *     graphs will be returned.</dd>
+     *     The default graph is identified by {@link DEFAULT_GRAPH} and the
+     *     merged dataset graph by {@link MERGED_GRAPH}. If <em>null</em> is
+     *     passed, all graphs will be returned.</dd>
      * </dl>
      *
      * The options parameter might be passed as associative array or as
