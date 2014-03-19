@@ -8,8 +8,8 @@ processor written in PHP. It is extensively tested and passes the
 There's an [online playground](http://www.markus-lanthaler.com/jsonld/playground/)
 where you can evaluate the processor's basic functionality.
 
-**Additionally to the features defined by the [JSON-LD API](http://www.w3.org/TR/json-ld-api/)
-specification, JsonLD supports [framing](http://json-ld.org/spec/latest/json-ld-framing/)
+Additionally to the features defined by the [JSON-LD API specification](http://www.w3.org/TR/json-ld-api/),
+JsonLD supports [framing](http://json-ld.org/spec/latest/json-ld-framing/)
 (including [value matching](https://github.com/json-ld/json-ld.org/issues/110),
 [deep-filtering](https://github.com/json-ld/json-ld.org/issues/110),
 [aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
@@ -42,7 +42,7 @@ require('vendor/autoload.php');
 ```
 
 Of course, you can also download JsonLD as
-[ZIP archive](https://github.com/lanthaler/JsonLD/archive/master.zip) from Github.
+[ZIP archive](https://github.com/lanthaler/JsonLD/releases) from Github.
 
 JsonLD requires PHP 5.3 or later.
 
