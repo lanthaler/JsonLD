@@ -129,24 +129,31 @@ class Processor
      * The options parameter must be passed and all off the following properties
      * have to be set:
      *
-     *   - <em>base</em>           The base IRI.
-     *   - <em>compactArrays</em>  If set to true, arrays holding just one element
-     *                             are compacted to scalars, otherwise the arrays
-     *                             are kept as arrays.
-     *   - <em>optimize</em>       If set to true, the processor is free to optimize
-     *                             the result to produce an even compacter
-     *                             representation than the algorithm described by
-     *                             the official JSON-LD specification.
-     *   - <em>useNativeTypes</em> If set to true, the processor will try to
-     *                             convert datatyped literals to native types
-     *                             instead of using the expanded object form
-     *                             when converting from RDF. xsd:boolean values
-     *                             will be converted to booleans whereas
-     *                             xsd:integer and xsd:double values will be
-     *                             converted to numbers.
-     *   - <em>useRdfType</em>     If set to true, the JSON-LD processor will use
-     *                             the expanded rdf:type IRI as the property instead
-     *                             of @type when converting from RDF.
+     * <dl>
+     *   <dl>base</dl>
+     *   <dt>The base IRI.</dt>
+     *
+     *   <dl>compactArrays</dl>
+     *   <dt>If set to true, arrays holding just one element are compacted
+     *     to scalars, otherwise the arrays are kept as arrays.</dt>
+     *
+     *   <dl>optimize</dl>
+     *   <dt>If set to true, the processor is free to optimize the result to
+     *     produce an even compacter representation than the algorithm
+     *     described by the official JSON-LD specification.</dt>
+     *
+     *   <dl>useNativeTypes</dl>
+     *   <dt>If set to true, the processor will try to convert datatyped
+     *     literals to native types instead of using the expanded object form
+     *     when converting from RDF. <em>xsd:boolean</em> values will be
+     *     converted to booleans whereas <em>xsd:integer</em> and
+     *     <em>xsd:double</em> values will be converted to numbers.</dt>
+     *
+     *   <dl>useRdfType</dl>
+     *   <dt>If set to true, the JSON-LD processor will use the expanded
+     *     <em>rdf:type</em> IRI as the property instead of <em>@type</em>
+     *     when converting from RDF.</dt>
+     * </dl>
      *
      * @param object $options Options to configure the various algorithms.
      */

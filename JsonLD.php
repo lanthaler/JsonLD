@@ -26,6 +26,8 @@ use ML\IRI\IRI;
  * {@link http://json-ld.org/spec/latest/json-ld-framing/ JSON-LD Framing 1.0 draft}
  * and an object-oriented interface to access and manipulate JSON-LD documents.
  *
+ * @api
+ *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
 class JsonLD
@@ -37,10 +39,9 @@ class JsonLD
      * path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $document = JsonLD::getDocument('document.jsonld');
-     *    print_r($document->getGraphNames());
-     *  </code>
+     *
+     *     $document = JsonLD::getDocument('document.jsonld');
+     *     print_r($document->getGraphNames());
      *
      * It is possible to configure the processing by setting the options
      * parameter accordingly. Available options are:
@@ -66,6 +67,8 @@ class JsonLD
      * @return Document The parsed JSON-LD document.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function getDocument($input, $options = null)
     {
@@ -83,10 +86,9 @@ class JsonLD
      * path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $expanded = JsonLD::expand('document.jsonld');
-     *    print_r($expanded);
-     *  </code>
+     *
+     *     $expanded = JsonLD::expand('document.jsonld');
+     *     print_r($expanded);
      *
      * It is possible to configure the expansion process by setting the options
      * parameter accordingly. Available options are:
@@ -110,6 +112,8 @@ class JsonLD
      * @return array The expanded JSON-LD document.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function expand($input, $options = null)
     {
@@ -158,10 +162,9 @@ class JsonLD
      * by passing a file path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
-     *    print_r($compacted);
-     *  </code>
+     *
+     *     $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
+     *     print_r($compacted);
      *
      * It is possible to configure the compaction process by setting the
      * options parameter accordingly. Available options are:
@@ -196,6 +199,8 @@ class JsonLD
      * @return object The compacted JSON-LD document.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function compact($input, $context = null, $options = null)
     {
@@ -283,10 +288,9 @@ class JsonLD
      * by passing a file path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $flattened = JsonLD::flatten('document.jsonld');
-     *    print_r($flattened);
-     *  </code>
+     *
+     *     $flattened = JsonLD::flatten('document.jsonld');
+     *     print_r($flattened);
      *
      * It is possible to configure the flattening process by setting the options
      * parameter accordingly. Available options are:
@@ -320,6 +324,8 @@ class JsonLD
      * @return object The flattened JSON-LD document.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function flatten($input, $context = null, $options = null)
     {
@@ -344,10 +350,9 @@ class JsonLD
      * path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $quads = JsonLD::toRdf('document.jsonld');
-     *    print_r($quads);
-     *  </code>
+     *
+     *     $quads = JsonLD::toRdf('document.jsonld');
+     *     print_r($quads);
      *
      * It is possible to configure the extraction process by setting the options
      * parameter accordingly. Available options are:
@@ -371,6 +376,8 @@ class JsonLD
      * @return Quad[] The extracted quads.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function toRdf($input, $options = null)
     {
@@ -387,10 +394,9 @@ class JsonLD
      * Convert an array of RDF quads to a JSON-LD document
      *
      * Usage:
-     *  <code>
-     *    $document = JsonLD::fromRdf($quads);
-     *    print(JsonLD::toString($document, true));
-     *  </code>
+     *
+     *     $document = JsonLD::fromRdf($quads);
+     *     print(JsonLD::toString($document, true));
      *
      * It is possible to configure the conversion process by setting the options
      * parameter accordingly. Available options are:
@@ -419,6 +425,8 @@ class JsonLD
      *
      * @throws InvalidQuadException If an invalid quad was detected.
      * @throws JsonLdException      If converting the quads to a JSON-LD document failed.
+     *
+     * @api
      */
     public static function fromRdf(array $quads, $options = null)
     {
@@ -436,10 +444,9 @@ class JsonLD
      * by passing a file path, or by passing a URL.
      *
      * Usage:
-     *  <code>
-     *    $result = JsonLD::frame('document.jsonld', 'frame.jsonldf');
-     *    print_r($compacted);
-     *  </code>
+     *
+     *     $result = JsonLD::frame('document.jsonld', 'frame.jsonldf');
+     *     print_r($compacted);
      *
      * It is possible to configure the framing process by setting the options
      * parameter accordingly. Available options are:
@@ -473,6 +480,8 @@ class JsonLD
      * @return mixed The framed JSON-LD document.
      *
      * @throws JsonLdException
+     *
+     * @api
      */
     public static function frame($input, $frame, $options = null)
     {
@@ -521,11 +530,10 @@ class JsonLD
      * to a string
      *
      * Usage:
-     *  <code>
-     *    $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
-     *    $prettyString = JsonLD::toString($compacted, true);
-     *    print($prettyString);
-     *  </code>
+     *
+     *     $compacted = JsonLD::compact('document.jsonld', 'context.jsonld');
+     *     $prettyString = JsonLD::toString($compacted, true);
+     *     print($prettyString);
      *
      * @param mixed $value  The value to convert.
      * @param bool  $pretty Use whitespace in returned string to format it
