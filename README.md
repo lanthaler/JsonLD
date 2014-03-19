@@ -1,40 +1,32 @@
 JsonLD [![Build Status](https://secure.travis-ci.org/lanthaler/JsonLD.png?branch=master)](http://travis-ci.org/lanthaler/JsonLD)
 ==============
 
-JsonLD is a [PSR-0](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md),
-[PSR-1](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1.md), and
-[PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2.md) compliant
-JSON-LD processor. It is extensively tested and passes the
-[official JSON-LD test suite](https://github.com/json-ld/json-ld.org/tree/master/test-suite).
+JsonLD is a fully conforming [JSON-LD](http://www.w3.org/TR/json-ld/)
+processor written in PHP. It is extensively tested and passes the
+[official JSON-LD test suite](https://github.com/json-ld/tests).
 
-There's an [online playground](http://www.markus-lanthaler.com/jsonld/playground/) where you can evaluate the
-processor's basic functionality.
+There's an [online playground](http://www.markus-lanthaler.com/jsonld/playground/)
+where you can evaluate the processor's basic functionality.
 
-**All the features of the official specification plus a few more are supported:**
-
-  * [expansion](http://json-ld.org/spec/latest/json-ld-api/#expansion)
-  * [compaction](http://json-ld.org/spec/latest/json-ld-api/#compaction)
-  * [flattening](http://json-ld.org/spec/latest/json-ld-api/#flattening)
-  * [framing](http://json-ld.org/spec/latest/json-ld-framing/) (supports
-    [value matching](https://github.com/json-ld/json-ld.org/issues/110),
-    [deep-filtering](https://github.com/json-ld/json-ld.org/issues/110),
-    [aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
-    [named graphs](https://github.com/json-ld/json-ld.org/issues/118))
-  * [toRDF](http://json-ld.org/spec/latest/json-ld-api/#rdf-conversion)
-  * [fromRDF](http://json-ld.org/spec/latest/json-ld-api/#rdf-conversion)
-  * [node-based access](https://github.com/lanthaler/JsonLD/issues/15) (partially implemented)
+**Additionally to the features defined by the [JSON-LD API](http://www.w3.org/TR/json-ld-api/)
+specification, JsonLD supports [framing](http://json-ld.org/spec/latest/json-ld-framing/)
+(including [value matching](https://github.com/json-ld/json-ld.org/issues/110),
+[deep-filtering](https://github.com/json-ld/json-ld.org/issues/110),
+[aggressive re-embedding](https://github.com/json-ld/json-ld.org/issues/119), and
+[named graphs](https://github.com/json-ld/json-ld.org/issues/118)) and an experimental
+[object-oriented interface for JSON-LD documents](https://github.com/lanthaler/JsonLD/issues/15).
 
 
 Installation
 ------------
 
-The easiest way to use JsonLD is to integrate it as a dependency in your project's
-[composer.json](http://getcomposer.org/doc/00-intro.md) file:
+The easiest way to use JsonLD is to integrate it as a dependency in your
+project's [composer.json](https://getcomposer.org/) file:
 
 ```json
 {
     "require": {
-        "ml/json-ld": "@dev"
+        "ml/json-ld": "1.*"
     }
 }
 ```
@@ -49,8 +41,8 @@ Installing is then a matter of running composer
 require('vendor/autoload.php');
 ```
 
-Of course you can also download it as [ZIP archive](https://github.com/lanthaler/JsonLD/archive/master.zip)
-from Github.
+Of course, you can also download JsonLD as
+[ZIP archive](https://github.com/lanthaler/JsonLD/archive/master.zip) from Github.
 
 JsonLD requires PHP 5.3 or later.
 
@@ -59,8 +51,8 @@ Usage
 ------------
 
 The library supports the official [JSON-LD API](http://www.w3.org/TR/json-ld-api/) as
-well as a node-centric API (still a work in progress, see [issue #15](https://github.com/lanthaler/JsonLD/issues/15)
-for details).
+well as a object-oriented interface for JSON-LD documents (not fully implemented yet,
+see [issue #15](https://github.com/lanthaler/JsonLD/issues/15) for details).
 
 All classes are extensively documented. Please have a look at the source code.
 
