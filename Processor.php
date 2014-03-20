@@ -264,7 +264,7 @@ class Processor
     public function getDocument($input)
     {
         $nodeMap = new Object();
-        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
         $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
@@ -278,6 +278,7 @@ class Processor
         $document = $this->documentFactory->createDocument($this->baseIri);
 
         foreach ($nodeMap as $graphName => &$nodes) {
+            $graphName = substr($graphName, 1);
             if (JsonLD::DEFAULT_GRAPH === $graphName) {
                 $graph = $document->getGraph();
             } else {
@@ -1869,6 +1870,8 @@ class Processor
     /**
      * Creates a node map of an expanded JSON-LD document
      *
+     * All keys in the node map are prefixed with "-" to support empty strings.
+     *
      * @param object          $nodeMap     The object holding the node map.
      * @param object|object[] $element     An expanded JSON-LD element to
      *                                     be put into the node map
@@ -1914,7 +1917,7 @@ class Processor
         if (property_exists($element, '@value')) {
             // Handle value objects
             if (null === $list) {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $element, true, true);
+                $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $element, true, true);
             } else {
                 $this->mergeIntoProperty($list, '@list', $element, true, false);
             }
@@ -1924,7 +1927,7 @@ class Processor
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
-            $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
+            $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $result, true, false);
         } else {
             // and node objects
             $id = null;
@@ -1939,21 +1942,24 @@ class Processor
             unset($element->{'@id'});
 
             // Create node in node map if it doesn't exist yet
-            if (false === property_exists($nodeMap->{$activegraph}, $id)) {
-                $nodeMap->{$activegraph}->{$id} = new Object();
-                $nodeMap->{$activegraph}->{$id}->{'@id'} = $id;
+            if (false === property_exists($nodeMap->{'-' . $activegraph}, '-' . $id)) {
+                $node = new Object();
+                $node->{'@id'} = $id;
+                $nodeMap->{'-' . $activegraph}->{'-' . $id} = $node;
+            } else {
+                $node = $nodeMap->{'-' . $activegraph}->{'-' . $id};
             }
 
             // Add reference to active property
             if (is_object($activeid)) {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$id}, $activeprty, $activeid, true, true);
+                $this->mergeIntoProperty($node, $activeprty, $activeid, true, true);
             } elseif (null !== $activeprty) {
                 $reference = new Object();
                 $reference->{'@id'} = $id;
 
                 if (null === $list) {
                     $this->mergeIntoProperty(
-                        $nodeMap->{$activegraph}->{$activeid},
+                        $nodeMap->{'-' . $activegraph}->{'-' . $activeid},
                         $activeprty,
                         $reference,
                         true,
@@ -1965,13 +1971,13 @@ class Processor
             }
 
             if (property_exists($element, '@type')) {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$id}, '@type', $element->{'@type'}, true, true);
+                $this->mergeIntoProperty($node, '@type', $element->{'@type'}, true, true);
                 unset($element->{'@type'});
             }
 
             if (property_exists($element, '@index')) {
                 $this->setProperty(
-                    $nodeMap->{$activegraph}->{$id},
+                    $node,
                     '@index',
                     $element->{'@index'},
                     JsonLdException::CONFLICTING_INDEXES
@@ -1996,13 +2002,13 @@ class Processor
             // This node also represent a named graph, process it
             if (property_exists($element, '@graph')) {
                 if (JsonLD::MERGED_GRAPH !== $activegraph) {
-                    if (false === property_exists($nodeMap, $id)) {
-                        $nodeMap->{$id} = new Object();
+                    if (false === property_exists($nodeMap, '-' . $id)) {
+                        $nodeMap->{'-' . $id} = new Object();
                     }
 
                     $this->generateNodeMap($nodeMap, $element->{'@graph'}, $id);
                 } else {
-                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, $activegraph);
+                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, JsonLD::MERGED_GRAPH);
                 }
 
                 unset($element->{'@graph'});
@@ -2017,8 +2023,8 @@ class Processor
                     $property = $this->getBlankNodeId($property);
                 }
 
-                if (false === property_exists($nodeMap->{$activegraph}->{$id}, $property)) {
-                    $nodeMap->{$activegraph}->{$id}->{$property} = array();
+                if (false === property_exists($node, $property)) {
+                    $node->{$property} = array();
                 }
 
                 $this->generateNodeMap($nodeMap, $value, $activegraph, $id, $property);
@@ -2060,19 +2066,19 @@ class Processor
     public function flatten($element)
     {
         $nodeMap = new Object();
-        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $element);
 
-        $defaultGraph = $nodeMap->{JsonLD::DEFAULT_GRAPH};
-        unset($nodeMap->{JsonLD::DEFAULT_GRAPH});
+        $defaultGraph = $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH};
+        unset($nodeMap->{'-' . JsonLD::DEFAULT_GRAPH});
 
         // Store named graphs in the @graph property of the node representing
         // the graph in the default graph
         foreach ($nodeMap as $graphName => $graph) {
             if (!isset($defaultGraph->{$graphName})) {
                 $defaultGraph->{$graphName} = new Object();
-                $defaultGraph->{$graphName}->{'@id'} = $graphName;
+                $defaultGraph->{$graphName}->{'@id'} = substr($graphName, 1);
             }
 
             $graph = (array) $graph;
@@ -2102,13 +2108,14 @@ class Processor
     public function toRdf(array $document)
     {
         $nodeMap = new Object();
-        $nodeMap->{JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $document);
 
         $result = array();
 
         foreach ($nodeMap as $graphName => $graph) {
+            $graphName = substr($graphName, 1);
             if (JsonLD::DEFAULT_GRAPH === $graphName) {
                 $activegraph = null;
             } else {
@@ -2120,7 +2127,7 @@ class Processor
             }
 
             foreach ($graph as $subject => $node) {
-                $activesubj = new IRI($subject);
+                $activesubj = new IRI(substr($subject, 1));
 
                 if (false === $activesubj->isAbsolute()) {
                     continue;
@@ -2469,7 +2476,7 @@ class Processor
         }
 
         $nodeMap = new Object();
-        $nodeMap->{$graph} = new Object();
+        $nodeMap->{'-' . $graph} = new Object();
         $processor->generateNodeMap($nodeMap, $element, $graph);
 
         // Sort the node map to ensure a deterministic output
@@ -2486,7 +2493,7 @@ class Processor
 
         $result = array();
 
-        foreach ($nodeMap->{$graph} as $node) {
+        foreach ($nodeMap->{'-' . $graph} as $node) {
             $this->nodeMatchesFrame($node, $frame, $options, $nodeMap, $graph, $result);
         }
 
@@ -2566,7 +2573,7 @@ class Processor
                         $result->{'@graph'} = array();
                         $match = false;
 
-                        foreach ($nodeMap->{$result->{'@id'}} as $item) {
+                        foreach ($nodeMap->{'-' . $result->{'@id'}} as $item) {
                             foreach ($validValues as $validValue) {
                                 $match |= $this->nodeMatchesFrame(
                                     $item,
@@ -2653,7 +2660,7 @@ class Processor
                     foreach ($nodeValues as $value) {
                         if (is_object($value) && property_exists($value, '@id')) {
                             $match |= $this->nodeMatchesFrame(
-                                $nodeMap->{$graph}->{$value->{'@id'}},
+                                $nodeMap->{'-' . $graph}->{'-' . $value->{'@id'}},
                                 $validValue,
                                 $newOptions,
                                 $nodeMap,
@@ -2745,7 +2752,7 @@ class Processor
                 foreach ($value as $item) {
                     if (is_object($item)) {
                         if (property_exists($item, '@id')) {
-                            $item = $nodeMap->{$graph}->{$item->{'@id'}};
+                            $item = $nodeMap->{'-' . $graph}->{'-' . $item->{'@id'}};
                         }
 
                         $this->nodeMatchesFrame($item, null, $options, $nodeMap, $graph, $result->{$property}, $path);
