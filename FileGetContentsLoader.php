@@ -39,12 +39,12 @@ class FileGetContentsLoader
                 array(
                     'http' => array(
                       'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json\r\n",
+                      'header'  => "Accept: application/ld+json, application/json; q=0.9\r\n",
                       'timeout' => Processor::REMOTE_TIMEOUT,
                     ),
                     'https' => array(
                       'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json\r\n",
+                      'header'  => "Accept: application/ld+json, application/json; q=0.9\r\n",
                       'timeout' => Processor::REMOTE_TIMEOUT,
                     )
                 )
