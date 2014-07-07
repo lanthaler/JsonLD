@@ -35,20 +35,16 @@ class FileGetContentsLoader
         if (false == (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
             $remoteDocument = new RemoteDocument($url);
 
-            $context = stream_context_create(
-                array(
-                    'http' => array(
-                      'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json, application/json; q=0.9\r\n",
-                      'timeout' => Processor::REMOTE_TIMEOUT,
-                    ),
-                    'https' => array(
-                      'method'  => 'GET',
-                      'header'  => "Accept: application/ld+json, application/json; q=0.9\r\n",
-                      'timeout' => Processor::REMOTE_TIMEOUT,
-                    )
-                )
+            $streamContextOptions = array(
+              'method'  => 'GET',
+              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n",
+              'timeout' => Processor::REMOTE_TIMEOUT
             );
+
+            $context = stream_context_create(array(
+                'http' => $streamContextOptions,
+                'https' => $streamContextOptions
+            ));
 
             $httpHeadersOffset = 0;
 
