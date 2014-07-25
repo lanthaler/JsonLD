@@ -720,7 +720,7 @@ class Processor
                 if (is_string($item)) {
                     if ($debug) {
                         $result[] = (object) array(
-                            '__orig_value' => $value,
+                            '__orig_value' => $item,
                             '__value' => (object) array('@id' => $this->expandIri($item, $activectx, true, true))
                         );
                     } else {
