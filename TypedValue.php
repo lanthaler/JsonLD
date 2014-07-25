@@ -83,12 +83,14 @@ final class TypedValue extends Value
     {
         $result = new Object();
 
-        if (true === $useNativeTypes) {
-            if (RdfConstants::XSD_STRING === $this->type) {
-                $result->{'@value'} = $this->value;
+        if (RdfConstants::XSD_STRING === $this->type) {
+            $result->{'@value'} = $this->value;
 
-                return $result;
-            } elseif (RdfConstants::XSD_BOOLEAN === $this->type) {
+            return $result;
+        }
+
+        if (true === $useNativeTypes) {
+            if (RdfConstants::XSD_BOOLEAN === $this->type) {
                 if ('true' === $this->value) {
                     $result->{'@value'} = true;
 

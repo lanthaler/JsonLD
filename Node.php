@@ -233,13 +233,15 @@ class Node implements NodeInterface, JsonLdSerializable
             );
         }
 
+        $normalizedValue = $this->normalizePropertyValue($value);
+
         foreach ($existingValues as $existing) {
-            if ($this->equalValues($existing, $value)) {
+            if ($this->equalValues($existing, $normalizedValue)) {
                 return;
             }
         }
 
-        $existingValues[] = $value;
+        $existingValues[] = $normalizedValue;
 
         if (1 === count($existingValues)) {
             $existingValues = $existingValues[0];
@@ -247,7 +249,7 @@ class Node implements NodeInterface, JsonLdSerializable
 
         $this->properties[$property] = $existingValues;
 
-        if ($value instanceof NodeInterface) {
+        if ($normalizedValue instanceof NodeInterface) {
             $value->addReverseProperty($property, $this);
         }
     }
@@ -285,6 +287,8 @@ class Node implements NodeInterface, JsonLdSerializable
             return $this;
         }
 
+        $normalizedValue = $this->normalizePropertyValue($value);
+
         $values =& $this->properties[(string) $property];
 
         if (!is_array($this->properties[(string) $property])) {
@@ -292,9 +296,9 @@ class Node implements NodeInterface, JsonLdSerializable
         }
 
         for ($i = 0, $length = count($values); $i < $length; $i++) {
-            if ($this->equalValues($values[$i], $value)) {
-                if ($value instanceof NodeInterface) {
-                    $value->removeReverseProperty((string) $property, $this);
+            if ($this->equalValues($values[$i], $normalizedValue)) {
+                if ($normalizedValue instanceof NodeInterface) {
+                    $normalizedValue->removeReverseProperty((string) $property, $this);
                 }
 
                 unset($values[$i]);
@@ -464,6 +468,22 @@ class Node implements NodeInterface, JsonLdSerializable
         }
 
         return false;
+    }
+
+    /**
+     * Normalizes a property value by converting scalars to Value objects.
+     *
+     * @param  mixed $value The value to normalize.
+     *
+     * @return NodeInterface|Value The normalized value.
+     */
+    protected function normalizePropertyValue($value)
+    {
+        if (false === is_scalar($value)) {
+            return $value;
+        }
+
+        return Value::fromJsonLd((object) array('@value' => $value));
     }
 
     /**

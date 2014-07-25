@@ -10,9 +10,7 @@
 namespace ML\JsonLD;
 
 use stdClass as Object;
-use ML\JsonLD\Exception\ParseException;
-use ML\JsonLD\Exception\SyntaxException;
-use ML\JsonLD\Exception\ProcessException;
+use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
@@ -30,18 +28,13 @@ class Processor
     /** Maximum number of recursion that are allowed to resolve an IRI */
     const CONTEXT_MAX_IRI_RECURSIONS = 10;
 
-    /** Identifier for the default graph as used in the node map */
-    const DEFAULT_GRAPH = '@default';
-
-    /** Identifier for the union graph as used in the node map */
-    const UNION_GRAPH = '@union';
-
     /**
      * @var array A list of all defined keywords
      */
     private static $keywords = array('@context', '@id', '@value', '@language', '@type',
                                      '@container', '@list', '@set', '@graph', '@reverse',
-                                     '@base', '@vocab', '@index', '@null');  // TODO Introduce @null supported just for framing
+                                     '@base', '@vocab', '@index', '@null');
+                                     // TODO Introduce @null supported just for framing
 
     /**
      * @var array Framing options keywords
@@ -100,6 +93,16 @@ class Processor
     private $useRdfType;
 
     /**
+     * Produce generalized RDF
+     *
+     * Unless set to true, triples/quads with a blank node predicate are
+     * dropped when converting to RDF.
+     *
+     * @var bool
+     */
+    private $generalizedRdf;
+
+    /**
      * @var array Blank node map
      */
     private $blankNodeMap = array();
@@ -120,24 +123,31 @@ class Processor
      * The options parameter must be passed and all off the following properties
      * have to be set:
      *
-     *   - <em>base</em>           The base IRI.
-     *   - <em>compactArrays</em>  If set to true, arrays holding just one element
-     *                             are compacted to scalars, otherwise the arrays
-     *                             are kept as arrays.
-     *   - <em>optimize</em>       If set to true, the processor is free to optimize
-     *                             the result to produce an even compacter
-     *                             representation than the algorithm described by
-     *                             the official JSON-LD specification.
-     *   - <em>useNativeTypes</em> If set to true, the processor will try to
-     *                             convert datatyped literals to native types
-     *                             instead of using the expanded object form
-     *                             when converting from RDF. xsd:boolean values
-     *                             will be converted to booleans whereas
-     *                             xsd:integer and xsd:double values will be
-     *                             converted to numbers.
-     *   - <em>useRdfType</em>     If set to true, the JSON-LD processor will use
-     *                             the expanded rdf:type IRI as the property instead
-     *                             of @type when converting from RDF.
+     * <dl>
+     *   <dl>base</dl>
+     *   <dt>The base IRI.</dt>
+     *
+     *   <dl>compactArrays</dl>
+     *   <dt>If set to true, arrays holding just one element are compacted
+     *     to scalars, otherwise the arrays are kept as arrays.</dt>
+     *
+     *   <dl>optimize</dl>
+     *   <dt>If set to true, the processor is free to optimize the result to
+     *     produce an even compacter representation than the algorithm
+     *     described by the official JSON-LD specification.</dt>
+     *
+     *   <dl>useNativeTypes</dl>
+     *   <dt>If set to true, the processor will try to convert datatyped
+     *     literals to native types instead of using the expanded object form
+     *     when converting from RDF. <em>xsd:boolean</em> values will be
+     *     converted to booleans whereas <em>xsd:integer</em> and
+     *     <em>xsd:double</em> values will be converted to numbers.</dt>
+     *
+     *   <dl>useRdfType</dl>
+     *   <dt>If set to true, the JSON-LD processor will use the expanded
+     *     <em>rdf:type</em> IRI as the property instead of <em>@type</em>
+     *     when converting from RDF.</dt>
+     * </dl>
      *
      * @param object $options Options to configure the various algorithms.
      */
@@ -148,7 +158,39 @@ class Processor
         $this->optimize = (bool) $options->optimize;
         $this->useNativeTypes = (bool) $options->useNativeTypes;
         $this->useRdfType = (bool) $options->useRdfType;
+        $this->generalizedRdf = (bool) $options->produceGeneralizedRdf;
         $this->documentFactory = $options->documentFactory;
+    }
+
+    /**
+     * Load a JSON-LD document
+     *
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
+     *
+     * Usage:
+     *  <code>
+     *    $document = Processor::loadDocument('document.jsonld');
+     *    print_r($document);
+     *  </code>
+     *
+     * @param string $input The JSON-LD document or a path or URL pointing
+     *                      to one.
+     *
+     * @return mixed The loaded JSON-LD document
+     *
+     * @throws JsonLdException
+     */
+    public static function loadDocument($input)
+    {
+        if (false === is_string($input)) {
+            // Return as is - it has already been parsed
+            return $input;
+        }
+
+        $document = FileGetContentsLoader::loadDocument($input);
+
+        return $document->document;
     }
 
     /**
@@ -158,13 +200,16 @@ class Processor
      *
      * @return mixed A PHP value.
      *
-     * @throws ParseException If the JSON-LD document is not valid.
+     * @throws JsonLdException If the JSON-LD document is not valid.
      */
     public static function parse($document)
     {
         if (function_exists('mb_detect_encoding') &&
             (false === mb_detect_encoding($document, 'UTF-8', true))) {
-            throw new ParseException('The JSON-LD document does not appear to be valid UTF-8.');
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                'The JSON-LD document does not appear to be valid UTF-8.'
+            );
         }
 
         $data = json_decode($document, false, 512);
@@ -173,17 +218,35 @@ class Processor
             case JSON_ERROR_NONE:
                 break;  // no error
             case JSON_ERROR_DEPTH:
-                throw new ParseException('The maximum stack depth has been exceeded.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'The maximum stack depth has been exceeded.'
+                );
             case JSON_ERROR_STATE_MISMATCH:
-                throw new ParseException('Invalid or malformed JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Invalid or malformed JSON.'
+                );
             case JSON_ERROR_CTRL_CHAR:
-                throw new ParseException('Control character error (possibly incorrectly encoded).');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Control character error (possibly incorrectly encoded).'
+                );
             case JSON_ERROR_SYNTAX:
-                throw new ParseException('Syntax error, malformed JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Syntax error, malformed JSON.'
+                );
             case JSON_ERROR_UTF8:
-                throw new ParseException('Malformed UTF-8 characters (possibly incorrectly encoded).');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Malformed UTF-8 characters (possibly incorrectly encoded).'
+                );
             default:
-                throw new ParseException('Unknown error while parsing JSON.');
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Unknown error while parsing JSON.'
+                );
         }
 
         return (empty($data)) ? null : $data;
@@ -196,75 +259,64 @@ class Processor
      *
      * @return Document The parsed JSON-LD document.
      *
-     * @throws ParseException If the JSON-LD input document is invalid.
+     * @throws JsonLdException If the JSON-LD input document is invalid.
      */
     public function getDocument($input)
     {
-        // TODO Add support for named graphs
         $nodeMap = new Object();
-        $nodeMap->{self::UNION_GRAPH} = new Object();
-        $this->generateNodeMap($nodeMap, $input, self::UNION_GRAPH);
-
-        // As we do not support named graphs yet we are currently just
-        // interested in the union graph
-        $nodeMap = $nodeMap->{self::UNION_GRAPH};
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
         // inserted into the Document
+        $nodes = array();
 
         if (null === $this->documentFactory) {
             $this->documentFactory = new DefaultDocumentFactory();
         }
 
         $document = $this->documentFactory->createDocument($this->baseIri);
-        $graph = $document->getGraph();
-        $nodes = array();
 
-        foreach ($nodeMap as $id => &$item) {
-            if (!isset($nodes[$id])) {
-                $nodes[$id] = $graph->createNode($item->{'@id'});
+        foreach ($nodeMap as $graphName => &$nodes) {
+            $graphName = substr($graphName, 1);
+            if (JsonLD::DEFAULT_GRAPH === $graphName) {
+                $graph = $document->getGraph();
+            } else {
+                $graph = $document->createGraph($graphName);
             }
 
-            $node = $nodes[$id];
-            unset($item->{'@id'});
+            foreach ($nodes as $id => &$item) {
+                $node = $graph->createNode($item->{'@id'}, true);
+                unset($item->{'@id'});
 
-            // Process node type as it needs to be handled differently than
-            // other properties
-            if (property_exists($item, '@type')) {
-                foreach ($item->{'@type'} as $type) {
-                    if (!isset($nodes[$type])) {
-                        $nodes[$type] = $graph->createNode($type);
+                // Process node type as it needs to be handled differently than
+                // other properties
+                // TODO Could this be avoided by enforcing rdf:type instead of @type?
+                if (property_exists($item, '@type')) {
+                    foreach ($item->{'@type'} as $type) {
+                        $node->addType($graph->createNode($type), true);
                     }
-                    $node->addType($nodes[$type]);
+                    unset($item->{'@type'});
                 }
-                unset($item->{'@type'});
-            }
 
-            foreach ($item as $property => $value) {
-                foreach ($value as $val) {
-                    if (property_exists($val, '@value')) {
-                        if (property_exists($val, '@type')) {
-                            $node->setProperty($property, new TypedValue($val->{'@value'}, $val->{'@type'}));
-                        } elseif (property_exists($val, '@language')) {
+                foreach ($item as $property => $values) {
+                    foreach ($values as $value) {
+                        if (property_exists($value, '@value')) {
+                            $node->addPropertyValue($property, Value::fromJsonLd($value));
+                        } elseif (property_exists($value, '@id')) {
                             $node->addPropertyValue(
                                 $property,
-                                new LanguageTaggedString($val->{'@value'}, $val->{'@language'})
+                                $graph->createNode($value->{'@id'}, true)
                             );
                         } else {
-                            $node->addPropertyValue($property, $val->{'@value'});
+                            // TODO Handle lists
+                            throw new \Exception('Lists are not supported by getDocument() yet');
                         }
-                    } elseif (property_exists($val, '@id')) {
-                        if (!isset($nodes[$val->{'@id'}])) {
-                            $nodes[$val->{'@id'}] = $graph->createNode($val->{'@id'});
-                        }
-                        $node->addPropertyValue($property, $nodes[$val->{'@id'}]);
-                    } else {
-                        // TODO Handle lists
-                        throw new \Exception('Not implemented yet');
                     }
                 }
             }
         }
+
 
         unset($nodeMap);
 
@@ -281,9 +333,7 @@ class Processor
      *
      * @return mixed The expanded document.
      *
-     * @throws SyntaxException  If the JSON-LD document contains syntax errors.
-     * @throws ProcessException If the expansion failed.
-     * @throws ParseException   If a remote context couldn't be processed.
+     * @throws JsonLdException
      */
     public function expand(&$element, $activectx = array(), $activeprty = null, $frame = false, $debug = false)
     {
@@ -320,7 +370,11 @@ class Processor
                 if (('@list' === $this->getPropertyDefinition($activectx, $activeprty, '@container')) ||
                     ('@list' === $activeprty)) {
                     if (is_array($item) || (is_object($item) && property_exists($item, '@list'))) {
-                        throw new SyntaxException("List of lists detected in property \"$activeprty\".", $element);
+                        throw new JsonLdException(
+                            JsonLdException::LIST_OF_LISTS,
+                            "List of lists detected in property \"$activeprty\".",
+                            $element
+                        );
                     }
                 }
 
@@ -370,13 +424,14 @@ class Processor
                     $this->expand($value, $activectx, $activeprty, $frame, $debug);
                 }
 
-                self::setProperty($element, $expProperty, $value, ($debug) ? $property : null);
+                self::setProperty($element, $expProperty, $value, JsonLdException::COLLIDING_KEYWORDS, ($debug) ? $property : null);
                 continue;
             }
 
             if (in_array($expProperty, self::$keywords)) {
                 if ('@reverse' === $activeprty) {
-                    throw new SyntaxException(
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_REVERSE_PROPERTY_MAP,
                         'No keywords or keyword aliases are allowed in @reverse-maps, found ' . $expProperty
                     );
                 }
@@ -385,7 +440,7 @@ class Processor
                 continue;
             } elseif (false === strpos($expProperty, ':')) {
                 if ($debug) {
-                    self::setProperty($element, null, $value, $property);
+                    self::setProperty($element, null, $value, null, $property);
                 }
 
                 // the expanded property is neither a keyword nor an IRI
@@ -410,7 +465,8 @@ class Processor
 
                         foreach ($val as $item) {
                             if (false === is_string($item)) {
-                                throw new SyntaxException(
+                                throw new JsonLdException(
+                                    JsonLdException::INVALID_LANGUAGE_MAP_VALUE,
                                     "Detected invalid value in $property->$key: it must be a string as it " .
                                     "is part of a language map.",
                                     $item
@@ -450,7 +506,7 @@ class Processor
             // Remove properties with null values
             if (null === $value) {
                 if ($debug) {
-                     self::setProperty($element, $expProperty, null, $property);
+                     self::setProperty($element, $expProperty, null, null, $property);
                 }
                 continue;
             }
@@ -470,37 +526,45 @@ class Processor
 
             $target = $element;
             if ($this->getPropertyDefinition($activectx, $property, '@reverse')) {
-                if (false === property_exists($target, '@reverse')) {
-                    $target->{'@reverse'} = new Object();
+                if ($debug) {
+                    $expProperty = '^' . $expProperty;
+                } else {
+                    if (false === property_exists($target, '@reverse')) {
+                        $target->{'@reverse'} = new Object();
+                    }
+                    $target = $target->{'@reverse'};
                 }
-                $target = $target->{'@reverse'};
 
+                $wasArray = is_array($value);
                 if (false === is_array($value)) {
                     $value = array($value);
                 }
 
                 foreach ($value as $val) {
                     if (property_exists($val, '@value') || property_exists($val, '@list')) {
-                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $val);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_REVERSE_PROPERTY_VALUE,
+                            'Detected invalid value in @reverse-map (only nodes are allowed',
+                            $val
+                        );
                     }
+                }
+
+                if (!$wasArray) {
+                    $value = $value[0];
                 }
             }
 
             if ($debug) {
-                self::setProperty($target, $expProperty, $value, $property);
+                self::setProperty($target, $expProperty, $value, null, $property);
             } else {
                 self::mergeIntoProperty($target, $expProperty, $value, true);
             }
         }
 
         // All properties have been processed. Make sure the result is valid
-        // and optimize object where possible
+        // and optimize it where possible
         $numProps = count(get_object_vars($element));
-
-        // Indexes are allowed everywhere
-        if (property_exists($element, '@index')) {
-            $numProps--;
-        }
 
         // Remove free-floating nodes
         if ((false === $frame) && ((null === $activeprty) || ('@graph' === $activeprty)) &&
@@ -511,17 +575,26 @@ class Processor
             return;
         }
 
+        // Indexes are allowed everywhere
+        if (property_exists($element, '@index')) {
+            $numProps--;
+        }
+
         if (property_exists($element, '@value')) {
             $numProps--;  // @value
             if (property_exists($element, '@language')) {
                 if (false === $frame) {
                     if (false === is_string($element->{'@language'})) {
-                        throw new SyntaxException(
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_LANGUAGE_TAGGED_STRING,
                             'Invalid value for @language detected (must be a string).',
                             $element
                         );
-                    } elseif (false === is_string($element->{'@value'})) {
-                        throw new SyntaxException(
+                    }
+
+                    if (false === is_string($element->{'@value'})) {
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_LANGUAGE_TAGGED_VALUE,
                             'Only strings can be language tagged.',
                             $element
                         );
@@ -530,9 +603,12 @@ class Processor
 
                 $numProps--;
             } elseif (property_exists($element, '@type')) {
-                if ((false === $frame) && (false === $debug) && (false === is_string($element->{'@type'}))) {
-                    throw new SyntaxException(
-                        'Invalid value for @type detected (must be a string).',
+                if ((false === $frame) && ((false === is_string($element->{'@type'})) ||
+                    (false === strpos($element->{'@type'}, ':')) ||
+                    ('_:' === substr($element->{'@type'}, 0, 2)))) {
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_TYPED_VALUE,
+                        'Invalid value for @type detected (must be an IRI).',
                         $element
                     );
                 }
@@ -541,7 +617,11 @@ class Processor
             }
 
             if ($numProps > 0) {
-                throw new SyntaxException('Detected an invalid @value object.', $element);
+                throw new JsonLdException(
+                    JsonLdException::INVALID_VALUE_OBJECT,
+                    'Detected an invalid @value object.',
+                    $element
+                );
             } elseif (null === $element->{'@value'}) {
                 // object has just an @value property that is null, can be replaced with that value
                 $element = $element->{'@value'};
@@ -555,7 +635,8 @@ class Processor
             $element->{'@type'} = array($element->{'@type'});
         }
         if (($numProps > 1) && ((property_exists($element, '@list') || property_exists($element, '@set')))) {
-            throw new SyntaxException(
+            throw new JsonLdException(
+                JsonLdException::INVALID_SET_OR_LIST_OBJECT,
                 'An object with a @list or @set property can\'t contain other properties.',
                 $element
             );
@@ -578,7 +659,7 @@ class Processor
      * @param array   $activectx  The active context.
      * @param boolean $frame      True if a frame is being expanded, otherwise false.
      *
-     * @throws SyntaxException If the JSON-LD document contains syntax errors.
+     * @throws JsonLdException
      */
     private function expandKeywordValue(&$element, $activeprty, $keyword, $value, $activectx, $frame, $origProperty = null)
     {
@@ -592,7 +673,11 @@ class Processor
 
         if ('@id' === $keyword) {
             if (false === is_string($value)) {
-                throw new SyntaxException('Invalid value for @id detected (must be a string).', $element);
+                throw new JsonLdException(
+                    JsonLdException::INVALID_ID_VALUE,
+                    'Invalid value for @id detected (must be a string).',
+                    $element
+                );
             }
 
             if ($debug) {
@@ -604,7 +689,7 @@ class Processor
                 $value = $this->expandIri($value, $activectx, true);
             }
 
-            self::setProperty($element, $keyword, $value, $origProperty);
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS, $origProperty);
 
             return;
         }
@@ -620,7 +705,7 @@ class Processor
                     $value = $this->expandIri($value, $activectx, true, true);
                 }
 
-                self::setProperty($element, $keyword, $value, $origProperty);
+                self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS, $origProperty);
 
                 return;
             }
@@ -643,7 +728,11 @@ class Processor
                     }
                 } else {
                     if (false === $frame) {
-                        throw new SyntaxException("Invalid value for $keyword detected.", $value);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_TYPE_VALUE,
+                            "Invalid value for $keyword detected.",
+                            $value
+                        );
                     }
 
                     self::mergeIntoProperty($element, $keyword, $item);
@@ -655,7 +744,7 @@ class Processor
                     $result = $result[0];
                 }
 
-                self::setProperty($element, $keyword, $result, $origProperty);
+                self::setProperty($element, $keyword, $result, null, $origProperty);
             } else {
                 // Don't keep empty arrays
                 if (count($result) >= 1) {
@@ -664,25 +753,45 @@ class Processor
             }
         }
 
-        if (('@value' === $keyword) || ('@language' === $keyword) || ('@index' === $keyword)) {
+        if (('@value' === $keyword)) {
             if (false === $frame) {
-                if (is_array($value) && (1 === count($value))) {
-                    $value = $value[0];
-                }
-
-                if ('@value' !== $keyword) {
-                    if (false === is_string($value)) {
-                        throw new SyntaxException("Invalid value for $keyword detected; must be a string.", $value);
-                    }
-                } elseif ((null !== $value) && (false === is_scalar($value))) {
+                if ((null !== $value) && (false === is_scalar($value))) {
                     // we need to preserve @value: null to distinguish values form nodes
-                    throw new SyntaxException("Invalid value for $keyword detected (must be a scalar).", $value);
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_VALUE_OBJECT_VALUE,
+                        "Invalid value for @value detected (must be a scalar).",
+                        $value
+                    );
                 }
             } elseif (false === is_array($value)) {
                 $value = array($value);
             }
 
-            self::setProperty($element, $keyword, $value, $origProperty);
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS);
+
+            return;
+        }
+
+        if (('@language' === $keyword) || ('@index' === $keyword)) {
+            if (false === $frame) {
+                if (false === is_string($value)) {
+                    throw ('@language' === $keyword)
+                        ? new JsonLdException(
+                            JsonLdException::INVALID_LANGUAGE_TAGGED_STRING,
+                            '@language must be a string',
+                            $value
+                        )
+                        : new JsonLdException(
+                            JsonLdException::INVALID_INDEX_VALUE,
+                            '@index must be a string',
+                            $value
+                        );
+                }
+            } elseif (false === is_array($value)) {
+                $value = array($value);
+            }
+
+            self::setProperty($element, $keyword, $value, JsonLdException::COLLIDING_KEYWORDS, $origProperty);
 
             return;
         }
@@ -695,8 +804,14 @@ class Processor
 
             $this->expand($value, $activectx, $activeprty, $frame, $debug);
 
-            if (is_object($value) && property_exists($value, '@list')) {
-                throw new SyntaxException("List of lists detected.", $element);
+            if (false === is_array($value)) {
+                $value = array($value);
+            }
+
+            foreach ($value as $val) {
+                if (is_object($val) && property_exists($val, '@list')) {
+                    throw new JsonLdException(JsonLdException::LIST_OF_LISTS, 'List of lists detected.', $element);
+                }
             }
 
             self::mergeIntoProperty($element, $keyword, $value, true);
@@ -713,7 +828,11 @@ class Processor
 
         if ('@reverse' === $keyword) {
             if (false === is_object($value)) {
-                throw new SyntaxException('Detected invalid value for @reverse (must be an object).', $value);
+                throw new JsonLdException(
+                    JsonLdException::INVALID_REVERSE_VALUE,
+                    'Detected invalid value for @reverse (must be an object).',
+                    $value
+                );
             }
 
             $this->expand($value, $activectx, $keyword, $frame, $debug);
@@ -736,7 +855,11 @@ class Processor
             foreach ($value as $prop => $val) {
                 foreach ($val as $v) {
                     if (property_exists($v, '@value') || property_exists($v, '@list')) {
-                        throw new SyntaxException('Detected invalid value in @reverse-map (only nodes are allowed', $v);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_REVERSE_PROPERTY_VALUE,
+                            'Detected invalid value in @reverse-map (only nodes are allowed',
+                            $v
+                        );
                     }
                     self::mergeIntoProperty($element->{$keyword}, $prop, $v, true);
                 }
@@ -817,7 +940,8 @@ class Processor
 
         if ($localctx) {
             if (in_array($value, $path)) {
-                throw new ProcessException(
+                throw new JsonLdException(
+                    JsonLdException::CYCLIC_IRI_MAPPING,
                     'Cycle in context definition detected: ' . join(' -> ', $path) . ' -> ' . $path[0],
                     $localctx
                 );
@@ -825,7 +949,8 @@ class Processor
                 $path[] = $value;
 
                 if (count($path) >= self::CONTEXT_MAX_IRI_RECURSIONS) {
-                    throw new ProcessException(
+                    throw new JsonLdException(
+                        JsonLdException::UNSPECIFIED,
                         'Too many recursions in term definition: ' . join(' -> ', $path) . ' -> ' . $path[0],
                         $localctx
                     );
@@ -833,17 +958,16 @@ class Processor
             }
 
             if (isset($localctx->{$value})) {
-                if (is_string($localctx->{$value})) {
-                    return $this->expandIri($localctx->{$value}, $activectx, false, true, $localctx, $path);
-                } elseif (isset($localctx->{$value}->{'@id'})) {
-                    if (false === is_string($localctx->{$value}->{'@id'})) {
-                        throw new SyntaxException(
-                            'Detected invalid IRI mapping for term ' . $value,
-                            $localctx
-                        );
-                    }
+                $nested = null;
 
-                    return $this->expandIri($localctx->{$value}->{'@id'}, $activectx, false, true, $localctx, $path);
+                if (is_string($localctx->{$value})) {
+                    $nested = $localctx->{$value};
+                } elseif (isset($localctx->{$value}->{'@id'})) {
+                    $nested = $localctx->{$value}->{'@id'};
+                }
+
+                if ($nested && (end($path) !== $nested)) {
+                    return $this->expandIri($nested, $activectx, false, true, $localctx, $path);
                 }
             }
         }
@@ -876,7 +1000,7 @@ class Processor
         } else {
             if ($vocabRelative && array_key_exists('@vocab', $activectx)) {
                 return $activectx['@vocab'] . $value;
-            } elseif ($relativeIri) {
+            } elseif (($relativeIri) && (null !== $activectx['@base'])) {
                 return (string) $activectx['@base']->resolve($value);
             }
         }
@@ -947,7 +1071,7 @@ class Processor
                     if (is_string($value)) {
                         $value = $this->compactIri($value, $activectx, $inversectx, null, true);
                     } else {
-                        foreach ($value as $key => &$iri) {
+                        foreach ($value as &$iri) {
                             $iri = $this->compactIri($iri, $activectx, $inversectx, null, true);
                         }
 
@@ -967,8 +1091,8 @@ class Processor
                     // Move reverse properties out of the map into element
                     foreach (get_object_vars($value) as $prop => $val) {
                         if ($this->getPropertyDefinition($activectx, $prop, '@reverse')) {
-                            // TODO Compact arrays!?
-                            self::mergeIntoProperty($element, $prop, $val);
+                            $alwaysArray = ('@set' === $this->getPropertyDefinition($activectx, $prop, '@container'));
+                            self::mergeIntoProperty($element, $prop, $val, $alwaysArray);
                             unset($value->{$prop});
                         }
                     }
@@ -983,7 +1107,7 @@ class Processor
                     ? $inversectx[$property]['term']
                     : $property;
 
-                self::setProperty($element, $activeprty, $value);
+                self::setProperty($element, $activeprty, $value, JsonLdException::COLLIDING_KEYWORDS);
 
                 // ... continue with next property
                 continue;
@@ -1041,7 +1165,12 @@ class Processor
                         if ('@list' === $def['@container']) {
                             // a term can just hold one list if it has a @list container
                             // (we don't support lists of lists)
-                            self::setProperty($element, $activeprty, $item->{'@list'});
+                            self::setProperty(
+                                $element,
+                                $activeprty,
+                                $item->{'@list'},
+                                JsonLdException::COMPACTION_TO_LIST_OF_LISTS
+                            );
 
                             continue;  // ... continue with next value
                         } else {
@@ -1206,13 +1335,13 @@ class Processor
         }
 
         // Try to compact to a compact IRI
-        $iriLen = strlen($iri);
-
         foreach ($inversectx as $termIri => $def) {
             $termIriLen = strlen($termIri);
+
             if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen)) &&
                 (false !== ($compactIri = substr($iri, $termIriLen)))) {
                 $compactIri = $def['term'] . ':' . $compactIri;
+
                 if (false === isset($activectx[$compactIri]) ||
                     ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
                     return $compactIri;
@@ -1221,7 +1350,7 @@ class Processor
         }
 
         // Last resort, convert to a relative IRI
-        if (false === $vocabRelative) {
+        if ((false === $vocabRelative) && (null !== $activectx['@base'])) {
             return (string) $activectx['@base']->baseFor($iri);
         }
 
@@ -1487,14 +1616,10 @@ class Processor
      * @param array $activectx  The active context.
      * @param array $remotectxs The already included remote contexts.
      *
-     * @throws ProcessException If processing of the context failed.
-     * @throws ParseException   If a remote context couldn't be processed.
+     * @throws JsonLdException
      */
     public function processContext($loclctx, &$activectx, $remotectxs = array())
     {
-        // Initialize variable
-        $activectxKey = null;
-
         if (is_object($loclctx)) {
             $loclctx = clone $loclctx;
         }
@@ -1511,12 +1636,31 @@ class Processor
                 $context = clone $context;
 
                 if (property_exists($context, '@base')) {
-                    if (null === $context->{'@base'}) {
-                        $activectx['@base'] = $this->baseIri;
-                    } elseif (false === is_string($context->{'@base'}) || (false === strpos($context->{'@base'}, ':'))) {
-                        throw new SyntaxException("The value of @base must be an absolute IRI or null.", $context);
+                    if (count($remotectxs) > 0) {
+                        // do nothing, @base is ignored in a remote context
+                    } elseif (null === $context->{'@base'}) {
+                        $activectx['@base'] = null;
+                    } elseif (false === is_string($context->{'@base'})) {
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_BASE_IRI,
+                            'The value of @base must be an IRI or null.',
+                            $context
+                        );
                     } else {
-                        $activectx['@base'] = new IRI($context->{'@base'});
+                        $base = new IRI($context->{'@base'});
+                        if (false === $base->isAbsolute()) {
+                            if (null === $activectx['@base']) {
+                                throw new JsonLdException(
+                                    JsonLdException::INVALID_BASE_IRI,
+                                    'The relative base IRI cannot be resolved to an absolute IRI.',
+                                    $context
+                                );
+                            }
+
+                            $activectx['@base'] = $activectx['@base']->resolve($base);
+                        } else {
+                            $activectx['@base'] = $base;
+                        }
                     }
 
                     unset($context->{'@base'});
@@ -1526,7 +1670,11 @@ class Processor
                     if (null === $context->{'@vocab'}) {
                         unset($activectx['@vocab']);
                     } elseif ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
-                        throw new SyntaxException("The value of @vocab must be an absolute IRI or null.", $context);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_VOCAB_MAPPING,
+                            'The value of @vocab must be an absolute IRI or null.invalid vocab mapping, ',
+                            $context
+                        );
                     } else {
                         $activectx['@vocab'] = $context->{'@vocab'};
                     }
@@ -1536,7 +1684,11 @@ class Processor
 
                 if (property_exists($context, '@language')) {
                     if ((null !== $context->{'@language'}) && (false === is_string($context->{'@language'}))) {
-                        throw new SyntaxException('The value of @language must be a string.', $context);
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_DEFAULT_LANGUAGE,
+                            'The value of @language must be a string.',
+                            $context
+                        );
                     }
 
                     $activectx['@language'] = $context->{'@language'};
@@ -1548,120 +1700,164 @@ class Processor
                     unset($activectx[$key]);
 
                     if (in_array($key, self::$keywords)) {
-                        throw new SyntaxException('Keywords cannot be redefined.', $key);
+                        throw new JsonLdException(JsonLdException::KEYWORD_REDEFINITION, null, $key);
                     }
 
-                    if (null === $value) {
-                        $activectx[$key]['@id'] = null;
-                        $activectx[$key]['@reverse'] = false;
-
-                        continue;
-                    }
-
-                    if (is_string($value)) {
-                        $expanded = $this->expandIri($value, $activectx, false, true, $context);
-
-                        if ((false === in_array($expanded, self::$keywords)) && (false === strpos($expanded, ':'))) {
-                            throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
-                        }
-
-                        $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
+                    if ((null === $value) || is_string($value)) {
+                        $value = (object) array('@id' => $value);
                     } elseif (is_object($value)) {
                         $value = clone $value;    // make sure we don't modify context entries
-                        $expanded = null;
+                    } else {
+                        throw new JsonLdException(JsonLdException::INVALID_TERM_DEFINITION);
+                    }
 
-                        if (property_exists($value, '@reverse')) {
-                            $maxEntries = 1;
+                    $expanded = null;
 
-                            if (isset($value->{'@container'})) {
-                                if ('@index' !== $value->{'@container'}) {
-                                    throw new SyntaxException(
-                                        "Terms using the @reverse feature support only @index-containers.",
-                                        $value
-                                    );
-                                }
-
-                                $maxEntries++;
-                            }
-
-                            if (count(get_object_vars($value)) > $maxEntries) {
-                                throw new SyntaxException("Invalid term definition using @reverse detected", $value);
-                            }
-
-                            $value->{'@id'} = $value->{'@reverse'};
-                            $value->{'@type'} = '@id';
-                            $value->{'@reverse'} = true;
-                        } else {
-                            $value->{'@reverse'} = false;
-                        }
-
+                    if (property_exists($value, '@reverse')) {
                         if (property_exists($value, '@id')) {
-                            $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context);
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_REVERSE_PROPERTY,
+                                "Invalid term definition using both @reverse and @id detected",
+                                $value
+                            );
+                        }
 
-                            if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
-                                throw new SyntaxException(
-                                    "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
-                                );
-                            }
+                        if (property_exists($value, '@container') &&
+                            ('@index' !== $value->{'@container'}) &&
+                            ('@set' !== $value->{'@container'})) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_REVERSE_PROPERTY,
+                                "Terms using the @reverse feature support only @set- and @index-containers.",
+                                $value
+                            );
+                        }
+
+                        $value->{'@id'} = $value->{'@reverse'};
+                        $value->{'@reverse'} = true;
+                    } else {
+                        $value->{'@reverse'} = false;
+                    }
+
+                    if (property_exists($value, '@id')) {
+                        if ((null !== $value->{'@id'}) && (false === is_string($value->{'@id'}))) {
+                            throw new JsonLdException(JsonLdException::INVALID_IRI_MAPPING, null, $value->{'@id'});
+                        }
+
+                        $path = array();
+                        if ($key !== $value->{'@id'}) {
+                            $path[] = $key;
+                        }
+
+                        $expanded = $this->expandIri($value->{'@id'}, $activectx, false, true, $context, $path);
+
+                        if ($value->{'@reverse'} && (false === strpos($expanded, ':'))) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_IRI_MAPPING,
+                                "Reverse properties must expand to absolute IRIs, \"$key\" expands to \"$expanded\"."
+                            );
+                        } elseif ('@context' === $expanded) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_KEYWORD_ALIAS,
+                                'Aliases for @context are not supported',
+                                $value
+                            );
+                        }
+                    } else {
+                        $expanded = $this->expandIri($key, $activectx, false, true, $context);
+                    }
+
+
+                    if ((null === $expanded) || in_array($expanded, self::$keywords)) {
+                        // if it's an aliased keyword or the IRI is null, we ignore all other properties
+                        // TODO Should we throw an exception if there are other properties?
+                        $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
+
+                        continue;
+                    } elseif (false === strpos($expanded, ':')) {
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_IRI_MAPPING,
+                            "Failed to expand \"$key\" to an absolute IRI.",
+                            $loclctx
+                        );
+                    }
+
+                    $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
+
+                    if (isset($value->{'@type'})) {
+                        if (false === is_string($value->{'@type'})) {
+                            throw new JsonLdException(JsonLdException::INVALID_TYPE_MAPPING);
+                        }
+
+                        $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
+
+                        if (('@id' !== $expanded) && ('@vocab' !== $expanded) &&
+                            ((false === strpos($expanded, ':') || (0 === strpos($expanded, '_:'))))) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_TYPE_MAPPING,
+                                "Failed to expand $expanded to an absolute IRI.",
+                                $loclctx
+                            );
+                        }
+
+                        $activectx[$key]['@type'] = $expanded;
+                    } elseif (property_exists($value, '@language')) {
+                        if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_LANGUAGE_MAPPING,
+                                'The value of @language must be a string or null.',
+                                $value
+                            );
+                        }
+
+                        // Note the else. Language tagging applies just to term without type coercion
+                        $activectx[$key]['@language'] = $value->{'@language'};
+                    }
+
+                    if (isset($value->{'@container'})) {
+                        if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
+                            $activectx[$key]['@container'] = $value->{'@container'};
                         } else {
-                            $expanded = $this->expandIri($key, $activectx, false, true, $context);
-                        }
-
-
-                        if ((null === $expanded) || in_array($expanded, self::$keywords)) {
-                            // if it's an aliased keyword or the IRI is null, we ignore all other properties
-                            // TODO Should we throw an exception if there are other properties?
-                            $activectx[$key] = array('@id' => $expanded, '@reverse' => false);
-
-                            continue;
-                        } elseif (false === strpos($expanded, ':')) {
-                            throw new SyntaxException("Failed to expand \"$key\" to an absolute IRI.", $loclctx);
-                        }
-
-                        $activectx[$key] = array('@id' => $expanded, '@reverse' => $value->{'@reverse'});
-
-                        if (isset($value->{'@type'})) {
-                            $expanded = $this->expandIri($value->{'@type'}, $activectx, false, true, $context);
-
-                            if (('@id' !== $expanded) && ('@vocab' !== $expanded) && (false === strpos($expanded, ':'))) {
-                                throw new SyntaxException("Failed to expand $expanded to an absolute IRI.", $loclctx);
-                            }
-
-                            $activectx[$key]['@type'] = $expanded;
-                        } elseif (property_exists($value, '@language')) {
-                            if ((false === is_string($value->{'@language'})) && (null !== $value->{'@language'})) {
-                                throw new SyntaxException('The value of @language must be a string.', $context);
-                            }
-
-                            // Note the else. Language tagging applies just to term without type coercion
-                            $activectx[$key]['@language'] = $value->{'@language'};
-                        }
-
-                        if (isset($value->{'@container'})) {
-                            if (in_array($value->{'@container'}, array('@list', '@set', '@language', '@index'))) {
-                                $activectx[$key]['@container'] = $value->{'@container'};
-                            }
+                            throw new JsonLdException(
+                                JsonLdException::INVALID_CONTAINER_MAPPING,
+                                'A container mapping of ' . $value->{'@container'} . ' is not supported.'
+                            );
                         }
                     }
                 }
-            } else {
+            } elseif (is_string($context)) {
                 $remoteContext = (string) $activectx['@base']->resolve($context);
                 if (in_array($remoteContext, $remotectxs)) {
-                    throw new ProcessException(
-                        'Recursive inclusion of remote context: ' . join(' -> ', $remotectxs) . ' -> ' .
-                        $remoteContext
+                    throw new JsonLdException(
+                        JsonLdException::RECURSIVE_CONTEXT_INCLUSION,
+                        'Recursive inclusion of remote context: ' . join(' -> ', $remotectxs) . ' -> ' . $remoteContext
                     );
                 }
                 $remotectxs[] = $remoteContext;
 
-                $remoteContext = JsonLD::parse($remoteContext);
+                try {
+                    $remoteContext = self::loadDocument($remoteContext);
+                } catch (JsonLdException $e) {
+                    throw new JsonLdException(
+                        JsonLdException::LOADING_REMOTE_CONTEXT_FAILED,
+                        "Loading $remoteContext failed",
+                        null,
+                        null,
+                        $e
+                    );
+                }
 
                 if (is_object($remoteContext) && property_exists($remoteContext, '@context')) {
                     // TODO Use the context's IRI as base IRI when processing remote contexts (ISSUE-24)
                     $this->processContext($remoteContext->{'@context'}, $activectx, $remotectxs);
                 } else {
-                    throw new ProcessException('Remote context "' . $context . '" is invalid.', $remoteContext);
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_REMOTE_CONTEXT,
+                        'Remote context "' . $context . '" is invalid.',
+                        $remoteContext
+                    );
                 }
+            } else {
+                throw new JsonLdException(JsonLdException::INVALID_LOCAL_CONTEXT);
             }
         }
     }
@@ -1749,6 +1945,8 @@ class Processor
     /**
      * Creates a node map of an expanded JSON-LD document
      *
+     * All keys in the node map are prefixed with "-" to support empty strings.
+     *
      * @param object          $nodeMap     The object holding the node map.
      * @param object|object[] $element     An expanded JSON-LD element to
      *                                     be put into the node map
@@ -1761,7 +1959,7 @@ class Processor
     private function generateNodeMap(
         &$nodeMap,
         $element,
-        $activegraph = self::DEFAULT_GRAPH,
+        $activegraph = JsonLD::DEFAULT_GRAPH,
         $activeid = null,
         $activeprty = null,
         &$list = null
@@ -1788,18 +1986,13 @@ class Processor
                 if (0 === strncmp($type, '_:', 2)) {
                     $type = $this->getBlankNodeId($type);
                 }
-
-                if (false === property_exists($nodeMap->{$activegraph}, $type)) {
-                    $nodeMap->{$activegraph}->{$type} = new Object();
-                    $nodeMap->{$activegraph}->{$type}->{'@id'} = $type;
-                }
             }
         }
 
         if (property_exists($element, '@value')) {
             // Handle value objects
             if (null === $list) {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $element, true, true);
+                $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $element, true, true);
             } else {
                 $this->mergeIntoProperty($list, '@list', $element, true, false);
             }
@@ -1809,7 +2002,7 @@ class Processor
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
-            $this->mergeIntoProperty($nodeMap->{$activegraph}->{$activeid}, $activeprty, $result, true, false);
+            $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $result, true, false);
         } else {
             // and node objects
             $id = null;
@@ -1824,19 +2017,24 @@ class Processor
             unset($element->{'@id'});
 
             // Create node in node map if it doesn't exist yet
-            if (false === property_exists($nodeMap->{$activegraph}, $id)) {
-                $nodeMap->{$activegraph}->{$id} = new Object();
-                $nodeMap->{$activegraph}->{$id}->{'@id'} = $id;
+            if (false === property_exists($nodeMap->{'-' . $activegraph}, '-' . $id)) {
+                $node = new Object();
+                $node->{'@id'} = $id;
+                $nodeMap->{'-' . $activegraph}->{'-' . $id} = $node;
+            } else {
+                $node = $nodeMap->{'-' . $activegraph}->{'-' . $id};
             }
 
             // Add reference to active property
-            if (null !== $activeprty) {
+            if (is_object($activeid)) {
+                $this->mergeIntoProperty($node, $activeprty, $activeid, true, true);
+            } elseif (null !== $activeprty) {
                 $reference = new Object();
                 $reference->{'@id'} = $id;
 
                 if (null === $list) {
                     $this->mergeIntoProperty(
-                        $nodeMap->{$activegraph}->{$activeid},
+                        $nodeMap->{'-' . $activegraph}->{'-' . $activeid},
                         $activeprty,
                         $reference,
                         true,
@@ -1848,12 +2046,17 @@ class Processor
             }
 
             if (property_exists($element, '@type')) {
-                $this->mergeIntoProperty($nodeMap->{$activegraph}->{$id}, '@type', $element->{'@type'}, true, true);
+                $this->mergeIntoProperty($node, '@type', $element->{'@type'}, true, true);
                 unset($element->{'@type'});
             }
 
             if (property_exists($element, '@index')) {
-                $this->setProperty($nodeMap->{$activegraph}->{$id}, '@index', $element->{'@index'});
+                $this->setProperty(
+                    $node,
+                    '@index',
+                    $element->{'@index'},
+                    JsonLdException::CONFLICTING_INDEXES
+                );
                 unset($element->{'@index'});
             }
 
@@ -1864,8 +2067,7 @@ class Processor
                 // add them to the node mape
                 foreach (get_object_vars($element->{'@reverse'}) as $property => $value) {
                     foreach ($value as $val) {
-                        $this->mergeIntoProperty($val, $property, (object)$reference, true, true);
-                        $this->generateNodeMap($nodeMap, $val, $activegraph);
+                        $this->generateNodeMap($nodeMap, $val, $activegraph, (object) $reference, $property);
                     }
                 }
 
@@ -1874,14 +2076,14 @@ class Processor
 
             // This node also represent a named graph, process it
             if (property_exists($element, '@graph')) {
-                if (self::UNION_GRAPH !== $activegraph) {
-                    if (false === property_exists($nodeMap, $id)) {
-                        $nodeMap->{$id} = new Object();
+                if (JsonLD::MERGED_GRAPH !== $activegraph) {
+                    if (false === property_exists($nodeMap, '-' . $id)) {
+                        $nodeMap->{'-' . $id} = new Object();
                     }
 
                     $this->generateNodeMap($nodeMap, $element->{'@graph'}, $id);
                 } else {
-                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, $activegraph);
+                    $this->generateNodeMap($nodeMap, $element->{'@graph'}, JsonLD::MERGED_GRAPH);
                 }
 
                 unset($element->{'@graph'});
@@ -1896,8 +2098,8 @@ class Processor
                     $property = $this->getBlankNodeId($property);
                 }
 
-                if (false === property_exists($nodeMap->{$activegraph}->{$id}, $property)) {
-                    $nodeMap->{$activegraph}->{$id}->{$property} = array();
+                if (false === property_exists($node, $property)) {
+                    $node->{$property} = array();
                 }
 
                 $this->generateNodeMap($nodeMap, $value, $activegraph, $id, $property);
@@ -1939,31 +2141,34 @@ class Processor
     public function flatten($element)
     {
         $nodeMap = new Object();
-        $nodeMap->{self::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $element);
 
-        $defaultGraph = $nodeMap->{self::DEFAULT_GRAPH};
-        unset($nodeMap->{self::DEFAULT_GRAPH});
+        $defaultGraph = $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH};
+        unset($nodeMap->{'-' . JsonLD::DEFAULT_GRAPH});
 
         // Store named graphs in the @graph property of the node representing
         // the graph in the default graph
         foreach ($nodeMap as $graphName => $graph) {
             if (!isset($defaultGraph->{$graphName})) {
                 $defaultGraph->{$graphName} = new Object();
-                $defaultGraph->{$graphName}->{'@id'} = $graphName;
+                $defaultGraph->{$graphName}->{'@id'} = substr($graphName, 1);
             }
 
             $graph = (array) $graph;
             ksort($graph);
-
-            $defaultGraph->{$graphName}->{'@graph'} = array_values($graph);
+            $defaultGraph->{$graphName}->{'@graph'} = array_values(
+                array_filter($graph, array($this, 'hasNodeProperties'))
+            );
         }
 
         $defaultGraph = (array) $defaultGraph;
         ksort($defaultGraph);
 
-        return array_values($defaultGraph);
+        return array_values(
+            array_filter($defaultGraph, array($this, 'hasNodeProperties'))
+        );
     }
 
     /**
@@ -1978,19 +2183,30 @@ class Processor
     public function toRdf(array $document)
     {
         $nodeMap = new Object();
-        $nodeMap->{Processor::DEFAULT_GRAPH} = new Object();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
 
         $this->generateNodeMap($nodeMap, $document);
 
         $result = array();
 
         foreach ($nodeMap as $graphName => $graph) {
-            $activegraph = (self::DEFAULT_GRAPH === $graphName)
-                ? null
-                : new IRI($graphName);
+            $graphName = substr($graphName, 1);
+            if (JsonLD::DEFAULT_GRAPH === $graphName) {
+                $activegraph = null;
+            } else {
+                $activegraph = new IRI($graphName);
+
+                if (false === $activegraph->isAbsolute()) {
+                    continue;
+                }
+            }
 
             foreach ($graph as $subject => $node) {
-                $activesubj = new IRI($subject);
+                $activesubj = new IRI(substr($subject, 1));
+
+                if (false === $activesubj->isAbsolute()) {
+                    continue;
+                }
 
                 foreach ($node as $property => $values) {
                     if ('@id' === $property) {
@@ -2006,7 +2222,15 @@ class Processor
                         continue;
                     }
 
+                    // Exclude triples/quads with a blank node predicate if generalized RDF isn't enabled
+                    if ((0 === strncmp($property, '_:', 2)) && (false === $this->generalizedRdf)) {
+                        continue;
+                    }
+
                     $activeprty = new IRI($property);
+                    if (false === $activeprty->isAbsolute()) {
+                        continue;
+                    }
 
                     foreach ($values as $value) {
                         if (property_exists($value, '@list')) {
@@ -2018,7 +2242,13 @@ class Processor
                                 $result[] = $quad;
                             }
                         } else {
-                            $result[] = new Quad($activesubj, $activeprty, $this->elementToRdf($value), $activegraph);
+                            $object = $this->elementToRdf($value);
+
+                            if (null === $object) {
+                                continue;
+                            }
+
+                            $result[] = new Quad($activesubj, $activeprty, $object, $activegraph);
                         }
                     }
                 }
@@ -2033,14 +2263,17 @@ class Processor
      *
      * @param Object $element The element to be converted.
      *
-     * @return IRI|TypedValue|LanguageTagged The converted element to be used as Quad object.
+     * @return IRI|TypedValue|LanguageTagged|null The converted element to be used as Quad object.
      */
-    private function elementToRdf(Object $element) {
+    private function elementToRdf(Object $element)
+    {
         if (property_exists($element, '@value')) {
             return Value::fromJsonLd($element);
         }
 
-        return new IRI($element->{'@id'});
+        $iri = new IRI($element->{'@id'});
+
+        return $iri->isAbsolute() ? $iri : null;
     }
 
     /**
@@ -2052,7 +2285,8 @@ class Processor
      *
      * @return IRI Returns the IRI of the head of the list
      */
-    private function listToRdf(array $entries, array &$quads, IRI $graph = null) {
+    private function listToRdf(array $entries, array &$quads, IRI $graph = null)
+    {
         if (0 === count($entries)) {
             return new IRI(RdfConstants::RDF_NIL);
         }
@@ -2065,7 +2299,11 @@ class Processor
             $next = new IRI($this->getBlankNodeId());
 
             $quads[] = new Quad($bnode, new IRI(RdfConstants::RDF_REST), $next, $graph);
-            $quads[] = new Quad($next, new IRI(RdfConstants::RDF_FIRST), $this->elementToRdf($entries[$i]), $graph);
+
+            $object = $this->elementToRdf($entries[$i]);
+            if (null !== $object) {
+                $quads[] = new Quad($next, new IRI(RdfConstants::RDF_FIRST), $object, $graph);
+            }
 
             $bnode = $next;
         }
@@ -2089,18 +2327,18 @@ class Processor
     public function fromRdf(array $quads)
     {
         $graphs = new Object();
-        $graphs->{self::DEFAULT_GRAPH} = new Object();
+        $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
 
         foreach ($quads as $quad) {
-            $graphName = self::DEFAULT_GRAPH;
+            $graphName = JsonLD::DEFAULT_GRAPH;
 
             if ($quad->getGraph()) {
                 $graphName = (string) $quad->getGraph();
 
                 // Add a reference to this graph to the default graph if it
                 // doesn't exist yet
-                if (false === isset($graphs->{self::DEFAULT_GRAPH}->{$graphName})) {
-                    $graphs->{self::DEFAULT_GRAPH}->{$graphName} =
+                if (false === isset($graphs->{JsonLD::DEFAULT_GRAPH}->{$graphName})) {
+                    $graphs->{JsonLD::DEFAULT_GRAPH}->{$graphName} =
                         self::objectToJsonLd($quad->getGraph());
                 }
             }
@@ -2122,35 +2360,30 @@ class Processor
             }
             $node = $graph->{$subject};
 
-            // ... as are all objects that are IRIs or blank nodes (except rdf:nil)
+            // ... as are all objects that are IRIs or blank nodes
             if ($object instanceof IRI) {
                 $iri = (string) $object;
-                if ((RdfConstants::RDF_NIL !== $iri) && (false === isset($graph->{$iri}))) {
+                if (false === isset($graph->{$iri})) {
                     $graph->{$iri} = self::objectToJsonLd($object);
                 }
             }
 
             if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
                 ($object instanceof IRI)) {
-                self::mergeIntoProperty($node, '@type', (string) $object, true);
+                self::mergeIntoProperty($node, '@type', (string) $object, true, true);
             } else {
-                if ((RdfConstants::RDF_REST !== $property) &&
-                    ($object instanceof IRI) && (RdfConstants::RDF_NIL === (string)$object)) {
-                    // rdf:nil represents an empty list if it is not the value of rdf:rest
-                    $value = new Object();
-                    $value->{'@list'} = array();
-                } else {
-                    $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
-                }
-                self::mergeIntoProperty($node, $property, $value, true);
+                $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
+
+                self::mergeIntoProperty($node, $property, $value, true, true);
 
                 // If the object is an IRI or blank node it might be the
                 // beginning of a list. Store a reference to its usage so
                 // that we can replace it with a list object later
-                if (($object instanceof IRI) && ($object->getScheme() === '_') &&
-                    ($property != RdfConstants::RDF_FIRST) &&
-                    ($property != RdfConstants::RDF_REST)) {
-                    $graph->{(string) $object}->usages[] = $value;
+                if ($object instanceof IRI) {
+                    $graph->{(string) $object}->usages[] = array(
+                        'node' => $node,
+                        'prop' => $property,
+                        'value' => $value);
                 }
             }
         }
@@ -2161,13 +2394,10 @@ class Processor
         // Generate the resulting document starting with the default graph
         $document = array();
 
-        $nodes = get_object_vars($graphs->{self::DEFAULT_GRAPH});
+        $nodes = get_object_vars($graphs->{JsonLD::DEFAULT_GRAPH});
         ksort($nodes);
 
         foreach ($nodes as $id => $node) {
-            unset($node->usages);
-            $document[] = $node;
-
             // is it a named graph?
             if (isset($graphs->{$id})) {
                 $node->{'@graph'} = array();
@@ -2175,10 +2405,19 @@ class Processor
                 $graphNodes = $graphs->{$id};
                 ksort($nodes);
 
-                foreach ($graphNodes as $gnId => $graphNode) {
+                foreach ($graphNodes as $graphNode) {
                     unset($graphNode->usages);
-                    $node->{'@graph'}[] = $graphNode;
+
+                    if (count(get_object_vars($graphNode)) > 1) {
+                        $node->{'@graph'}[] = $graphNode;
+                    }
                 }
+            }
+
+            unset($node->usages);
+
+            if (count(get_object_vars($node)) > 1) {
+                $document[] = $node;
             }
         }
 
@@ -2192,56 +2431,69 @@ class Processor
      */
     private function createListObjects($graphs)
     {
-        foreach ($graphs as $graphName => $graph) {
-            foreach ($graph as $id => $node) {
-                // Check if the node is still there or if it has been removed because it was part of a list
-                if (false === isset($graph->{$id})) {
-                    continue;
-                }
+        foreach ($graphs as $graph) {
+            if (false === isset($graph->{RdfConstants::RDF_NIL})) {
+                continue;
+            }
 
-                // If this node is a valid list head...
-                if (isset($node->usages) && (1 === count($node->usages))) {
-                    $value = $node->usages[0];
+            $nil = $graph->{RdfConstants::RDF_NIL};
 
-                    // Initialize empty list. If an error occurs, $list will be set to null
-                    $list = array();
-                    $eliminatedNodes = array();
+            foreach ($nil->usages as $usage) {
+                $u = $usage;
 
-                    while (RdfConstants::RDF_NIL !== $id) {
-                        // Ensure that the linked list is valid, i.e., the list entry is
-                        // represented by a blank node having two properties (4 including
-                        // @id and "usages") rdf:first and rdf:rest (both of which have a
-                        // single value)
-                        if ((null === $node) || (0 !== strncmp($node->{'@id'}, '_:', 2)) ||
-                            (4 !== count(get_object_vars($node))) ||
-                            (false === property_exists($node, RdfConstants::RDF_FIRST)) ||
-                            (false === property_exists($node, RdfConstants::RDF_REST)) ||
-                            (count($node->{RdfConstants::RDF_FIRST}) !== 1) ||
-                            (count($node->{RdfConstants::RDF_REST}) !== 1) ||
-                            (false === isset($node->{RdfConstants::RDF_REST}[0]->{'@id'})) ||
-                            (true === in_array($id, $eliminatedNodes))) {
-                            $list = null;
-                            break;
-                        }
+                $node = $u['node'];
+                $prop = $u['prop'];
+                $head = $u['value'];
 
-                        $list[] = $node->{RdfConstants::RDF_FIRST}[0];
-                        $eliminatedNodes[] = $node->{'@id'};
+                $list = array();
+                $listNodes = array();
 
-                        $id = $node->{RdfConstants::RDF_REST}[0]->{'@id'};
-                        $node = (isset($graph->{$id})) ? $graph->{$id} : null;
+                while ((RdfConstants::RDF_REST === $prop) &&
+                    (1 === count($node->usages)) &&
+                    property_exists($node, RdfConstants::RDF_FIRST) &&
+                    property_exists($node, RdfConstants::RDF_REST) &&
+                    (1 === count($node->{RdfConstants::RDF_FIRST})) &&
+                    (1 === count($node->{RdfConstants::RDF_REST})) &&
+                    ((4 === count(get_object_vars($node))) ||
+                        ((5 === count(get_object_vars($node))) &&
+                        property_exists($node, '@type') &&
+                        ($node->{'@type'} === array(RdfConstants::RDF_LIST)))
+                    )
+                ) {
+                    $list[] = reset($node->{RdfConstants::RDF_FIRST});
+                    $listNodes[] = $node->{'@id'};
+
+
+                    $u = reset($node->usages);
+                    $node = $u['node'];
+                    $prop = $u['prop'];
+                    $head = $u['value'];
+
+                    if (0 !== strncmp($node->{'@id'}, '_:', 2)) {
+                        break;
                     }
+                };
 
-                    if (null === $list) {
+                // The list is nested in another list
+                if (RdfConstants::RDF_FIRST === $prop) {
+                    // If it is empty, we can't do anything but keep the rdf:nil node
+                    if (RdfConstants::RDF_NIL === $head->{'@id'}) {
                         continue;
                     }
 
-                    // and replace the object in the nodeMap with the list
-                    unset($value->{'@id'});
-                    $value->{'@list'} = $list;
+                    // ... otherwise we keep the head and convert the rest to @list
+                    $head = $graph->{$head->{'@id'}};
+                    $head = reset($head->{RdfConstants::RDF_REST});
 
-                    foreach ($eliminatedNodes as $id) {
-                        unset($graph->{$id});
-                    }
+                    array_pop($list);
+                    array_pop($listNodes);
+                }
+
+                unset($head->{'@id'});
+                $head->{'@list'} = array_reverse($list);
+
+                foreach ($listNodes as $node) {
+                    unset($graph->{$node});
                 }
             }
         }
@@ -2255,14 +2507,16 @@ class Processor
      *
      * @return array $result The framed element in expanded form.
      *
-     * @throws ParseException   If the JSON-LD document or context couldn't be parsed.
-     * @throws SyntaxException  If the JSON-LD document or context contains syntax errors.
-     * @throws ProcessException If framing failed.
+     * @throws JsonLdException
      */
     public function frame($element, $frame)
     {
         if ((false === is_array($frame)) || (1 !== count($frame)) || (false === is_object($frame[0]))) {
-            throw new SyntaxException('The frame is invalid. It must be a single object.', $frame);
+            throw new JsonLdException(
+                JsonLdException::UNSPECIFIED,
+                'The frame is invalid. It must be a single object.',
+                $frame
+            );
         }
 
         $frame = $frame[0];
@@ -2286,23 +2540,24 @@ class Processor
         $procOptions->optimize = $this->optimize;
         $procOptions->useNativeTypes = $this->useNativeTypes;
         $procOptions->useRdfType = $this->useRdfType;
+        $procOptions->produceGeneralizedRdf = $this->generalizedRdf;
         $procOptions->documentFactory = $this->documentFactory;
 
         $processor = new Processor($procOptions);
 
-        $graph = self::UNION_GRAPH;
+        $graph = JsonLD::MERGED_GRAPH;
         if (property_exists($frame, '@graph')) {
-            $graph = self::DEFAULT_GRAPH;
+            $graph = JsonLD::DEFAULT_GRAPH;
         }
 
         $nodeMap = new Object();
-        $nodeMap->{$graph} = new Object();
+        $nodeMap->{'-' . $graph} = new Object();
         $processor->generateNodeMap($nodeMap, $element, $graph);
 
         // Sort the node map to ensure a deterministic output
         // TODO Move this to a separate function as basically the same is done in flatten()?
         $nodeMap = (array) $nodeMap;
-        foreach ($nodeMap as $graphName => &$nodes) {
+        foreach ($nodeMap as &$nodes) {
             $nodes = (array) $nodes;
             ksort($nodes);
             $nodes = (object) $nodes;
@@ -2313,7 +2568,7 @@ class Processor
 
         $result = array();
 
-        foreach ($nodeMap->{$graph} as $node) {
+        foreach ($nodeMap->{'-' . $graph} as $node) {
             $this->nodeMatchesFrame($node, $frame, $options, $nodeMap, $graph, $result);
         }
 
@@ -2393,7 +2648,7 @@ class Processor
                         $result->{'@graph'} = array();
                         $match = false;
 
-                        foreach ($nodeMap->{$result->{'@id'}} as $item) {
+                        foreach ($nodeMap->{'-' . $result->{'@id'}} as $item) {
                             foreach ($validValues as $validValue) {
                                 $match |= $this->nodeMatchesFrame(
                                     $item,
@@ -2480,7 +2735,7 @@ class Processor
                     foreach ($nodeValues as $value) {
                         if (is_object($value) && property_exists($value, '@id')) {
                             $match |= $this->nodeMatchesFrame(
-                                $nodeMap->{$graph}->{$value->{'@id'}},
+                                $nodeMap->{'-' . $graph}->{'-' . $value->{'@id'}},
                                 $validValue,
                                 $newOptions,
                                 $nodeMap,
@@ -2501,7 +2756,8 @@ class Processor
                         }
                     }
                 } elseif (is_array($validValue)) {
-                    throw new SyntaxException(
+                    throw new JsonLdException(
+                        JsonLdException::UNSPECIFIED,
                         "Invalid frame detected. Property \"$property\" must not be an array of arrays.",
                         $frame
                     );
@@ -2571,7 +2827,7 @@ class Processor
                 foreach ($value as $item) {
                     if (is_object($item)) {
                         if (property_exists($item, '@id')) {
-                            $item = $nodeMap->{$graph}->{$item->{'@id'}};
+                            $item = $nodeMap->{'-' . $graph}->{'-' . $item->{'@id'}};
                         }
 
                         $this->nodeMatchesFrame($item, null, $options, $nodeMap, $graph, $result->{$property}, $path);
@@ -2597,9 +2853,9 @@ class Processor
      * @param string $property The name of the property.
      * @param mixed  $value    The value of the property.
      *
-     * @throws SyntaxException If the property exists already JSON-LD.
+     * @throws JsonLdException If the property exists already JSON-LD.
      */
-    private static function setProperty(&$object, $property, $value, $origProperty = null)
+    private static function setProperty(&$object, $property, $value, $errorCode = null, $origProperty = null)
     {
         if ($origProperty) {
             if (property_exists($object, $origProperty))
@@ -2618,7 +2874,20 @@ class Processor
 
         if (property_exists($object, $property) &&
             (false === self::subtreeEquals($object->{$property}, $value))) {
-            throw new SyntaxException("Object already contains a property \"$property\".", $object);
+
+            if ($errorCode) {
+                throw new JsonLdException(
+                    $errorCode,
+                    "Object already contains a property \"$property\".",
+                    $object
+                );
+            }
+
+            throw new JsonLdException(
+                JsonLdException::UNSPECIFIED,
+                "Object already contains a property \"$property\".",
+                $object
+            );
         }
 
         $object->{$property} = $value;
@@ -2740,5 +3009,21 @@ class Processor
         }
 
         return $object;
+    }
+
+    /**
+     * Checks whether a node has properties and not just an @id
+     *
+     * This is used to filter nodes consisting just of an @id-member when
+     * flattening and converting from RDF.
+     *
+     * @param object $node The node
+     *
+     * @return boolean True if the node has properties (other than @id),
+     *                 false otherwise.
+     */
+    private function hasNodeProperties($node)
+    {
+        return (count(get_object_vars($node)) > 1);
     }
 }

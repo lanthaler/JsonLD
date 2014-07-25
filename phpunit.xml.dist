@@ -26,6 +26,7 @@
         </whitelist>
     </filter>
 
+    <!-- Uncomment this section if you want to generate an EARL implementation report
     <listeners>
       <listener class="\ML\JsonLD\Test\EarlReportGenerator">
         <arguments>
@@ -64,6 +65,7 @@
         </arguments>
       </listener>
     </listeners>
+    -->
 
     <logging>
         <log type="coverage-text" target="php://stdout" showUncoveredFiles="true" />

@@ -1,0 +1,34 @@
+{
+  "@context": {
+    "t1": "http://example.com/t1",
+    "t2": "http://example.com/t2",
+    "term1": "http://example.com/term1",
+    "term2": "http://example.com/term2",
+    "term3": "http://example.com/term3",
+    "term4": "http://example.com/term4",
+    "term5": "http://example.com/term5"
+  },
+  "@graph": [
+    {
+      "@id": "http://example.com/id1",
+      "@type": "t1",
+      "term1": "v1",
+      "term2": {
+        "@type": "t2",
+        "@value": "v2"
+      },
+      "term3": {
+        "@language": "en",
+        "@value": "v3"
+      },
+      "term4": 4,
+      "term5": [ 50, 51 ],
+      "http://example.com/term6": [
+        { "@value": "1", "@type": "t1" },
+        { "@value": "2", "@type": "t2" },
+        { "@value": "3", "@language": "en" },
+        { "@value": "4", "@language": "de" }
+      ]
+    }
+  ]
+}

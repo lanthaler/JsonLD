@@ -14,17 +14,24 @@ use ML\JsonLD\NQuads;
 use ML\JsonLD\Test\TestManifestIterator;
 
 /**
- * The official JSON-LD test suite.
+ * The official W3C JSON-LD test suite.
+ *
+ * @link http://www.w3.org/2013/json-ld-tests/ Official W3C JSON-LD test suite
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
+class W3CTestSuiteTest extends JsonTestCase
 {
     /**
      * The base directory from which the test manifests, input, and output
      * files should be read.
      */
     private $basedir;
+
+    /**
+     * The URL corresponding to the base directory
+     */
+    private $baseurl = 'http://json-ld.org/test-suite/tests/';
 
     /**
      * @var string The test's ID.
@@ -43,7 +50,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $this->id = $dataName;
 
         parent::__construct($name, $data, $dataName);
-        $this->basedir = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR;
+        $this->basedir = dirname(__FILE__) . '/../vendor/json-ld/tests/';
     }
 
     /**
@@ -79,7 +86,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function expansionProvider()
     {
-        return new TestManifestIterator($this->basedir . 'expand-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'expand-manifest.jsonld',
+            $this->baseurl . 'expand-manifest.jsonld'
+        );
     }
 
     /**
@@ -110,7 +120,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function compactionProvider()
     {
-        return new TestManifestIterator($this->basedir . 'compact-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'compact-manifest.jsonld',
+            $this->baseurl . 'compact-manifest.jsonld'
+        );
     }
 
     /**
@@ -126,7 +139,11 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
     public function testFlatten($name, $test, $options)
     {
         $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
-        $result = JsonLD::flatten($this->basedir . $test->{'input'}, null, $options);
+        $context = (isset($test->{'context'}))
+            ? $this->basedir . $test->{'context'}
+            : null;
+
+        $result = JsonLD::flatten($this->basedir . $test->{'input'}, $context, $options);
 
         $this->assertJsonEquals($expected, $result);
     }
@@ -136,7 +153,80 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function flattenProvider()
     {
-        return new TestManifestIterator($this->basedir . 'flatten-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'flatten-manifest.jsonld',
+            $this->baseurl . 'flatten-manifest.jsonld'
+        );
+    }
+
+    /**
+     * Tests remote document loading.
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @group remote
+     * @dataProvider remoteDocumentLoadingProvider
+     */
+    public function testRemoteDocumentLoading($name, $test, $options)
+    {
+        if (in_array('jld:NegativeEvaluationTest', $test->{'@type'})) {
+            $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+        } else {
+            $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
+        }
+
+        unset($options->base);
+
+        $result = JsonLD::expand($this->baseurl . $test->{'input'}, $options);
+
+        if (isset($expected)) {
+            $this->assertJsonEquals($expected, $result);
+        }
+    }
+
+    /**
+     * Provides remote document loading test cases.
+     */
+    public function remoteDocumentLoadingProvider()
+    {
+        return new TestManifestIterator(
+            $this->basedir . 'remote-doc-manifest.jsonld',
+            $this->baseurl . 'remote-doc-manifest.jsonld'
+        );
+    }
+
+    /**
+     * Tests errors (uses flattening).
+     *
+     * @param string $name    The test name.
+     * @param object $test    The test definition.
+     * @param object $options The options to configure the algorithms.
+     *
+     * @group errors
+     * @dataProvider errorProvider
+     */
+    public function testError($name, $test, $options)
+    {
+        $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+
+        JsonLD::flatten(
+            $this->basedir . $test->{'input'},
+            (isset($test->{'context'})) ? $this->basedir . $test->{'context'} : null,
+            $options
+        );
+    }
+
+    /**
+     * Provides error test cases.
+     */
+    public function errorProvider()
+    {
+        return new TestManifestIterator(
+            $this->basedir . 'error-manifest.jsonld',
+            $this->baseurl . 'error-manifest.jsonld'
+        );
     }
 
     /**
@@ -180,7 +270,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function framingProvider()
     {
-        return new TestManifestIterator($this->basedir . 'frame-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'frame-manifest.jsonld',
+            $this->baseurl . 'frame-manifest.jsonld'
+        );
     }
 
     /**
@@ -195,7 +288,7 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function testToRdf($name, $test, $options)
     {
-        $expected = file_get_contents($this->basedir . $test->{'expect'});
+        $expected = trim(file_get_contents($this->basedir . $test->{'expect'}));
         $quads = JsonLD::toRdf($this->basedir . $test->{'input'}, $options);
 
         $serializer = new NQuads();
@@ -205,7 +298,6 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
         $result = explode("\n", trim($result));
         sort($result);
         $result = implode("\n", $result);
-        $result .= "\n";
 
         $this->assertEquals($expected, $result);
     }
@@ -215,7 +307,10 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function toRdfProvider()
     {
-        return new TestManifestIterator($this->basedir . 'toRdf-manifest.jsonld');
+        return new TestManifestIterator(
+            $this->basedir . 'toRdf-manifest.jsonld',
+            $this->baseurl . 'toRdf-manifest.jsonld'
+        );
     }
 
     /**
@@ -245,49 +340,9 @@ class JsonLDTestSuiteTest extends \PHPUnit_Framework_TestCase
      */
     public function fromRdfProvider()
     {
-        return new TestManifestIterator($this->basedir . 'fromRdf-manifest.jsonld');
-    }
-
-    /**
-     * Asserts that two JSON structures are equal.
-     *
-     * @param  object|array $expected
-     * @param  object|array $actual
-     * @param  string $message
-     */
-    public static function assertJsonEquals($expected, $actual, $message = '')
-    {
-        $expected = self::normalizeJson($expected);
-        $actual = self::normalizeJson($actual);
-
-        self::assertEquals($expected, $actual, $message);
-    }
-
-    /**
-     * Brings the keys of objects to a deterministic order to enable
-     * comparison of JSON structures
-     *
-     * @param mixed $element The element to normalize.
-     *
-     * @return mixed The same data with all object keys ordered in a
-     *               deterministic way.
-     */
-    private static function normalizeJson($element)
-    {
-        if (is_array($element)) {
-            foreach ($element as &$item) {
-                $item = self::normalizeJson($item);
-            }
-        } elseif (is_object($element)) {
-            $element = (array) $element;
-            ksort($element);
-            $element = (object) $element;
-
-            foreach ($element as $key => &$item) {
-                $item = self::normalizeJson($item);
-            }
-        }
-
-        return $element;
+        return new TestManifestIterator(
+            $this->basedir . 'fromRdf-manifest.jsonld',
+            $this->baseurl . 'fromRdf-manifest.jsonld'
+        );
     }
 }

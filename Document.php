@@ -149,13 +149,13 @@ class Document implements DocumentInterface, JsonLdSerializable
      */
     public function removeGraph($graph = null)
     {
+        // The default graph can't be "removed", it can just be reset
         if (null === $graph) {
             $this->defaultGraph = new Graph($this);
 
             return $this;
         }
 
-        $name = $graph;
 
         if ($graph instanceof GraphInterface) {
             foreach ($this->namedGraphs as $n => $g) {
@@ -164,6 +164,8 @@ class Document implements DocumentInterface, JsonLdSerializable
                     break;
                 }
             }
+        } else {
+            $name = (string) $this->iri->resolve($graph);
         }
 
         if (isset($this->namedGraphs[$name])) {
