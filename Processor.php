@@ -406,7 +406,10 @@ class Processor
         }
 
         $properties = get_object_vars($element);
-        ksort($properties);
+
+        if (!$debug) {
+            ksort($properties);
+        }
 
         $element = new Object();
 
