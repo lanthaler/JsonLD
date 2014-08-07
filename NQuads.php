@@ -20,28 +20,47 @@ use ML\IRI\IRI;
 class NQuads implements QuadSerializerInterface, QuadParserInterface
 {
     /**
+     * @var bool
+     */
+    protected $useCodePoints;
+
+    /**
+     * Create a new NQuads serializer
+     *
+     * @param bool $useCodePoints If set to true, special UTF-8
+     *                            characters will be converted to
+     *                            Unicode code points
+     */
+    public function __construct($useCodePoints = false)
+    {
+        $this->useCodePoints = $useCodePoints;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function serialize(array $quads)
     {
         $result = '';
+
+        /** @var Quad $quad */
         foreach ($quads as $quad) {
             $result .= ('_' === $quad->getSubject()->getScheme())
                 ? $quad->getSubject()
-                : '<' . $quad->getSubject() . '>';
+                : '<' . $this->escape($quad->getSubject()) . '>';
             $result .= ' ';
 
             $result .= ('_' === $quad->getProperty()->getScheme())
                 ? $quad->getProperty()
-                : '<' . $quad->getProperty() . '>';
+                : '<' . $this->escape($quad->getProperty()) . '>';
             $result .= ' ';
 
             if ($quad->getObject() instanceof IRI) {
                 $result .= ('_' === $quad->getObject()->getScheme())
                     ? $quad->getObject()
-                    : '<' . $quad->getObject() . '>';
+                    : '<' . $this->escape($quad->getObject()) . '>';
             } else {
-                $result .= '"' . $quad->getObject()->getValue() . '"';
+                $result .= '"' . $this->escape($quad->getObject()->getValue()) . '"';
                 $result .= ($quad->getObject() instanceof TypedValue)
                     ? (RdfConstants::XSD_STRING === $quad->getObject()->getType())
                         ? ''
@@ -166,5 +185,36 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
         }
 
         return $statements;
+    }
+
+    /**
+     * Converts UTF-8 to Unicode code points for
+     * use with some triplestores, like AllegroGraph
+     * if useCodePoints is true
+     *
+     * @see http://www.w3.org/TR/n-quads/#sec-grammar
+     *
+     * @param string $str Input string to convert if
+     *                    useCodePoints is true
+     *
+     * @return string Escaped value is useCodePoints
+     *                is true or raw value if useCodePoints
+     *                is false
+     */
+    private function escape($str)
+    {
+        if (!$this->useCodePoints) {
+            return $str;
+        }
+
+        return preg_replace_callback('/./u', function ($m) {
+            $ord = ord($m[0]);
+            if ($ord <= 127) {
+                return $m[0];
+            } else {
+                $s = trim(json_encode($m[0]), '"');
+                return strtolower(substr($s, 0, 2)) . strtoupper(substr($s, 2));
+            }
+        }, $str);
     }
 }
