@@ -203,6 +203,8 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
      */
     private function escape($str)
     {
+        $str = str_replace('\\', '\\\\', $str);
+
         if (!$this->useCodePoints) {
             return $str;
         }
