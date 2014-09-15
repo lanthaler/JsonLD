@@ -2253,6 +2253,7 @@ class Processor
     {
         $graphs = new Object();
         $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
+        $graphs->{'@usages'} = new Object();
 
         foreach ($quads as $quad) {
             $graphName = JsonLD::DEFAULT_GRAPH;
@@ -2286,18 +2287,15 @@ class Processor
             $node = $graph->{$subject};
 
             // ... as are all objects that are IRIs or blank nodes
-            if ($object instanceof IRI) {
-                $iri = (string) $object;
-                if (false === isset($graph->{$iri})) {
-                    $graph->{$iri} = self::objectToJsonLd($object);
-                }
+            if (($object instanceof IRI) && (false === isset($graph->{(string) $object}))) {
+                $graph->{(string) $object} = self::objectToJsonLd($object);
             }
 
             if (($property === RdfConstants::RDF_TYPE) && (false === $this->useRdfType) &&
                 ($object instanceof IRI)) {
                 self::mergeIntoProperty($node, '@type', (string) $object, true, true);
             } else {
-                $value = self::objectToJsonLd($object, $this->useNativeTypes, false);
+                $value = self::objectToJsonLd($object, $this->useNativeTypes);
 
                 self::mergeIntoProperty($node, $property, $value, true, true);
 
@@ -2305,10 +2303,30 @@ class Processor
                 // beginning of a list. Store a reference to its usage so
                 // that we can replace it with a list object later
                 if ($object instanceof IRI) {
-                    $graph->{(string) $object}->usages[] = array(
-                        'node' => $node,
-                        'prop' => $property,
-                        'value' => $value);
+                    $objectStr = (string) $object;
+
+                    // Usages of rdf:nil are stored per graph, while...
+                    if (RdfConstants::RDF_NIL == $objectStr) {
+                        $graph->{$objectStr}->usages[] = array(
+                            'node' => $node,
+                            'prop' => $property,
+                            'value' => $value);
+                    // references to other nodes are stored globally (blank nodes could be shared across graphs)
+                    } else {
+                        if (!isset($graphs->{'@usages'}->{$objectStr})) {
+                            $graphs->{'@usages'}->{$objectStr} = array();
+                        }
+
+                        // Make sure that the same triple isn't counted multiple times
+                        $graphSubjectProperty = $graphName . '|' . $subject . '|' . $property;
+                        if (false === isset($graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty])) {
+                            $graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty] = array(
+                                'graph' => $graphName,
+                                'node' => $node,
+                                'prop' => $property,
+                                'value' => $value);
+                        }
+                    }
                 }
             }
         }
@@ -2331,15 +2349,11 @@ class Processor
                 ksort($nodes);
 
                 foreach ($graphNodes as $graphNode) {
-                    unset($graphNode->usages);
-
                     if (count(get_object_vars($graphNode)) > 1) {
                         $node->{'@graph'}[] = $graphNode;
                     }
                 }
             }
-
-            unset($node->usages);
 
             if (count(get_object_vars($node)) > 1) {
                 $document[] = $node;
@@ -2374,13 +2388,13 @@ class Processor
                 $listNodes = array();
 
                 while ((RdfConstants::RDF_REST === $prop) &&
-                    (1 === count($node->usages)) &&
+                    (1 === count($graphs->{'@usages'}->{$node->{'@id'}})) &&
                     property_exists($node, RdfConstants::RDF_FIRST) &&
                     property_exists($node, RdfConstants::RDF_REST) &&
                     (1 === count($node->{RdfConstants::RDF_FIRST})) &&
                     (1 === count($node->{RdfConstants::RDF_REST})) &&
-                    ((4 === count(get_object_vars($node))) ||
-                        ((5 === count(get_object_vars($node))) &&
+                    ((3 === count(get_object_vars($node))) ||   // only @id, rdf:first & rdf:next
+                        ((4 === count(get_object_vars($node))) &&  // or an additional rdf:type = rdf:List
                         property_exists($node, '@type') &&
                         ($node->{'@type'} === array(RdfConstants::RDF_LIST)))
                     )
@@ -2389,7 +2403,7 @@ class Processor
                     $listNodes[] = $node->{'@id'};
 
 
-                    $u = reset($node->usages);
+                    $u = reset($graphs->{'@usages'}->{$node->{'@id'}});
                     $node = $u['node'];
                     $prop = $u['prop'];
                     $head = $u['value'];
@@ -2421,6 +2435,8 @@ class Processor
                     unset($graph->{$node});
                 }
             }
+
+            unset($nil->usages);
         }
     }
 
@@ -2893,25 +2909,14 @@ class Processor
      *                                for xsd:integer, xsd:double, and
      *                                xsd:boolean, otherwise typed strings
      *                                will be used instead.
-     * @param boolean $addUsages      If set to true, an "usages" property
-     *                                is added to the resulting JSON-LD object
-     *                                if an IRI has been passed as object. This
-     *                                is used for the construction of @list
-     *                                objects.
      *
      * @return mixed The JSON-LD representation of the object.
      */
-    private static function objectToJsonLd($object, $useNativeTypes = true, $addUsages = true)
+    private static function objectToJsonLd($object, $useNativeTypes = true)
     {
         if ($object instanceof IRI) {
-            $iri = (string) $object;
             $result = new Object();
-
-            $result->{'@id'} = $iri;
-
-            if ($addUsages) {
-                $result->usages = array();
-            }
+            $result->{'@id'} = (string) $object;
 
             return $result;
         } elseif ($object instanceof Value) {
