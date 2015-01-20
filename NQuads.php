@@ -86,7 +86,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
         $graph = "$ws+(?:$iri|$bnode)";
 
         // full regexes
-        $eoln = '/(?:(\r\n)|[\n|\r])/';
+        $eoln = '/(?:(\r\n)|[\n\r])/';
         $quadRegex = "/^$ws*$subject$property$object$graph?$ws*.$ws*$/";
         $ignoreRegex = "/^$ws*(?:$comment)?$/";
 
