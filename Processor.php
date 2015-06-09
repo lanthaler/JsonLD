@@ -40,7 +40,7 @@ class Processor
      * @var array Framing options keywords
      */
     private static $framingKeywords = array('@explicit', '@default', '@embed',
-                                            //'@omitDefault',     // TODO Is this really needed?
+                                            '@omitDefault',     // Is this really needed? I say yes and more should be as explicit impact the scope of the subtree
                                             '@embedChildren');  // TODO How should this be called?
                                             // TODO Add @preserve, @null?? Update spec keyword list
 
@@ -2533,7 +2533,6 @@ class Processor
     {
         // TODO How should lists be handled? Is the @list required in the frame (current behavior) or not?
         // https://github.com/json-ld/json-ld.org/issues/110
-        // TODO Add support for '@omitDefault'?
         $filter = null;
         if (null !== $frame) {
             $filter = get_object_vars($frame);
@@ -2613,12 +2612,13 @@ class Processor
                     }
                 }
 
-                // otherwise, look if we have a default value for it
+                // otherwise, look if we have a default value for it or a omitDefault
                 if (false === is_array($validValues)) {
                     $validValues = array($validValues);
                 }
 
                 $defaultFound = false;
+                $omitDefaultFound = false;
                 foreach ($validValues as $validValue) {
                     if (is_object($validValue) && property_exists($validValue, '@default')) {
                         if (null === $validValue->{'@default'}) {
@@ -2632,13 +2632,23 @@ class Processor
                         $defaultFound = true;
                         break;
                     }
+                    if (is_object($validValue) && property_exists($validValue, '@omitDefault'))
+                    {
+                        $omitDefaultFound = true;
+                        break;
+                    }
                 }
 
-                if (true === $defaultFound) {
+                if (true === $defaultFound || true === $omitDefaultFound) {
+                    continue;
+                } else {
+                    // if no @default and @omitDefault found use null
+                    $result->{$property} = new Object();
+                    $result->{$property}->{'@null'} = true;
                     continue;
                 }
 
-                return false;  // required property does not exist and no default value was found
+                // return false;  // required property does not exist and no default value was found <- as I read the spec and the js code the frame content is not a resource filter but a formater
             }
 
             // Check whether the values of the property match the filter
@@ -2660,6 +2670,7 @@ class Processor
                     $validValue = clone $validValue;
                     $newOptions = clone $options;
                     unset($newOptions->{'@default'});
+                    unset($newOptions->{'@omitDefault'});
 
                     foreach (self::$framingKeywords as $keyword) {
                         if (property_exists($validValue, $keyword)) {

@@ -110,6 +110,57 @@ class JsonLDApiTest extends JsonTestCase
     }
 
     /**
+     * Tests the framing API with the @explicit flag
+     *
+     * This test the explicit flag specification http://json-ld.org/spec/latest/json-ld-framing/#dfn-explicit-inclusion-flag .
+     *
+     * @group framing
+     */
+    public function testFrameExplicit()
+    {
+        $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
+        $expected = json_decode(file_get_contents($path . 'sample-flattened-explicit.jsonld'));
+
+        $input   = $path . 'sample-in.jsonld';
+        $frame = $path . 'sample-frame-explicit.jsonld';
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the file path');
+
+        $input   = file_get_contents($input);
+        $frame = file_get_contents($frame);
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the raw input (string)');
+
+        $input   = json_decode($input);
+        $frame = json_decode($frame);
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the parsed object');
+    }
+
+
+    /**
+     * Tests the framing API with the @omitDefault flag
+     *
+     * This test the omitDefault flag specification http://json-ld.org/spec/latest/json-ld-framing/#dfn-omit-default-flag .
+     *
+     * @group framing
+     */
+    public function testFrameOmitDefault()
+    {
+        $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
+        $expected = json_decode(file_get_contents($path . 'sample-flattened-omitdefault.jsonld'));
+
+        $input   = $path . 'sample-in-omitdefault.jsonld';
+        $frame = $path . 'sample-frame-omitdefault.jsonld';
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the file path');
+
+        $input   = file_get_contents($input);
+        $frame = file_get_contents($frame);
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the raw input (string)');
+
+        $input   = json_decode($input);
+        $frame = json_decode($frame);
+        $this->assertJsonEquals($expected, JsonLD::frame($input, $frame), 'Passing the parsed object');
+    }
+
+    /**
      * Tests the document API
      *
      * This test intentionally uses the same fixtures as the flattening tests.
