@@ -16,11 +16,11 @@
     "require": {
         "php": ">=5.3.0",
         "ext-json": "*",
-        "ml/iri": ">=1.1.1",
-        "phpunit/phpunit": "4.7.*"
+        "ml/iri": ">=1.1.1"
     },
     "require-dev": {
-        "json-ld/tests": "@dev"
+        "json-ld/tests": "@dev",
+        "phpunit/phpunit": "4.7.*"
     },
     "autoload": {
         "psr-0": { "ML\\JsonLD": "" }
