@@ -606,9 +606,14 @@ class Processor
 
                 $numProps--;
             } elseif (property_exists($element, '@type')) {
-                if ((false === $frame) && ((false === is_string($element->{'@type'})) ||
+                if ((false === $frame) &&
+                    (((false === $debug) && ((false === is_string($element->{'@type'})) ||
                     (false === strpos($element->{'@type'}, ':')) ||
-                    ('_:' === substr($element->{'@type'}, 0, 2)))) {
+                    ('_:' === substr($element->{'@type'}, 0, 2)))) ||
+                    ((true === $debug) && ((false === isset($element->{'@type'}->{'__value'}->{'__value'}->{'@id'})) ||
+                    (false === is_string($element->{'@type'}->{'__value'}->{'__value'}->{'@id'})) ||
+                    (false === strpos($element->{'@type'}->{'__value'}->{'__value'}->{'@id'}, ':')) ||
+                    ('_:' === substr($element->{'@type'}->{'__value'}->{'__value'}->{'@id'}, 0, 2)))))) {
                     throw new JsonLdException(
                         JsonLdException::INVALID_TYPED_VALUE,
                         'Invalid value for @type detected (must be an IRI).',
@@ -873,7 +878,11 @@ class Processor
 
         if ('@graph' === $keyword) {
             $this->expand($value, $activectx, $keyword, $frame, $debug);
-            self::mergeIntoProperty($element, $keyword, $value, true);
+            if ($debug) {
+                self::setProperty($element, $keyword, $value, null, $origProperty);
+            } else {
+                self::mergeIntoProperty($element, $keyword, $value, true);
+            }
 
             return;
         }
