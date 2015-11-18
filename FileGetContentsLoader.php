@@ -41,35 +41,14 @@ class FileGetContentsLoader
               'timeout' => Processor::REMOTE_TIMEOUT
             );
 
-            $context = stream_context_create(array(
-                'http' => $streamContextOptions,
-                'https' => $streamContextOptions
-            ));
-
             $httpHeadersOffset = 0;
+            // response headers
+            $http_response_header = array();
 
-            stream_context_set_params($context, array('notification' =>
-                function ($code, $severity, $msg, $msgCode, $bytesTx, $bytesMax) use (
-                    &$remoteDocument, &$http_response_header, &$httpHeadersOffset
-                ) {
-                    if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
-                        $remoteDocument->mediaType = $msg;
-                    } elseif ($code === STREAM_NOTIFY_REDIRECTED) {
-                        $remoteDocument->documentUrl = $msg;
-                        $remoteDocument->mediaType = null;
-
-                        $httpHeadersOffset = count($http_response_header);
-                    }
-                }
-            ));
-
-            if (false === ($input = @file_get_contents($url, false, $context))) {
-                throw new JsonLdException(
-                    JsonLdException::LOADING_DOCUMENT_FAILED,
-                    sprintf('Unable to load the remote document "%s".', $url),
-                    $http_response_header
-                );
-            }
+            // decide whether to use curl or file_get_contents
+            $input = (function_exists('curl_init'))
+              ? self::useCurl($url, $streamContextOptions['header'], $remoteDocument, $http_response_header)
+              : self::useFgc($url, $streamContextOptions, $remoteDocument, $http_response_header, $httpHeadersOffset);
 
             // Extract HTTP Link headers
             $linkHeaderValues = array();
@@ -103,8 +82,9 @@ class FileGetContentsLoader
 
                 if ('application/ld+json' === $remoteDocument->mediaType) {
                     $remoteDocument->contextUrl = null;
-                } elseif (('application/json' !== $remoteDocument->mediaType) &&
-                    (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))) {
+                } elseif (('application/json' !== $remoteDocument->mediaType)
+                    && (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))
+                ) {
                     throw new JsonLdException(
                         JsonLdException::LOADING_DOCUMENT_FAILED,
                         'Invalid media type',
@@ -125,7 +105,7 @@ class FileGetContentsLoader
      * Parse HTTP Link headers
      *
      * @param array $values  An array of HTTP Link header values
-     * @param  IRI  $baseIRI The document's URL (used to expand relative URLs to absolutes)
+     * @param IRI   $baseIri The document's URL (used to expand relative URLs to absolutes)
      *
      * @return array An array of parsed HTTP Link headers
      */
@@ -161,5 +141,143 @@ class FileGetContentsLoader
         }
 
         return array_values(array_unique($contexts));
+    }
+
+    /**
+    * Use cURL to load the document
+    *
+    * @param string         $url                  The URL of the document to load
+    * @param string         $header               The CURLOPT_HTTPHEADER
+    * @param RemoteDocument $remoteDocument       The remote document
+    * @param array          $http_response_header Array of HTTP header lines
+    *
+    * @return string $input The document
+    *
+    * @throws JsonLdException If loading the document failed.
+    */
+    private static function useCurl($url, $header, &$remoteDocument, &$http_response_header)
+    {
+        // check whether to use the file protocol
+        $iri = new IRI($url);
+        if (is_null($iri->getScheme())) {
+            $url = "file://".realpath($url);
+        }
+
+        $header_lines = array();
+        $totalHeadersOffset = 0;
+
+        // the header callback
+        $header_callback = function ($ch, $header_line) use (&$header_lines, &$totalHeadersOffset) {
+            $line = trim($header_line);
+            if (empty($line)) {
+                $totalHeadersOffset++;
+            } else {
+                $header_lines[$totalHeadersOffset][] = $line;
+            }
+            return strlen($header_line);
+        };
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array($header));
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, Processor::REMOTE_TIMEOUT);
+        curl_setopt($ch, CURLOPT_TIMEOUT, Processor::REMOTE_TIMEOUT);
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, $header_callback);
+
+        $input = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                curl_error($ch). ' "'.$url.'".'
+            );
+        }
+
+        $info = curl_getinfo($ch);
+
+        if ('404' === $info['http_code']) {
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                sprintf('404 Not Found "%s".', $url)
+            );
+        }
+
+        curl_close($ch);
+
+        $remoteDocument->mediaType = $info['content_type'];
+        $remoteDocument->documentUrl = $info['url'];
+
+        // set the last header
+        if ($header_lines) {
+            $http_response_header = $header_lines[count($header_lines) -1];
+        }
+
+        return $input;
+    }
+
+    /**
+     * Use file_get_contents to load the document
+     *
+     * @param string         $url                  The URL of the document to load
+     * @param array          $streamContextOptions Array of streaming options
+     * @param RemoteDocument $remoteDocument       The remote document
+     * @param array          $http_response_header Array of HTTP header lines
+     * @param int            $httpHeadersOffset    The HTTP header offset
+     *
+     * @return string $input The document
+     *
+     * @throws JsonLdException If loading the document failed.
+     */
+    private static function useFgc(
+        $url,
+        $streamContextOptions,
+        &$remoteDocument,
+        &$http_response_header,
+        &$httpHeadersOffset
+    ) {
+
+        $context = stream_context_create(
+            array('http' => $streamContextOptions)
+        );
+
+        stream_context_set_params(
+            $context,
+            array('notification' => function (
+                $code,
+                $severity,
+                $msg,
+                $msgCode,
+                $bytesTx,
+                $bytesMax
+            ) use (
+                &$remoteDocument,
+                &$http_response_header,
+                &$httpHeadersOffset
+            ) {
+                if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
+                    $remoteDocument->mediaType = $msg;
+                } elseif ($code === STREAM_NOTIFY_REDIRECTED) {
+                    $remoteDocument->documentUrl = $msg;
+                    $remoteDocument->mediaType = null;
+
+                    $httpHeadersOffset = count($http_response_header);
+                }
+            })
+        );
+
+        if (false === ($input = @file_get_contents($url, false, $context))) {
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                sprintf('Unable to load the remote document "%s".', $url),
+                $http_response_header
+            );
+        }
+
+        return $input;
     }
 }
