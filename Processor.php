@@ -2318,6 +2318,7 @@ class Processor
                         }
 
                         // Make sure that the same triple isn't counted multiple times
+                        // TODO Making $graphs->{'@usages'}->{$objectStr} a set would make this code simpler
                         $graphSubjectProperty = $graphName . '|' . $subject . '|' . $property;
                         if (false === isset($graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty])) {
                             $graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty] = array(
@@ -2345,10 +2346,11 @@ class Processor
             if (isset($graphs->{$id})) {
                 $node->{'@graph'} = array();
 
-                $graphNodes = $graphs->{$id};
-                ksort($nodes);
+                $graphNodes = get_object_vars($graphs->{$id});
+                ksort($graphNodes);
 
-                foreach ($graphNodes as $graphNode) {
+                foreach ($graphNodes as $graphNodeId => $graphNode) {
+                    // Only add the node when it has properties other than @id
                     if (count(get_object_vars($graphNode)) > 1) {
                         $node->{'@graph'}[] = $graphNode;
                     }
