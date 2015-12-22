@@ -2253,7 +2253,7 @@ class Processor
     {
         $graphs = new Object();
         $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
-        $graphs->{'@usages'} = new Object();
+        $usages = new Object();
 
         foreach ($quads as $quad) {
             $graphName = JsonLD::DEFAULT_GRAPH;
@@ -2313,15 +2313,15 @@ class Processor
                             'value' => $value);
                     // references to other nodes are stored globally (blank nodes could be shared across graphs)
                     } else {
-                        if (!isset($graphs->{'@usages'}->{$objectStr})) {
-                            $graphs->{'@usages'}->{$objectStr} = array();
+                        if (!isset($usages->{$objectStr})) {
+                            $usages->{$objectStr} = array();
                         }
 
                         // Make sure that the same triple isn't counted multiple times
-                        // TODO Making $graphs->{'@usages'}->{$objectStr} a set would make this code simpler
+                        // TODO Making $usages->{$objectStr} a set would make this code simpler
                         $graphSubjectProperty = $graphName . '|' . $subject . '|' . $property;
-                        if (false === isset($graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty])) {
-                            $graphs->{'@usages'}->{$objectStr}[$graphSubjectProperty] = array(
+                        if (false === isset($usages->{$objectStr}[$graphSubjectProperty])) {
+                            $usages->{$objectStr}[$graphSubjectProperty] = array(
                                 'graph' => $graphName,
                                 'node' => $node,
                                 'prop' => $property,
@@ -2333,7 +2333,7 @@ class Processor
         }
 
         // Transform linked lists to @list objects
-        $this->createListObjects($graphs);
+        $this->createListObjects($graphs, $usages);
 
         // Generate the resulting document starting with the default graph
         $document = array();
@@ -2369,8 +2369,9 @@ class Processor
      * Reconstruct @list arrays from linked list structures
      *
      * @param  Object $graphs The graph map
+     * @param  Object $usages The global node usage map
      */
-    private function createListObjects($graphs)
+    private function createListObjects($graphs, $usages)
     {
         foreach ($graphs as $graph) {
             if (false === isset($graph->{RdfConstants::RDF_NIL})) {
@@ -2390,7 +2391,7 @@ class Processor
                 $listNodes = array();
 
                 while ((RdfConstants::RDF_REST === $prop) &&
-                    (1 === count($graphs->{'@usages'}->{$node->{'@id'}})) &&
+                    (1 === count($usages->{$node->{'@id'}})) &&
                     property_exists($node, RdfConstants::RDF_FIRST) &&
                     property_exists($node, RdfConstants::RDF_REST) &&
                     (1 === count($node->{RdfConstants::RDF_FIRST})) &&
@@ -2405,7 +2406,7 @@ class Processor
                     $listNodes[] = $node->{'@id'};
 
 
-                    $u = reset($graphs->{'@usages'}->{$node->{'@id'}});
+                    $u = reset($usages->{$node->{'@id'}});
                     $node = $u['node'];
                     $prop = $u['prop'];
                     $head = $u['value'];
