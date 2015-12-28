@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use ML\JsonLD\Exception\ParseException;
+use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
 
 /**
@@ -67,6 +67,9 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
      *
      * This method is heavily based on DigitalBazaar's implementation used
      * in their {@link https://github.com/digitalbazaar/php-json-ld php-json-ld}.
+     *
+     * @throws InvalidQuadException If an invalid quad that can't be parsed is
+     *                              encountered.
      */
     public function parse($input)
     {
@@ -107,12 +110,13 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
 
             // parse quad
             if (!preg_match($quadRegex, $line, $match)) {
-                throw new ParseException(
+                throw new InvalidQuadException(
                     sprintf(
                         'Error while parsing N-Quads. Invalid quad in line %d: %s',
                         $line_number,
                         $line
-                    )
+                    ),
+                    $line
                 );
             }
 
