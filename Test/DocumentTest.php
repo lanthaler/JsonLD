@@ -10,7 +10,6 @@
 namespace ML\JsonLD\Test;
 
 use ML\JsonLD\JsonLD;
-use ML\JsonLD\Processor;
 use ML\JsonLD\Document;
 
 /**
