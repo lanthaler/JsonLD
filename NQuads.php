@@ -152,6 +152,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
             }
 
             // get graph
+            $graph = null;
             if (isset($match[9]) && $match[9] !== '') {
                 $graph = new IRI($match[9]);
             } elseif (isset($match[10]) && $match[10] !== '') {
