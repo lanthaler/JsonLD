@@ -226,7 +226,7 @@ class JsonLD
      * @param array                    $input       The JSON-LD document to
      *                                              compact.
      * @param null|string|object|array $context     The context.
-     * @param null|array|object        $options     Options to configure the
+     * @param null|object              $options     Options to configure the
      *                                              compaction process.
      * @param bool                     $alwaysGraph If set to true, the resulting
      *                                              document will always explicitly

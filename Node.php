@@ -462,7 +462,7 @@ class Node implements NodeInterface, JsonLdSerializable
     protected function isValidPropertyValue($value)
     {
         if (is_scalar($value) || (is_object($value) &&
-             ((($value instanceof NodeInterface) && ($value->graph === $this->graph)) ||
+             ((($value instanceof NodeInterface) && ($value->getGraph() === $this->graph)) ||
               ($value instanceof Value)))) {
             return true;
         }

@@ -83,10 +83,10 @@ class Processor
     private $useNativeTypes;
 
     /**
-     * Use rdf:type instead of @type when converting from RDF
+     * Use rdf:type instead of \@type when converting from RDF
      *
      * If set to true, the JSON-LD processor will use the expanded rdf:type
-     * IRI as the property instead of @type when converting from RDF.
+     * IRI as the property instead of \@type when converting from RDF.
      *
      * @var bool
      */
@@ -174,8 +174,8 @@ class Processor
      *    print_r($document);
      *  </code>
      *
-     * @param string $input The JSON-LD document or a path or URL pointing
-     *                      to one.
+     * @param null|string|array|object $input The JSON-LD document or a path
+     *                                        or URL pointing to one.
      *
      * @return mixed The loaded JSON-LD document
      *
@@ -1439,9 +1439,10 @@ class Processor
      * Queries the inverse context to find the term for a given query
      * path (= value profile)
      *
-     * @param array   $inversectxFrag The inverse context (or a subtree thereof)
-     * @param array   $path           The query corresponding to the value profile
-     * @param integer $level          The recursion depth.
+     * @param array    $inversectx The inverse context (or a subtree thereof)
+     * @param string[] $containers
+     * @param string[] $typeOrLangs
+     * @param string[] $typeOrLangValues
      *
      * @return null|string The best matching term or null if none was found.
      */
@@ -1477,7 +1478,7 @@ class Processor
      *
      * @param array       $activectx The active context.
      * @param string      $property  The property.
-     * @param null|string $only      If set, only a this element of the
+     * @param null|string $only      If set, only this element of the
      *                               definition will be returned.
      *
      * @return array|string|null Returns either the property's definition or

@@ -218,6 +218,13 @@ class JsonLdException extends \RuntimeException
     const INVALID_REVERSE_PROPERTY_VALUE = "invalid reverse property value";
 
     /**
+     * The JSON-LD snippet that triggered the error
+     *
+     * @var null|string
+     */
+    private $snippet;
+
+    /**
      * The document that triggered the error
      *
      * @var null|string

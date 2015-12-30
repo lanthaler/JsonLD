@@ -72,7 +72,7 @@ interface NodeInterface
     public function getNodesWithThisType();
 
     /**
-     * Get the graoh the node belongs to
+     * Get the graph the node belongs to
      *
      * @return null|GraphInterface Returns the graph the node belongs to or
      *                             null if the node doesn't belong to any graph.
