@@ -120,11 +120,6 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
                 );
             }
 
-            $subject = null;
-            $property = null;
-            $object = null;
-            $graph = null;
-
             // get subject
             if ($match[1] !== '') {
                 $subject = new IRI($match[1]);

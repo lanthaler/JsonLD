@@ -340,7 +340,7 @@ class JsonLD
         $input = self::expand($input, $options);
 
         $processor = new Processor($options);
-        $flattened = $processor->flatten($input, $options->graph);
+        $flattened = $processor->flatten($input);
 
         if (null === $context) {
             return $flattened;

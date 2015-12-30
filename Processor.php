@@ -1212,8 +1212,6 @@ class Processor
      */
     private function compactIri($iri, $activectx, $inversectx, $value = null, $vocabRelative = false, $reverse = false)
     {
-        $result = null;
-
         if ((true === $vocabRelative) && array_key_exists($iri, $inversectx)) {
             if (null !== $value) {
                 $valueProfile = $this->getValueProfile($value, $inversectx);
@@ -1639,8 +1637,6 @@ class Processor
                         throw new JsonLdException(JsonLdException::INVALID_TERM_DEFINITION);
                     }
 
-                    $expanded = null;
-
                     if (property_exists($value, '@reverse')) {
                         if (property_exists($value, '@id')) {
                             throw new JsonLdException(
@@ -1945,8 +1941,6 @@ class Processor
             );
         } else {
             // and node objects
-            $id = null;
-
             if (false === property_exists($element, '@id')) {
                 $id = $this->getBlankNodeId();
             } elseif (0 === strncmp($element->{'@id'}, '_:', 2)) {
