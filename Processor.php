@@ -1235,7 +1235,8 @@ class Processor
 
                     if (('@type' === $valueProfile['typeLang']) && ('@id' === $valueProfile['typeLangValue'])) {
                         array_push($typeOrLangValue, '@id', '@vocab', '@null');
-                    } elseif (('@type' === $valueProfile['typeLang']) && ('@vocab' === $valueProfile['typeLangValue'])) {
+                    } elseif (('@type' === $valueProfile['typeLang']) &&
+                              ('@vocab' === $valueProfile['typeLangValue'])) {
                         array_push($typeOrLangValue, '@vocab', '@id', '@null');
                     } else {
                         $typeOrLangValue = array($valueProfile['typeLangValue'], '@null');
@@ -1594,7 +1595,8 @@ class Processor
                 if (property_exists($context, '@vocab')) {
                     if (null === $context->{'@vocab'}) {
                         unset($activectx['@vocab']);
-                    } elseif ((false === is_string($context->{'@vocab'})) || (false === strpos($context->{'@vocab'}, ':'))) {
+                    } elseif ((false === is_string($context->{'@vocab'})) ||
+                              (false === strpos($context->{'@vocab'}, ':'))) {
                         throw new JsonLdException(
                             JsonLdException::INVALID_VOCAB_MAPPING,
                             'The value of @vocab must be an absolute IRI or null.invalid vocab mapping, ',
@@ -1917,7 +1919,13 @@ class Processor
         if (property_exists($element, '@value')) {
             // Handle value objects
             if (null === $list) {
-                $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $element, true, true);
+                $this->mergeIntoProperty(
+                    $nodeMap->{'-' . $activegraph}->{'-' . $activeid},
+                    $activeprty,
+                    $element,
+                    true,
+                    true
+                );
             } else {
                 $this->mergeIntoProperty($list, '@list', $element, true, false);
             }
@@ -1927,7 +1935,13 @@ class Processor
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
-            $this->mergeIntoProperty($nodeMap->{'-' . $activegraph}->{'-' . $activeid}, $activeprty, $result, true, false);
+            $this->mergeIntoProperty(
+                $nodeMap->{'-' . $activegraph}->{'-' . $activeid},
+                $activeprty,
+                $result,
+                true,
+                false
+            );
         } else {
             // and node objects
             $id = null;
