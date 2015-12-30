@@ -32,7 +32,7 @@ class FileGetContentsLoader
     {
         // if input looks like a file, try to retrieve it
         $input = trim($url);
-        if (false == (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
+        if (false === (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
             $remoteDocument = new RemoteDocument($url);
 
             $streamContextOptions = array(
