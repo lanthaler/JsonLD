@@ -69,7 +69,7 @@ class TestManifestIterator implements \Iterator
     /**
      * Returns the key of the current element.
      *
-     * @return int The key of the current element
+     * @return string The key of the current element
      */
     public function key()
     {

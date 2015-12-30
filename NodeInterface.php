@@ -56,7 +56,7 @@ interface NodeInterface
     /**
      * Get node type
      *
-     * @return null|NodeInterface|array[NodeInterface] Returns the type(s) of this node.
+     * @return null|NodeInterface|NodeInterface[] Returns the type(s) of this node.
      */
     public function getType();
 
@@ -66,8 +66,8 @@ interface NodeInterface
      * This will return all nodes that link to this Node instance via the
      * @type (rdf:type) property.
      *
-     * @return array[NodeInterface] Returns the node(s) having this node as their
-     *                     type.
+     * @return NodeInterface[] Returns the node(s) having this node as their
+     *                         type.
      */
     public function getNodesWithThisType();
 
@@ -200,9 +200,9 @@ interface NodeInterface
      *
      * @param string $property The name of the reverse property.
      *
-     * @return null|NodeInterface|array[NodeInterface] Returns the node(s) pointing
-     *                                                 to this instance via the specified
-     *                                                 property or null if no such node exists.
+     * @return null|NodeInterface|NodeInterface[] Returns the node(s) pointing
+     *                                            to this instance via the specified
+     *                                            property or null if no such node exists.
      */
     public function getReverseProperty($property);
 

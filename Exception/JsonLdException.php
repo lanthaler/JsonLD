@@ -234,11 +234,11 @@ class JsonLdException extends \RuntimeException
     /**
      * Constructor.
      *
-     * @param string    $code     The error code
-     * @param string    $message  The error message
-     * @param mixed     $snippet  The code snippet
-     * @param string    $document The document that triggered the error
-     * @param Exception $previous The previous exception
+     * @param string          $code     The error code
+     * @param null|string     $message  The error message
+     * @param null|mixed      $snippet  The code snippet
+     * @param null|string     $document The document that triggered the error
+     * @param null|\Exception $previous The previous exception
      */
     public function __construct($code, $message = null, $snippet = null, $document = null, \Exception $previous = null)
     {

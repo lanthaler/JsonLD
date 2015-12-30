@@ -62,7 +62,7 @@ interface DocumentInterface
     /**
      * Get graph names
      *
-     * @return array[string] Returns the names of all graphs in the document.
+     * @return string[] Returns the names of all graphs in the document.
      */
     public function getGraphNames();
 

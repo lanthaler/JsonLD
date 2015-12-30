@@ -30,7 +30,7 @@ class InvalidQuadException extends \RuntimeException
      *
      * @param string    $message  The error message
      * @param Quad      $quad     The quad
-     * @param \Exception $previous The previous exception
+     * @param null|\Exception $previous The previous exception
      */
     public function __construct($message, $quad, \Exception $previous = null)
     {

@@ -44,7 +44,7 @@ class Graph implements GraphInterface, JsonLdSerializable
     /**
      * Constructor
      *
-     * @param DocumentInterface $document The document the graph belongs to.
+     * @param null|DocumentInterface $document The document the graph belongs to.
      */
     public function __construct(DocumentInterface $document = null)
     {

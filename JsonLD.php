@@ -196,7 +196,7 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param array                    $input       The JSON-LD document to
+     * @param string|object|array      $input       The JSON-LD document to
      *                                              compact.
      * @param null|string|object|array $context     The context.
      * @param null|array|object        $options     Options to configure the
@@ -483,7 +483,7 @@ class JsonLD
      * @param null|array|object   $options Options to configure the framing
      *                                     process.
      *
-     * @return mixed The framed JSON-LD document.
+     * @return object The framed JSON-LD document.
      *
      * @throws JsonLdException
      *

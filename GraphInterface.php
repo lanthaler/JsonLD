@@ -51,8 +51,8 @@ interface GraphInterface
     /**
      * Get all nodes
      *
-     * @return array[Node] Returns an array containing all nodes defined in
-     *                     the document.
+     * @return Node[] Returns an array containing all nodes defined in the
+     *                document.
      */
     public function getNodes();
 
@@ -70,8 +70,8 @@ interface GraphInterface
      *
      * @param string|Node $type The type
      *
-     * @return array[Node] Returns an array containing all nodes of the
-     *                     specified type in the document.
+     * @return Node[] Returns an array containing all nodes of the specified
+     *                type in the document.
      */
     public function getNodesByType($type);
 

@@ -326,10 +326,10 @@ class Processor
     /**
      * Expands a JSON-LD document
      *
-     * @param mixed   $element    A JSON-LD element to be expanded.
-     * @param array   $activectx  The active context.
-     * @param string  $activeprty The active property.
-     * @param boolean $frame      True if a frame is being expanded, otherwise false.
+     * @param mixed       $element    A JSON-LD element to be expanded.
+     * @param array       $activectx  The active context.
+     * @param null|string $activeprty The active property.
+     * @param boolean     $frame      True if a frame is being expanded, otherwise false.
      *
      * @return mixed The expanded document.
      *
@@ -837,17 +837,17 @@ class Processor
      * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute
      * IRI and relabels blank nodes
      *
-     * @param mixed $value         The value to be expanded to an absolute IRI.
-     * @param array $activectx     The active context.
-     * @param bool  $relativeIri   Specifies whether $value should be treated as
-     *                             relative IRI against the base IRI or not.
-     * @param bool  $vocabRelative Specifies whether $value is relative to @vocab
-     *                             if set or not.
-     * @param object $localctx     If the IRI is being expanded as part of context
-     *                             processing, the current local context has to be
-     *                             passed as well.
-     * @param array  $path         A path of already processed terms to detect
-     *                             circular dependencies
+     * @param mixed       $value         The value to be expanded to an absolute IRI.
+     * @param array       $activectx     The active context.
+     * @param bool        $relativeIri   Specifies whether $value should be treated as
+     *                                   relative IRI against the base IRI or not.
+     * @param bool        $vocabRelative Specifies whether $value is relative to @vocab
+     *                                   if set or not.
+     * @param null|object $localctx      If the IRI is being expanded as part of context
+     *                                   processing, the current local context has to be
+     *                                   passed as well.
+     * @param array       $path          A path of already processed terms to detect
+     *                                   circular dependencies
      *
      * @return string The expanded IRI.
      */
@@ -940,10 +940,10 @@ class Processor
      * Attention: This method must be called with an expanded element,
      * otherwise it might not work.
      *
-     * @param mixed  $element    A JSON-LD element to be compacted.
-     * @param array  $activectx  The active context.
-     * @param array  $inversectx The inverse context.
-     * @param string $activeprty The active property.
+     * @param mixed       $element    A JSON-LD element to be compacted.
+     * @param array       $activectx  The active context.
+     * @param array       $inversectx The inverse context.
+     * @param null|string $activeprty The active property.
      *
      * @return mixed The compacted JSON-LD document.
      */
@@ -1474,10 +1474,10 @@ class Processor
      * If `$only` is set, only the value of that key of the array
      * above will be returned.
      *
-     * @param array  $activectx The active context.
-     * @param string $property  The property.
-     * @param string $only      If set, only a this element of the definition
-     *                          will be returned.
+     * @param array       $activectx The active context.
+     * @param string      $property  The property.
+     * @param null|string $only      If set, only a this element of the
+     *                               definition will be returned.
      *
      * @return array|string|null Returns either the property's definition or
      *                           null if not found.
@@ -1876,9 +1876,9 @@ class Processor
      * @param object|object[] $element     An expanded JSON-LD element to
      *                                     be put into the node map
      * @param string          $activegraph The graph currently being processed.
-     * @param string          $activeid    The node currently being processed.
-     * @param string          $activeprty  The property currently being processed.
-     * @param object          $list        The list object if a list is being
+     * @param null|string     $activeid    The node currently being processed.
+     * @param null|string     $activeprty  The property currently being processed.
+     * @param null|object     $list        The list object if a list is being
      *                                     processed.
      */
     private function generateNodeMap(
@@ -2040,7 +2040,7 @@ class Processor
      * identifier (except null) will thus always return the same blank node
      * identifier.
      *
-     * @param string $id If available, existing blank node identifier.
+     * @param null|string $id If available, existing blank node identifier.
      *
      * @return string Returns a blank node identifier.
      */
@@ -2446,8 +2446,8 @@ class Processor
     /**
      * Frames a JSON-LD document according a supplied frame
      *
-     * @param object $element A JSON-LD element to be framed.
-     * @param mixed  $frame   The frame.
+     * @param array|object $element A JSON-LD element to be framed.
+     * @param mixed        $frame   The frame.
      *
      * @return array $result The framed element in expanded form.
      *
@@ -2522,13 +2522,13 @@ class Processor
     /**
      * Checks whether a node matches a frame or not.
      *
-     * @param object $node    The node.
-     * @param object $frame   The frame.
-     * @param object $options The current framing options.
-     * @param object $nodeMap The node map.
-     * @param string $graph   The currently used graph.
-     * @param array  $parent  The parent to which matching results should be added.
-     * @param array  $path    The path of already processed nodes.
+     * @param object      $node    The node.
+     * @param null|object $frame   The frame.
+     * @param object      $options The current framing options.
+     * @param object      $nodeMap The node map.
+     * @param string      $graph   The currently used graph.
+     * @param array       $parent  The parent to which matching results should be added.
+     * @param array       $path    The path of already processed nodes.
      *
      * @return bool Returns true if the node matches the frame, otherwise false.
      */
@@ -2751,7 +2751,7 @@ class Processor
      * @param object $options The current framing options.
      * @param object $nodeMap The node map.
      * @param string $graph   The currently used graph.
-     * @param array  $result  The object to which the properties should be added.
+     * @param object $result  The object to which the properties should be added.
      * @param array  $path    The path of already processed nodes.
      */
     private function addMissingNodeProperties($node, $options, $nodeMap, $graph, &$result, $path)
