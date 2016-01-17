@@ -1749,7 +1749,17 @@ class Processor
                     }
                 }
             } elseif (is_string($context)) {
-                $remoteContext = (string) $activectx['@base']->resolve($context);
+                $remoteContext = new IRI($context);
+                if ($remoteContext->isAbsolute()) {
+                    $remoteContext = (string) $remoteContext;
+                } else if (null == $activectx['@base']) {
+                    throw new JsonLdException(
+                        JsonLdException::INVALID_BASE_IRI,
+                        'Can not resolve the relative URL of the remote context as no base has been set: ' . $remoteContext
+                    );
+                } else {
+                    $remoteContext = (string) $activectx['@base']->resolve($context);
+                }
                 if (in_array($remoteContext, $remotectxs)) {
                     throw new JsonLdException(
                         JsonLdException::RECURSIVE_CONTEXT_INCLUSION,
