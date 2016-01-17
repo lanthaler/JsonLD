@@ -77,7 +77,7 @@ class JsonLdException extends \RuntimeException
     const RECURSIVE_CONTEXT_INCLUSION = "recursive context inclusion";
 
     /**
-     * IRI An invalid base IRI has been detected, i.e., it is neither an
+     * An invalid base IRI has been detected, i.e., it is neither an
      * absolute IRI nor null.
      */
     const INVALID_BASE_IRI = "invalid base IRI";
