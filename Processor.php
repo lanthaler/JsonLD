@@ -1752,7 +1752,7 @@ class Processor
                 $remoteContext = new IRI($context);
                 if ($remoteContext->isAbsolute()) {
                     $remoteContext = (string) $remoteContext;
-                } else if (null == $activectx['@base']) {
+                } else if (null === $activectx['@base']) {
                     throw new JsonLdException(
                         JsonLdException::INVALID_BASE_IRI,
                         'Can not resolve the relative URL of the remote context as no base has been set: ' . $remoteContext
