@@ -603,7 +603,7 @@ class JsonLD
                 } elseif (($options->{'base'} instanceof IRI) && $options->{'base'}->isAbsolute()) {
                     $result->base = clone $options->{'base'};
                 } else {
-                    throw \InvalidArgumentException('The "base" option must be set to null or an absolute IRI.');
+                    throw new \InvalidArgumentException('The "base" option must be set to null or an absolute IRI.');
                 }
             }
             if (property_exists($options, 'expandContext')) {
