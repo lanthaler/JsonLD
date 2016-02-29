@@ -22,7 +22,9 @@
         "json-ld/tests": "@dev"
     },
     "autoload": {
-        "psr-0": { "ML\\JsonLD": "" }
+        "psr-4": { "ML\\JsonLD\\": "src/" }
     },
-    "target-dir": "ML/JsonLD"
+    "autoload-dev": {
+        "psr-4": { "ML\\JsonLD\\Test\\": "Test/" }
+    }
 }
