@@ -8,11 +8,11 @@
          processIsolation="false"
          stopOnFailure="false"
          strict="true"
-         bootstrap="./Test/bootstrap.php">
+         bootstrap="./tests/bootstrap.php">
 
     <testsuites>
         <testsuite name="JsonLD Test Suite">
-            <directory suffix="Test.php">./Test/</directory>
+            <directory suffix="Test.php">./tests/</directory>
         </testsuite>
     </testsuites>
 
