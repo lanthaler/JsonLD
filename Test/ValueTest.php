@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD\Test;
 
+use InvalidArgumentException;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 

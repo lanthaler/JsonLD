@@ -38,6 +38,8 @@ class JsonLD
     /** Identifier for the merged graph */
     const MERGED_GRAPH = '@merged';
 
+    private static $remoteDocumentLoader;
+
     /**
      * Load and parse a JSON-LD document
      *
@@ -129,7 +131,7 @@ class JsonLD
         $activectx = array('@base' => null);
 
         if (is_string($input)) {
-            $remoteDocument = FileGetContentsLoader::loadDocument($input);
+            $remoteDocument = self::getRemoteDocumentLoader()->loadDocument($input);
 
             $input = $remoteDocument->document;
             $activectx['@base'] = new IRI($remoteDocument->documentUrl);
@@ -642,5 +644,25 @@ class JsonLD
         }
 
         return $result;
+    }
+
+    /**
+     * @return RemoteDocumentLoader $loader
+     */
+    public static function getRemoteDocumentLoader()
+    {
+        if (!isset(self::$remoteDocumentLoader)) {
+            self::$remoteDocumentLoader = new FileGetContentsLoader();
+        }
+
+        return self::$remoteDocumentLoader;
+    }
+
+    /**
+     * @param RemoteDocumentLoader $remoteDocumentLoader
+     */
+    public static function setRemoteDocumentLoader(RemoteDocumentLoader $remoteDocumentLoader)
+    {
+        self::$remoteDocumentLoader = $remoteDocumentLoader;
     }
 }
