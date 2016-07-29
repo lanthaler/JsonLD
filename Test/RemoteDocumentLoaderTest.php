@@ -34,7 +34,10 @@ class RemoteDocumentLoaderTest extends \PHPUnit_Framework_TestCase
      */
     private function createMockLoader()
     {
-        $loader = $this->getMock('ML\\JsonLD\\RemoteDocumentLoader');
+        $loader = $this->getMockBuilder('ML\\JsonLD\\RemoteDocumentLoader')
+            ->setMethods(['loadDocument'])
+            ->getMock();
+
         $loader->method('loadDocument')->willReturn(new RemoteDocument());
 
         return $loader;
