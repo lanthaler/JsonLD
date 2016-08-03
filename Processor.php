@@ -1263,7 +1263,7 @@ class Processor
             $termIriLen = strlen($termIri);
 
             if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen)) &&
-                (false !== ($compactIri = substr($iri, $termIriLen)))) {
+                ('' !== ($compactIri = substr($iri, $termIriLen)))) {
                 $compactIri = $def['term'] . ':' . $compactIri;
 
                 if (false === isset($activectx[$compactIri]) ||
