@@ -188,7 +188,7 @@ class Processor
             return $input;
         }
 
-        $document = FileGetContentsLoader::loadDocument($input);
+        $document = JsonLD::getRemoteDocumentLoader()->loadDocument($input);
 
         return $document->document;
     }
