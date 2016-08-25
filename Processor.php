@@ -1262,13 +1262,16 @@ class Processor
         foreach ($inversectx as $termIri => $def) {
             $termIriLen = strlen($termIri);
 
-            if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen)) &&
-                (false !== ($compactIri = substr($iri, $termIriLen)))) {
-                $compactIri = $def['term'] . ':' . $compactIri;
+            if (isset($def['term']) && (0 === strncmp($iri, $termIri, $termIriLen))) {
+                $compactIri = substr($iri, $termIriLen);
 
-                if (false === isset($activectx[$compactIri]) ||
-                    ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
-                    return $compactIri;
+                if (false !== $compactIri && '' !== $compactIri) {
+                    $compactIri = $def['term'] . ':' . $compactIri;
+
+                    if (false === isset($activectx[$compactIri]) ||
+                        ((false === $vocabRelative) && ($iri === $activectx[$compactIri]['@id']))) {
+                        return $compactIri;
+                    }
                 }
             }
         }
