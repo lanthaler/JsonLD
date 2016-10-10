@@ -246,7 +246,13 @@ class W3CTestSuiteTest extends JsonTestCase
             'frame-0009-in.jsonld',
             'frame-0010-in.jsonld',
             'frame-0012-in.jsonld',
-            'frame-0013-in.jsonld'
+            'frame-0013-in.jsonld',
+            'frame-0023-in.jsonld',
+            'frame-0024-in.jsonld',
+            'frame-0027-in.jsonld',
+            'frame-0028-in.jsonld',
+            'frame-0029-in.jsonld',
+            'frame-0030-in.jsonld'
         );
 
         if (in_array($test->{'input'}, $ignoredTests)) {

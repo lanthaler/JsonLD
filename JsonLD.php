@@ -533,7 +533,7 @@ class JsonLD
 
         $processor = new Processor($options);
 
-        // Store the frame as $frame gets modified
+        // Store the frame's context as $frame gets modified
         $frameContext = new Object();
         if (property_exists($frame, '@context')) {
             $frameContext->{'@context'} = $frame->{'@context'};
