@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD\Test;
 
-use ML\JsonLD\Processor;
 use ML\JsonLD\Document;
 use ML\JsonLD\FileGetContentsLoader;
 use ML\JsonLD\Graph;

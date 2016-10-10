@@ -659,6 +659,8 @@ class JsonLD
             if (property_exists($options, 'documentLoader') &&
                 ($options->documentLoader instanceof DocumentLoaderInterface)) {
                 $result->documentLoader = $options->documentLoader;
+            } elseif (null !== self::$documentLoader) {
+                $result->documentLoader = self::$documentLoader;
             }
             if (property_exists($options, 'expandContext')) {
                 if (is_string($options->expandContext)) {
