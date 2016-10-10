@@ -11,6 +11,7 @@ namespace ML\JsonLD\Test;
 
 use ML\JsonLD\Processor;
 use ML\JsonLD\Document;
+use ML\JsonLD\FileGetContentsLoader;
 use ML\JsonLD\Graph;
 use ML\JsonLD\GraphInterface;
 use ML\JsonLD\Node;
@@ -31,6 +32,11 @@ class GraphTest extends \PHPUnit_Framework_TestCase
      * @var GraphInterface
      */
     protected $graph;
+
+    /**
+     * The document loader used to parse expected values.
+     */
+    protected $documentLoader;
 
     /**
      * Create the graph to test.
@@ -92,6 +98,7 @@ JSON_LD_DOCUMENT;
 
         $doc = Document::load($json, array('base' => 'http://example.com/node/index.jsonld'));
         $this->graph = $doc->getGraph();
+        $this->documentLoader = new FileGetContentsLoader();
     }
 
 
@@ -784,7 +791,7 @@ JSON_LD_DOCUMENT;
      */
     public function testSerializeNode()
     {
-        $expected = Processor::loadDocument(
+        $expected = $this->documentLoader->loadDocument(
             '{
                 "@id": "http://example.com/node/1",
                 "@type": [ "http://vocab.com/type/node" ],
@@ -793,6 +800,7 @@ JSON_LD_DOCUMENT;
                 "http://vocab.com/contains": [ { "@id": "_:b0" } ]
             }'
         );
+        $expected = $expected->document;
 
         $node1 = $this->graph->getNode('http://example.com/node/1');
         $this->assertEquals($expected, $node1->toJsonLd(), 'Serialize node 1');
@@ -805,7 +813,7 @@ JSON_LD_DOCUMENT;
     {
         // This is the expanded and flattened version of the test document
         // (the blank node labels have been renamed from _:t... to _:b...)
-        $expected = Processor::loadDocument(
+        $expected = $this->documentLoader->loadDocument(
             '[{
                "@id": "_:b0",
                "http://vocab.com/nested": [{
@@ -901,6 +909,7 @@ JSON_LD_DOCUMENT;
                "@id": "http://vocab.com/type/nodeWithAliases"
             }]'
         );
+        $expected = $expected->document;
 
         $this->assertEquals($expected, $this->graph->toJsonLd(false), 'Serialize graph');
     }

@@ -40,7 +40,7 @@ class ValueTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests LanguageTaggedString with an invalid value
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testLanguageTaggedStringInvalidValue()
     {
@@ -51,7 +51,7 @@ class ValueTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests LanguageTaggedString with an invalid language
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testLanguageTaggedStringInvalidLanguage()
     {
@@ -80,7 +80,7 @@ class ValueTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests TypedValue with an invalid value
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testTypedValueInvalidValue()
     {
@@ -91,7 +91,7 @@ class ValueTest extends \PHPUnit_Framework_TestCase
     /**
      * Tests TypedValue with an invalid type
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      */
     public function testTypedValueInvalidLanguage()
     {

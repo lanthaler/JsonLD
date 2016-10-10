@@ -118,6 +118,11 @@ class Processor
     private $documentFactory = null;
 
     /**
+     * @var DocumentLoaderInterface The document loader
+     */
+    private $documentLoader = null;
+
+    /**
      * Constructor
      *
      * The options parameter must be passed and all off the following properties
@@ -160,37 +165,7 @@ class Processor
         $this->useRdfType = (bool) $options->useRdfType;
         $this->generalizedRdf = (bool) $options->produceGeneralizedRdf;
         $this->documentFactory = $options->documentFactory;
-    }
-
-    /**
-     * Load a JSON-LD document
-     *
-     * The document can be supplied directly as string, by passing a file
-     * path, or by passing a URL.
-     *
-     * Usage:
-     *  <code>
-     *    $document = Processor::loadDocument('document.jsonld');
-     *    print_r($document);
-     *  </code>
-     *
-     * @param null|string|array|object $input The JSON-LD document or a path
-     *                                        or URL pointing to one.
-     *
-     * @return mixed The loaded JSON-LD document
-     *
-     * @throws JsonLdException
-     */
-    public static function loadDocument($input)
-    {
-        if (false === is_string($input)) {
-            // Return as is - it has already been parsed
-            return $input;
-        }
-
-        $document = FileGetContentsLoader::loadDocument($input);
-
-        return $document->document;
+        $this->documentLoader = $options->documentLoader;
     }
 
     /**
@@ -1772,7 +1747,7 @@ class Processor
                 $remotectxs[] = $remoteContext;
 
                 try {
-                    $remoteContext = self::loadDocument($remoteContext);
+                    $remoteContext = $this->loadDocument($remoteContext);
                 } catch (JsonLdException $e) {
                     throw new JsonLdException(
                         JsonLdException::LOADING_REMOTE_CONTEXT_FAILED,
@@ -1797,6 +1772,31 @@ class Processor
                 throw new JsonLdException(JsonLdException::INVALID_LOCAL_CONTEXT);
             }
         }
+    }
+
+    /**
+     * Load a JSON-LD document
+     *
+     * The document can be supplied directly as string, by passing a file
+     * path, or by passing a URL.
+     *
+     * @param null|string|array|object $input The JSON-LD document or a path
+     *                                        or URL pointing to one.
+     *
+     * @return mixed The loaded JSON-LD document
+     *
+     * @throws JsonLdException
+     */
+    private function loadDocument($input)
+    {
+        if (false === is_string($input)) {
+            // Return as is - it has already been parsed
+            return $input;
+        }
+
+        $document = $this->documentLoader->loadDocument($input);
+
+        return $document->document;
     }
 
     /**
@@ -2508,6 +2508,7 @@ class Processor
         $procOptions->useRdfType = $this->useRdfType;
         $procOptions->produceGeneralizedRdf = $this->generalizedRdf;
         $procOptions->documentFactory = $this->documentFactory;
+        $procOptions->documentLoader = $this->documentLoader;
 
         $processor = new Processor($procOptions);
 

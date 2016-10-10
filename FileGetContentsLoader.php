@@ -17,18 +17,12 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class FileGetContentsLoader
+class FileGetContentsLoader implements DocumentLoaderInterface
 {
     /**
-     * Loads a remote document or context
-     *
-     * @param string $url The URL of the document to load.
-     *
-     * @return RemoteDocument The remote document.
-     *
-     * @throws JsonLdException If loading the document failed.
+     * {@inheritdoc}
      */
-    public static function loadDocument($url)
+    public function loadDocument($url)
     {
         // if input looks like a file, try to retrieve it
         $input = trim($url);
@@ -80,7 +74,7 @@ class FileGetContentsLoader
                 }
             }
 
-            $linkHeaderValues = self::parseContextLinkHeaders($linkHeaderValues, new IRI($url));
+            $linkHeaderValues = $this->parseContextLinkHeaders($linkHeaderValues, new IRI($url));
 
             if (count($linkHeaderValues) === 1) {
                 $remoteDocument->contextUrl = reset($linkHeaderValues);
@@ -129,7 +123,7 @@ class FileGetContentsLoader
      *
      * @return array An array of parsed HTTP Link headers
      */
-    private static function parseContextLinkHeaders(array $values, IRI $baseIri)
+    private function parseContextLinkHeaders(array $values, IRI $baseIri)
     {
         // Separate multiple links contained in a single header value
         for ($i = 0, $total = count($values); $i < $total; $i++) {
