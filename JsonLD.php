@@ -9,10 +9,10 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
+use stdClass;
 
 /**
  * JsonLD
@@ -274,7 +274,7 @@ class JsonLD
 
         $processor->compact($input, $activectx, $inversectx);
 
-        $compactedDocument = new Object();
+        $compactedDocument = new stdClass();
         if (null !== $context) {
             $compactedDocument->{'@context'} = $context;
         }
@@ -534,7 +534,7 @@ class JsonLD
         $processor = new Processor($options);
 
         // Store the frame's context as $frame gets modified
-        $frameContext = new Object();
+        $frameContext = new stdClass();
         if (property_exists($frame, '@context')) {
             $frameContext->{'@context'} = $frame->{'@context'};
         }

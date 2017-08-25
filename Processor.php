@@ -9,10 +9,10 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
+use stdClass;
 
 /**
  * Processor processes JSON-LD documents as specified by the JSON-LD
@@ -238,8 +238,8 @@ class Processor
      */
     public function getDocument($input)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new stdClass();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new stdClass();
         $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
@@ -365,7 +365,7 @@ class Processor
         $properties = get_object_vars($element);
         ksort($properties);
 
-        $element = new Object();
+        $element = new stdClass();
 
         foreach ($properties as $property => $value) {
             $expProperty = $this->expandIri($property, $activectx, false, true);
@@ -465,7 +465,7 @@ class Processor
                     $value = array($value);
                 }
 
-                $obj = new Object();
+                $obj = new stdClass();
                 $obj->{'@list'} = $value;
                 $value = $obj;
             }
@@ -473,7 +473,7 @@ class Processor
             $target = $element;
             if ($this->getPropertyDefinition($activectx, $property, '@reverse')) {
                 if (false === property_exists($target, '@reverse')) {
-                    $target->{'@reverse'} = new Object();
+                    $target->{'@reverse'} = new stdClass();
                 }
                 $target = $target->{'@reverse'};
 
@@ -749,7 +749,7 @@ class Processor
             $value = get_object_vars($value);
 
             if ((count($value) > 0) && (false === property_exists($element, $keyword))) {
-                $element->{$keyword} = new Object();
+                $element->{$keyword} = new stdClass();
             }
 
             foreach ($value as $prop => $val) {
@@ -783,13 +783,13 @@ class Processor
      * @param array  $activectx  The active context.
      * @param string $activeprty The active property.
      *
-     * @return Object The expanded value.
+     * @return stdClass The expanded value.
      */
     private function expandValue($value, $activectx, $activeprty)
     {
         $def = $this->getPropertyDefinition($activectx, $activeprty);
 
-        $result = new Object();
+        $result = new stdClass();
 
         if ('@id' === $def['@type']) {
             $result->{'@id'} = $this->expandIri($value, $activectx, true);
@@ -961,7 +961,7 @@ class Processor
         ksort($properties);
 
         $inReverse = ('@reverse' === $activeprty);
-        $element = new Object();
+        $element = new stdClass();
 
         foreach ($properties as $property => $value) {
             if (in_array($property, self::$keywords)) {
@@ -1041,7 +1041,7 @@ class Processor
 
                 if (in_array($def['@container'], array('@language', '@index'))) {
                     if (false === property_exists($element, $activeprty)) {
-                        $element->{$activeprty} = new Object();
+                        $element->{$activeprty} = new stdClass();
                     }
 
                     $def[$def['@container']] = $item->{$def['@container']};
@@ -1074,7 +1074,7 @@ class Processor
 
                             continue;  // ... continue with next value
                         } else {
-                            $result = new Object();
+                            $result = new stdClass();
 
                             $alias = $this->compactIri('@list', $activectx, $inversectx, null, true);
                             $result->{$alias} = $item->{'@list'};
@@ -1337,12 +1337,12 @@ class Processor
      *     of a language-tagged string (`@null` for all other strings); for
      *     all other values it is set to `null`
      *
-     * @param Object $value      The value.
+     * @param stdClass $value      The value.
      * @param array  $inversectx The inverse context.
      *
      * @return array The value profile.
      */
-    private function getValueProfile(Object $value, $inversectx)
+    private function getValueProfile(stdClass $value, $inversectx)
     {
         $valueProfile = array(
             '@container' => '@set',
@@ -1941,7 +1941,7 @@ class Processor
             }
         } elseif (property_exists($element, '@list')) {
             // lists
-            $result = new Object();
+            $result = new stdClass();
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
@@ -1965,7 +1965,7 @@ class Processor
 
             // Create node in node map if it doesn't exist yet
             if (false === property_exists($nodeMap->{'-' . $activegraph}, '-' . $id)) {
-                $node = new Object();
+                $node = new stdClass();
                 $node->{'@id'} = $id;
                 $nodeMap->{'-' . $activegraph}->{'-' . $id} = $node;
             } else {
@@ -1976,7 +1976,7 @@ class Processor
             if (is_object($activeid)) {
                 $this->mergeIntoProperty($node, $activeprty, $activeid, true, true);
             } elseif (null !== $activeprty) {
-                $reference = new Object();
+                $reference = new stdClass();
                 $reference->{'@id'} = $id;
 
                 if (null === $list) {
@@ -2025,7 +2025,7 @@ class Processor
             if (property_exists($element, '@graph')) {
                 if (JsonLD::MERGED_GRAPH !== $activegraph) {
                     if (false === property_exists($nodeMap, '-' . $id)) {
-                        $nodeMap->{'-' . $id} = new Object();
+                        $nodeMap->{'-' . $id} = new stdClass();
                     }
 
                     $this->generateNodeMap($nodeMap, $element->{'@graph'}, $id);
@@ -2087,8 +2087,8 @@ class Processor
      */
     public function flatten($element)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new stdClass();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new stdClass();
 
         $this->generateNodeMap($nodeMap, $element);
 
@@ -2099,7 +2099,7 @@ class Processor
         // the graph in the default graph
         foreach ($nodeMap as $graphName => $graph) {
             if (!isset($defaultGraph->{$graphName})) {
-                $defaultGraph->{$graphName} = new Object();
+                $defaultGraph->{$graphName} = new stdClass();
                 $defaultGraph->{$graphName}->{'@id'} = substr($graphName, 1);
             }
 
@@ -2129,8 +2129,8 @@ class Processor
      */
     public function toRdf(array $document)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new stdClass();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new stdClass();
 
         $this->generateNodeMap($nodeMap, $document);
 
@@ -2208,11 +2208,11 @@ class Processor
     /**
      * Converts a JSON-LD element to a RDF Quad object
      *
-     * @param Object $element The element to be converted.
+     * @param stdClass $element The element to be converted.
      *
      * @return IRI|TypedValue|LanguageTagged|null The converted element to be used as Quad object.
      */
-    private function elementToRdf(Object $element)
+    private function elementToRdf(stdClass $element)
     {
         if (property_exists($element, '@value')) {
             return Value::fromJsonLd($element);
@@ -2273,9 +2273,9 @@ class Processor
      */
     public function fromRdf(array $quads)
     {
-        $graphs = new Object();
-        $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
-        $usages = new Object();
+        $graphs = new stdClass();
+        $graphs->{JsonLD::DEFAULT_GRAPH} = new stdClass();
+        $usages = new stdClass();
 
         foreach ($quads as $quad) {
             $graphName = JsonLD::DEFAULT_GRAPH;
@@ -2292,7 +2292,7 @@ class Processor
             }
 
             if (false === isset($graphs->{$graphName})) {
-                $graphs->{$graphName} = new Object();
+                $graphs->{$graphName} = new stdClass();
             }
             $graph = $graphs->{$graphName};
 
@@ -2487,7 +2487,7 @@ class Processor
 
         $frame = $frame[0];
 
-        $options = new Object();
+        $options = new stdClass();
         $options->{'@embed'} = true;
         $options->{'@embedChildren'} = true;   // TODO Change this as soon as the tests haven been updated
 
@@ -2500,7 +2500,7 @@ class Processor
             }
         }
 
-        $procOptions = new Object();
+        $procOptions = new stdClass();
         $procOptions->base = (string) $this->baseIri;  // TODO Check which base IRI to use
         $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
@@ -2517,8 +2517,8 @@ class Processor
             $graph = JsonLD::DEFAULT_GRAPH;
         }
 
-        $nodeMap = new Object();
-        $nodeMap->{'-' . $graph} = new Object();
+        $nodeMap = new stdClass();
+        $nodeMap->{'-' . $graph} = new stdClass();
         $processor->generateNodeMap($nodeMap, $element, $graph);
 
         // Sort the node map to ensure a deterministic output
@@ -2565,7 +2565,7 @@ class Processor
             $filter = get_object_vars($frame);
         }
 
-        $result = new Object();
+        $result = new stdClass();
 
         // Make sure that @id is always in the result if the node matches the filter
         if (property_exists($node, '@id')) {
@@ -2648,7 +2648,7 @@ class Processor
                 foreach ($validValues as $validValue) {
                     if (is_object($validValue) && property_exists($validValue, '@default')) {
                         if (null === $validValue->{'@default'}) {
-                            $result->{$property} = new Object();
+                            $result->{$property} = new stdClass();
                             $result->{$property}->{'@null'} = true;
                         } else {
                             $result->{$property} = (is_array($validValue->{'@default'}))
@@ -2749,7 +2749,7 @@ class Processor
 
         // Discard subtree if this object should not be embedded
         if ((false === $options->{'@embed'}) && property_exists($node, '@id')) {
-            $result = new Object();
+            $result = new stdClass();
             $result->{'@id'} = $node->{'@id'};
             $parent[] = $result;
 
@@ -2941,7 +2941,7 @@ class Processor
     private static function objectToJsonLd($object, $useNativeTypes = true)
     {
         if ($object instanceof IRI) {
-            $result = new Object();
+            $result = new stdClass();
             $result->{'@id'} = (string) $object;
 
             return $result;

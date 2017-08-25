@@ -9,6 +9,8 @@
 
 namespace ML\JsonLD\Test;
 
+use stdClass;
+
 /**
  * TestManifestIterator reads a test manifest and returns the contained test
  * definitions.
@@ -87,7 +89,7 @@ class TestManifestIterator implements \Iterator
         $test = $this->manifest->{'sequence'}[$this->key];
         $options = isset($test->{'option'})
             ? clone $test->{'option'}  // cloning because we are modifying it
-            : new \stdClass();
+            : new stdClass();
 
         if (false === property_exists($options, 'base')) {
             if (property_exists($this->manifest, 'baseIri')) {
