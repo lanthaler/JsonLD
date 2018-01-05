@@ -31,7 +31,10 @@ class FileGetContentsLoader implements DocumentLoaderInterface
 
             $streamContextOptions = array(
               'method'  => 'GET',
-              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n",
+              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n".
+                           // Fix F. Michel 2017-12-06 - Some Web API require a User-Agent.
+                           // E.g. MusicBrainz returns error 403 if there is none.
+                           "User-Agent: JsonLD.php\r\n",
               'timeout' => Processor::REMOTE_TIMEOUT,
               'ssl' => [ 'verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed'=> false ]
             );
