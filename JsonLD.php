@@ -142,6 +142,7 @@ class JsonLD
             $remoteDocument = $options->documentLoader->loadDocument($input);
 
             $input = $remoteDocument->document;
+
             $activectx['@base'] = new IRI($remoteDocument->documentUrl);
 
             if (null !== $remoteDocument->contextUrl) {
@@ -161,6 +162,80 @@ class JsonLD
 
         // optimize away default graph (@graph as the only property at the top-level object)
         if (is_object($input) && property_exists($input, '@graph') && (1 === count(get_object_vars($input)))) {
+            $input = $input->{'@graph'};
+        }
+
+        if (false === is_array($input)) {
+            $input = (null === $input) ? array() : array($input);
+        }
+
+        return $input;
+    }
+
+
+    /**
+     * Apply a JSON-LD context document to a simple JSON document and return
+     * the expanded JSON-LD form.
+     *
+     * Both the document and the context can be supplied directly as string,
+     * by passing a file path, or by passing a URL.
+     *
+     * Usage:
+     *
+     *     $expanded = JsonLD::expandJsonAsJsonld('document.json', 'profile.jsonld');
+     *     print_r($expanded);
+     *
+     * It is possible to configure the expansion process by setting the options
+     * parameter accordingly.
+     *
+     * The options parameter might be passed as associative array or as
+     * object.
+     *
+     * @param string|object|array      $input       The JSON document to compact.
+     * @param null|string|object|array $context     The JSON-LD context.
+     * @param null|array|object        $options     Options to configure the
+     *                                              compaction process.
+     *
+     * @return array The expanded JSON-LD document.
+     *
+     * @throws JsonLdException
+     *
+     * @api
+     */
+    public static function expandJsonAsJsonld($input, $context, $options = null)
+    {
+        $options = self::mergeOptions($options);
+
+        if (is_string($input)) {
+            $remoteDocument = $options->documentLoader->loadDocument($input);
+            $input = $remoteDocument->document;
+        }
+
+        if (is_string($context)) {
+            $context = $options->documentLoader->loadDocument($context)->document;
+        }
+        if (is_object($context) && property_exists($context, '@context')) {
+            $context = $context->{'@context'};
+        }
+
+        $processor = new Processor($options);
+        $activectx = array('@base' => null);
+        if ($options->base) {
+            $activectx['@base'] = $options->base;
+        } else {
+            $activectx['@base'] = new IRI($remoteDocument->documentUrl);
+        }
+
+        $processor->processContext($context, $activectx);
+        // The context given in options may override the context file
+        if (null !== $options->expandContext) {
+            $processor->processContext($options->expandContext, $activectx);
+        }
+
+        $processor->expand($input, $activectx);
+
+        // optimize away default graph (@graph as the only property at the top-level object)
+        if (is_object($context) && property_exists($context, '@graph') && (1 === count(get_object_vars($input)))) {
             $input = $input->{'@graph'};
         }
 
@@ -228,6 +303,44 @@ class JsonLD
         $expanded = self::expand($input, $options);
 
         return self::doCompact($expanded, $context, $options);
+    }
+
+    /**
+     * Apply a JSON-LD context document to a simple JSON document and return
+     * the compact JSON-LD form.
+     *
+     * Both the document and the context can be supplied directly as string,
+     * by passing a file path, or by passing a URL.
+     *
+     * Usage:
+     *
+     *     $compacted = JsonLD::compactJsonAsJsonld('document.json', 'context.jsonld');
+     *     print_r($compacted);
+     *
+     * It is possible to configure the compaction process by setting the
+     * options parameter accordingly. See options in function compact.
+     *
+     * @param string|object|array      $input       The JSON document to compact.
+     * @param null|string|object|array $context     The JSON-LD context.
+     * @param null|array|object        $options     Options to configure the
+     *                                              compaction process.
+     *
+     * @return object The compacted JSON-LD document.
+     *
+     * @throws JsonLdException
+     *
+     * @api
+     */
+    public static function compactJsonAsJsonld($input, $context, $options = null)
+    {
+        $options = self::mergeOptions($options);
+
+        if (is_string($input)) {
+            $remoteDocument = $options->documentLoader->loadDocument($input);
+            $input = $remoteDocument->document;
+        }
+
+        return self::doCompact($input, $context, $options);
     }
 
     /**
@@ -412,6 +525,36 @@ class JsonLD
 
         $processor = new Processor($options);
 
+        return $processor->toRdf($expanded);
+    }
+
+    /**
+     * Convert a previously expanded JSON-LD document to RDF quads
+     *
+     * Usage:
+     *    $expanded = JsonLD::expand('document.jsonld');
+     *    $quads = JsonLD::expandedToRdf($expanded);
+     *    $nquads = new NQuads();
+     *    $serialized = $nquads->serialize($quads);
+     *    print_r($quads);
+     *
+     * It is possible to configure the extraction process by setting the options
+     * parameter accordingly.
+     *
+     * @param string|object|array $expanded   The expanded JSON-LD document to process.
+     * @param null|array|object   $options Options to configure the expansion
+     *                                     process.
+     *
+     * @return Quad[] The extracted quads.
+     *
+     * @throws JsonLdException
+     *
+     * @api
+     */
+    public static function expandedToRdf($expanded, $options = null)
+    {
+        $options = self::mergeOptions($options);
+        $processor = new Processor($options);
         return $processor->toRdf($expanded);
     }
 
