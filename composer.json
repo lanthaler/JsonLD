@@ -19,7 +19,8 @@
         "ml/iri": "^1.1.1"
     },
     "require-dev": {
-        "json-ld/tests": "@dev"
+        "json-ld/tests": "1.0",
+        "phpunit/phpunit": "^4"
     },
     "autoload": {
         "psr-0": { "ML\\JsonLD": "" }

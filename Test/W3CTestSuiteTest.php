@@ -172,14 +172,14 @@ class W3CTestSuiteTest extends JsonTestCase
     public function testRemoteDocumentLoading($name, $test, $options)
     {
         if (in_array('jld:NegativeEvaluationTest', $test->{'@type'})) {
-            $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+            $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', null, $test->{'expect'});
         } else {
-            $expected = json_decode(file_get_contents($this->basedir . $test->{'expect'}));
+            $expected = json_decode($this->replaceBaseUrl(file_get_contents($this->basedir . $test->{'expect'})));
         }
 
         unset($options->base);
 
-        $result = JsonLD::expand($this->baseurl . $test->{'input'}, $options);
+        $result = JsonLD::expand($this->replaceBaseUrl($this->baseurl . $test->{'input'}), $options);
 
         if (isset($expected)) {
             $this->assertJsonEquals($expected, $result);
@@ -198,6 +198,20 @@ class W3CTestSuiteTest extends JsonTestCase
     }
 
     /**
+     * Replaces the base URL 'http://json-ld.org/' with 'https://json-ld.org:443/'.
+     *
+     * The test location of the test suite has been changed as the site has been
+     * updated to use HTTPS everywhere.
+     *
+     * @param string $input The input string.
+     *
+     * @return string The input string with all occurrences of the old base URL replaced with the new HTTPS-based one.
+     */
+    private function replaceBaseUrl($input) {
+        return str_replace('http://json-ld.org/', 'https://json-ld.org:443/', $input);
+    }
+
+    /**
      * Tests errors (uses flattening).
      *
      * @param string $name    The test name.
@@ -209,7 +223,7 @@ class W3CTestSuiteTest extends JsonTestCase
      */
     public function testError($name, $test, $options)
     {
-        $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', '', $test->{'expect'});
+        $this->setExpectedException('ML\JsonLD\Exception\JsonLdException', null, $test->{'expect'});
 
         JsonLD::flatten(
             $this->basedir . $test->{'input'},
