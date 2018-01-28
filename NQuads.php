@@ -41,7 +41,8 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
                     ? $quad->getObject()
                     : '<' . $quad->getObject() . '>';
             } else {
-                $result .= '"' . $quad->getObject()->getValue() . '"';
+                // Fix F. Michel 2017-12-05. Characters " in JSON strings must be escaped.
+                $result .= '"' . str_replace ( '"', '\"', $quad->getObject()->getValue() ). '"';
                 $result .= ($quad->getObject() instanceof TypedValue)
                     ? (RdfConstants::XSD_STRING === $quad->getObject()->getType())
                         ? ''

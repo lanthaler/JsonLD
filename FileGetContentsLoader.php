@@ -32,7 +32,8 @@ class FileGetContentsLoader implements DocumentLoaderInterface
             $streamContextOptions = array(
               'method'  => 'GET',
               'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n",
-              'timeout' => Processor::REMOTE_TIMEOUT
+              'timeout' => Processor::REMOTE_TIMEOUT,
+              'ssl' => [ 'verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed'=> false ]
             );
 
             $context = stream_context_create(array(
