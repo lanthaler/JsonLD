@@ -41,7 +41,10 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
                     ? $quad->getObject()
                     : '<' . $quad->getObject() . '>';
             } else {
-                $result .= '"' . $quad->getObject()->getValue() . '"';
+                // Escape double-quotes and "\n" in JSON strings
+                $search = array("\n", '"');
+                $replace = array('\n', '\"');
+                $result .= '"' . str_replace($search, $replace, $quad->getObject()->getValue()) . '"';
                 $result .= ($quad->getObject() instanceof TypedValue)
                     ? (RdfConstants::XSD_STRING === $quad->getObject()->getType())
                         ? ''
