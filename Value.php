@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
+use stdClass as JsonLDObject;
 
 /**
  * Value is the abstract base class used for typed values and
@@ -62,11 +62,11 @@ abstract class Value implements JsonLdSerializable
      * If the passed value element can't be transformed to a language-tagged
      * string or a typed value false is returned.
      *
-     * @param Object $element The JSON-LD element
+     * @param JsonLDObject $element The JSON-LD element
      *
      * @return false|LanguageTaggedString|TypedValue The parsed object
      */
-    public static function fromJsonLd(Object $element)
+    public static function fromJsonLd(JsonLDObject $element)
     {
         if (false === property_exists($element, '@value')) {
             return false;

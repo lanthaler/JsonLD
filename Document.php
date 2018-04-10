@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
+use stdClass as JsonLDObject;
 use ML\IRI\IRI;
 
 /**
@@ -55,8 +55,8 @@ class Document implements DocumentInterface, JsonLdSerializable
      *
      *   - <em>base</em>     The base IRI of the input document.
      *
-     * @param string|array|object $document The JSON-LD document to process.
-     * @param null|array|object   $options  Options to configure the processing.
+     * @param string|array|JsonLDObject $document The JSON-LD document to process.
+     * @param null|array|JsonLDObject   $options  Options to configure the processing.
      *
      * @return Document The parsed JSON-LD document.
      *
@@ -191,14 +191,14 @@ class Document implements DocumentInterface, JsonLdSerializable
         }
 
         foreach ($this->namedGraphs as $graphName => $graph) {
-            $namedGraph = new Object();
+            $namedGraph = new JsonLDObject();
             $namedGraph->{'@id'} = $graphName;
             $namedGraph->{'@graph'} = $graph->toJsonLd($useNativeTypes);
 
             $defGraph[] = $namedGraph;
         }
 
-        $document = new Object();
+        $document = new JsonLDObject();
         $document->{'@graph'} = $defGraph;
 
         return array($document);

@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
+use stdClass as JsonLDObject;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
@@ -72,8 +72,8 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array $input   The JSON-LD document to process.
-     * @param null|array|object   $options Options to configure the processing.
+     * @param string|JsonLDObject|array $input   The JSON-LD document to process.
+     * @param null|array|JsonLDObject   $options Options to configure the processing.
      *
      * @return Document The parsed JSON-LD document.
      *
@@ -121,8 +121,8 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array $input   The JSON-LD document to expand.
-     * @param null|array|object   $options Options to configure the expansion
+     * @param string|JsonLDObject|array $input   The JSON-LD document to expand.
+     * @param null|array|JsonLDObject   $options Options to configure the expansion
      *                                     process.
      *
      * @return array The expanded JSON-LD document.
@@ -209,13 +209,13 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array      $input       The JSON-LD document to
+     * @param string|JsonLDObject|array      $input       The JSON-LD document to
      *                                              compact.
-     * @param null|string|object|array $context     The context.
-     * @param null|array|object        $options     Options to configure the
+     * @param null|string|JsonLDObject|array $context     The context.
+     * @param null|array|JsonLDObject        $options     Options to configure the
      *                                              compaction process.
      *
-     * @return object The compacted JSON-LD document.
+     * @return JsonLDObject The compacted JSON-LD document.
      *
      * @throws JsonLdException
      *
@@ -238,15 +238,15 @@ class JsonLD
      *
      * @param array                    $input       The JSON-LD document to
      *                                              compact.
-     * @param null|string|object|array $context     The context.
-     * @param object                   $options     Options to configure the
+     * @param null|string|JsonLDObject|array $context     The context.
+     * @param JsonLDObject                   $options     Options to configure the
      *                                              compaction process.
      * @param bool                     $alwaysGraph If set to true, the resulting
      *                                              document will always explicitly
      *                                              contain the default graph at
      *                                              the top-level.
      *
-     * @return object The compacted JSON-LD document.
+     * @return JsonLDObject The compacted JSON-LD document.
      *
      * @throws JsonLdException
      */
@@ -274,7 +274,7 @@ class JsonLD
 
         $processor->compact($input, $activectx, $inversectx);
 
-        $compactedDocument = new Object();
+        $compactedDocument = new JsonLDObject();
         if (null !== $context) {
             $compactedDocument->{'@context'} = $context;
         }
@@ -335,15 +335,15 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array      $input   The JSON-LD document to flatten.
-     * @param null|string|object|array $context The context to compact the
+     * @param string|JsonLDObject|array      $input   The JSON-LD document to flatten.
+     * @param null|string|JsonLDObject|array $context The context to compact the
      *                                          flattened document. If
      *                                          <em>null</em> is passed, the
      *                                          result will not be compacted.
-     * @param null|array|object        $options Options to configure the
+     * @param null|array|JsonLDObject        $options Options to configure the
      *                                          flattening process.
      *
-     * @return object The flattened JSON-LD document.
+     * @return JsonLDObject The flattened JSON-LD document.
      *
      * @throws JsonLdException
      *
@@ -394,8 +394,8 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array $input   The JSON-LD document to expand.
-     * @param null|array|object   $options Options to configure the expansion
+     * @param string|JsonLDObject|array $input   The JSON-LD document to expand.
+     * @param null|array|JsonLDObject   $options Options to configure the expansion
      *                                    process.
      *
      * @return Quad[] The extracted quads.
@@ -446,7 +446,7 @@ class JsonLD
      * object.
      *
      * @param Quad[]            $quads   Array of quads.
-     * @param null|array|object $options Options to configure the expansion
+     * @param null|array|JsonLDObject $options Options to configure the expansion
      *                                   process.
      *
      * @return array The JSON-LD document in expanded form.
@@ -503,12 +503,12 @@ class JsonLD
      * The options parameter might be passed as associative array or as
      * object.
      *
-     * @param string|object|array $input   The JSON-LD document to compact.
-     * @param string|object       $frame   The frame.
-     * @param null|array|object   $options Options to configure the framing
+     * @param string|JsonLDObject|array $input   The JSON-LD document to compact.
+     * @param string|JsonLDObject       $frame   The frame.
+     * @param null|array|JsonLDObject   $options Options to configure the framing
      *                                     process.
      *
-     * @return object The framed JSON-LD document.
+     * @return JsonLDObject The framed JSON-LD document.
      *
      * @throws JsonLdException
      *
@@ -534,7 +534,7 @@ class JsonLD
         $processor = new Processor($options);
 
         // Store the frame's context as $frame gets modified
-        $frameContext = new Object();
+        $frameContext = new JsonLDObject();
         if (property_exists($frame, '@context')) {
             $frameContext->{'@context'} = $frame->{'@context'};
         }
@@ -604,9 +604,9 @@ class JsonLD
     /**
      * Merge the passed options with the options' default values.
      *
-     * @param null|array|object $options The options.
+     * @param null|array|JsonLDObject $options The options.
      *
-     * @return object The merged options.
+     * @return JsonLDObject The merged options.
      */
     private static function mergeOptions($options)
     {
