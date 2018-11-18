@@ -41,10 +41,11 @@ class FileGetContentsLoader implements DocumentLoaderInterface
             ));
 
             $httpHeadersOffset = 0;
+            $httpResponseHeader = array();
 
             stream_context_set_params($context, array('notification' =>
                 function ($code, $severity, $msg, $msgCode, $bytesTx, $bytesMax) use (
-                    &$remoteDocument, &$http_response_header, &$httpHeadersOffset
+                    &$remoteDocument, &$httpResponseHeader, &$httpHeadersOffset
                 ) {
                     if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
                         $remoteDocument->mediaType = $msg;
@@ -52,7 +53,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                         $remoteDocument->documentUrl = $msg;
                         $remoteDocument->mediaType = null;
 
-                        $httpHeadersOffset = count($http_response_header);
+                        $httpHeadersOffset = count($httpResponseHeader);
                     }
                 }
             ));
@@ -61,15 +62,15 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                 throw new JsonLdException(
                     JsonLdException::LOADING_DOCUMENT_FAILED,
                     sprintf('Unable to load the remote document "%s".', $url),
-                    $http_response_header
+                    $httpResponseHeader
                 );
             }
 
             // Extract HTTP Link headers
             $linkHeaderValues = array();
-            for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
-                if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
-                    $value = substr($http_response_header[$i], 5);
+            for ($i = count($httpResponseHeader) - 1; $i > $httpHeadersOffset; $i--) {
+                if (0 === substr_compare($httpResponseHeader[$i], 'Link:', 0, 5, true)) {
+                    $value = substr($httpResponseHeader[$i], 5);
                     $linkHeaderValues[] = $value;
                 }
             }
@@ -82,7 +83,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                 throw new JsonLdException(
                     JsonLdException::MULTIPLE_CONTEXT_LINK_HEADERS,
                     'Found multiple contexts in HTTP Link headers',
-                    $http_response_header
+                    $httpResponseHeader
                 );
             }
 
