@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as JsonLDObject;
+use stdClass as JsonObject;
 
 /**
  * A Node represents a node in a JSON-LD graph.
@@ -412,7 +412,7 @@ class Node implements NodeInterface, JsonLdSerializable
                 } elseif (is_object($value)) {  // language-tagged string or typed value
                     $node->{$prop}[] = $value->toJsonLd($useNativeTypes);
                 } else {
-                    $val = new JsonLDObject();
+                    $val = new JsonObject();
                     $val->{'@value'} = $value;
                     $node->{$prop}[] = $val;
                 }

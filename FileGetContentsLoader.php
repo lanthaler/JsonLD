@@ -67,13 +67,11 @@ class FileGetContentsLoader implements DocumentLoaderInterface
 
             // Extract HTTP Link headers
             $linkHeaderValues = array();
-            if (is_array($http_response_header)) {
-              for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
-                if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, TRUE)) {
-                  $value = substr($http_response_header[$i], 5);
-                  $linkHeaderValues[] = $value;
+            for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
+                if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
+                    $value = substr($http_response_header[$i], 5);
+                    $linkHeaderValues[] = $value;
                 }
-              }
             }
 
             $linkHeaderValues = $this->parseContextLinkHeaders($linkHeaderValues, new IRI($url));

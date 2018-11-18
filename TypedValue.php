@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as JsonLDObject;
+use stdClass as JsonObject;
 
 /**
  * A typed value represents a value with an associated type.
@@ -81,7 +81,7 @@ final class TypedValue extends Value
      */
     public function toJsonLd($useNativeTypes = true)
     {
-        $result = new JsonLDObject();
+        $result = new JsonObject();
 
         if (RdfConstants::XSD_STRING === $this->type) {
             $result->{'@value'} = $this->value;
