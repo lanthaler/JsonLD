@@ -32,7 +32,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
             $streamContextOptions = array(
               'method'  => 'GET',
               'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n"
-                           ."User-Agent: JsonLD\r\n",
+                           . "User-Agent: lanthaler JsonLD\r\n",
               'timeout' => Processor::REMOTE_TIMEOUT
             );
 
