@@ -20,20 +20,11 @@ JsonLD supports [framing](http://json-ld.org/spec/latest/json-ld-framing/)
 Installation
 ------------
 
-The easiest way to use JsonLD is to integrate it as a dependency in your
-project's [composer.json](https://getcomposer.org/) file:
+The easiest way to install `JsonLD` is by requiring it with [Composer](https://getcomposer.org/).
 
-```json
-{
-    "require": {
-        "ml/json-ld": "1.*"
-    }
-}
 ```
-
-Installing is then a matter of running composer
-
-    php composer.phar install
+composer require ml/json-ld
+```
 
 ... and including Composer's autoloader to your project
 
