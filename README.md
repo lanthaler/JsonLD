@@ -23,7 +23,7 @@ Installation
 The easiest way to install `JsonLD` is by requiring it with [Composer](https://getcomposer.org/).
 
 ```
-$ composer require ml/json-ld
+composer require ml/json-ld
 ```
 
 ... and including Composer's autoloader to your project
