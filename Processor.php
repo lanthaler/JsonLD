@@ -9,7 +9,7 @@
 
 namespace ML\JsonLD;
 
-use stdClass as Object;
+use stdClass as JsonObject;
 use ML\JsonLD\Exception\JsonLdException;
 use ML\JsonLD\Exception\InvalidQuadException;
 use ML\IRI\IRI;
@@ -154,7 +154,7 @@ class Processor
      *     when converting from RDF.</dt>
      * </dl>
      *
-     * @param object $options Options to configure the various algorithms.
+     * @param JsonObject $options Options to configure the various algorithms.
      */
     public function __construct($options)
     {
@@ -230,7 +230,7 @@ class Processor
     /**
      * Parses a JSON-LD document and returns it as a Document
      *
-     * @param array|object $input The JSON-LD document to process.
+     * @param array|JsonObject $input The JSON-LD document to process.
      *
      * @return Document The parsed JSON-LD document.
      *
@@ -238,8 +238,8 @@ class Processor
      */
     public function getDocument($input)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new JsonObject();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new JsonObject();
         $this->generateNodeMap($nodeMap, $input);
 
         // We need to keep track of blank nodes as they are renamed when
@@ -365,7 +365,7 @@ class Processor
         $properties = get_object_vars($element);
         ksort($properties);
 
-        $element = new Object();
+        $element = new JsonObject();
 
         foreach ($properties as $property => $value) {
             $expProperty = $this->expandIri($property, $activectx, false, true);
@@ -465,7 +465,7 @@ class Processor
                     $value = array($value);
                 }
 
-                $obj = new Object();
+                $obj = new JsonObject();
                 $obj->{'@list'} = $value;
                 $value = $obj;
             }
@@ -473,7 +473,7 @@ class Processor
             $target = $element;
             if ($this->getPropertyDefinition($activectx, $property, '@reverse')) {
                 if (false === property_exists($target, '@reverse')) {
-                    $target->{'@reverse'} = new Object();
+                    $target->{'@reverse'} = new JsonObject();
                 }
                 $target = $target->{'@reverse'};
 
@@ -585,12 +585,12 @@ class Processor
     /**
      * Expands the value of a keyword
      *
-     * @param object  $element    The object this property-value pair is part of.
-     * @param string  $activeprty The active property.
-     * @param string  $keyword    The keyword whose value is being expanded.
-     * @param mixed   $value      The value to expand.
-     * @param array   $activectx  The active context.
-     * @param boolean $frame      True if a frame is being expanded, otherwise false.
+     * @param JsonObject $element    The object this property-value pair is part of.
+     * @param string     $activeprty The active property.
+     * @param string     $keyword    The keyword whose value is being expanded.
+     * @param mixed      $value      The value to expand.
+     * @param array      $activectx  The active context.
+     * @param boolean    $frame      True if a frame is being expanded, otherwise false.
      *
      * @throws JsonLdException
      */
@@ -749,7 +749,7 @@ class Processor
             $value = get_object_vars($value);
 
             if ((count($value) > 0) && (false === property_exists($element, $keyword))) {
-                $element->{$keyword} = new Object();
+                $element->{$keyword} = new JsonObject();
             }
 
             foreach ($value as $prop => $val) {
@@ -783,13 +783,13 @@ class Processor
      * @param array  $activectx  The active context.
      * @param string $activeprty The active property.
      *
-     * @return Object The expanded value.
+     * @return JsonObject The expanded value.
      */
     private function expandValue($value, $activectx, $activeprty)
     {
         $def = $this->getPropertyDefinition($activectx, $activeprty);
 
-        $result = new Object();
+        $result = new JsonObject();
 
         if ('@id' === $def['@type']) {
             $result->{'@id'} = $this->expandIri($value, $activectx, true);
@@ -812,17 +812,17 @@ class Processor
      * Expands a JSON-LD IRI value (term, compact IRI, IRI) to an absolute
      * IRI and relabels blank nodes
      *
-     * @param mixed       $value         The value to be expanded to an absolute IRI.
-     * @param array       $activectx     The active context.
-     * @param bool        $relativeIri   Specifies whether $value should be treated as
-     *                                   relative IRI against the base IRI or not.
-     * @param bool        $vocabRelative Specifies whether $value is relative to @vocab
-     *                                   if set or not.
-     * @param null|object $localctx      If the IRI is being expanded as part of context
-     *                                   processing, the current local context has to be
-     *                                   passed as well.
-     * @param array       $path          A path of already processed terms to detect
-     *                                   circular dependencies
+     * @param mixed           $value         The value to be expanded to an absolute IRI.
+     * @param array           $activectx     The active context.
+     * @param bool            $relativeIri   Specifies whether $value should be treated as
+     *                                       relative IRI against the base IRI or not.
+     * @param bool            $vocabRelative Specifies whether $value is relative to @vocab
+     *                                       if set or not.
+     * @param null|JsonObject $localctx      If the IRI is being expanded as part of context
+     *                                       processing, the current local context has to be
+     *                                       passed as well.
+     * @param array           $path          A path of already processed terms to detect
+     *                                       circular dependencies
      *
      * @return string The expanded IRI.
      */
@@ -961,7 +961,7 @@ class Processor
         ksort($properties);
 
         $inReverse = ('@reverse' === $activeprty);
-        $element = new Object();
+        $element = new JsonObject();
 
         foreach ($properties as $property => $value) {
             if (in_array($property, self::$keywords)) {
@@ -1041,7 +1041,7 @@ class Processor
 
                 if (in_array($def['@container'], array('@language', '@index'))) {
                     if (false === property_exists($element, $activeprty)) {
-                        $element->{$activeprty} = new Object();
+                        $element->{$activeprty} = new JsonObject();
                     }
 
                     $def[$def['@container']] = $item->{$def['@container']};
@@ -1074,7 +1074,7 @@ class Processor
 
                             continue;  // ... continue with next value
                         } else {
-                            $result = new Object();
+                            $result = new JsonObject();
 
                             $alias = $this->compactIri('@list', $activectx, $inversectx, null, true);
                             $result->{$alias} = $item->{'@list'};
@@ -1337,12 +1337,12 @@ class Processor
      *     of a language-tagged string (`@null` for all other strings); for
      *     all other values it is set to `null`
      *
-     * @param Object $value      The value.
-     * @param array  $inversectx The inverse context.
+     * @param JsonObject $value      The value.
+     * @param array      $inversectx The inverse context.
      *
      * @return array The value profile.
      */
-    private function getValueProfile(Object $value, $inversectx)
+    private function getValueProfile(JsonObject $value, $inversectx)
     {
         $valueProfile = array(
             '@container' => '@set',
@@ -1730,7 +1730,7 @@ class Processor
                 $remoteContext = new IRI($context);
                 if ($remoteContext->isAbsolute()) {
                     $remoteContext = (string) $remoteContext;
-                } else if (null === $activectx['@base']) {
+                } elseif (null === $activectx['@base']) {
                     throw new JsonLdException(
                         JsonLdException::INVALID_BASE_IRI,
                         'Can not resolve the relative URL of the remote context as no base has been set: ' . $remoteContext
@@ -1780,8 +1780,8 @@ class Processor
      * The document can be supplied directly as string, by passing a file
      * path, or by passing a URL.
      *
-     * @param null|string|array|object $input The JSON-LD document or a path
-     *                                        or URL pointing to one.
+     * @param null|string|array|JsonObject $input The JSON-LD document or a path
+     *                                            or URL pointing to one.
      *
      * @return mixed The loaded JSON-LD document
      *
@@ -1884,14 +1884,14 @@ class Processor
      *
      * All keys in the node map are prefixed with "-" to support empty strings.
      *
-     * @param object          $nodeMap     The object holding the node map.
-     * @param object|object[] $element     An expanded JSON-LD element to
-     *                                     be put into the node map
-     * @param string          $activegraph The graph currently being processed.
-     * @param null|string     $activeid    The node currently being processed.
-     * @param null|string     $activeprty  The property currently being processed.
-     * @param null|object     $list        The list object if a list is being
-     *                                     processed.
+     * @param JsonObject              $nodeMap     The object holding the node map.
+     * @param JsonObject|JsonObject[] $element     An expanded JSON-LD element to
+     *                                             be put into the node map
+     * @param string                  $activegraph The graph currently being processed.
+     * @param null|string             $activeid    The node currently being processed.
+     * @param null|string             $activeprty  The property currently being processed.
+     * @param null|JsonObject         $list        The list object if a list is being
+     *                                             processed.
      */
     private function generateNodeMap(
         &$nodeMap,
@@ -1941,7 +1941,7 @@ class Processor
             }
         } elseif (property_exists($element, '@list')) {
             // lists
-            $result = new Object();
+            $result = new JsonObject();
             $result->{'@list'} = array();
 
             $this->generateNodeMap($nodeMap, $element->{'@list'}, $activegraph, $activeid, $activeprty, $result);
@@ -1965,7 +1965,7 @@ class Processor
 
             // Create node in node map if it doesn't exist yet
             if (false === property_exists($nodeMap->{'-' . $activegraph}, '-' . $id)) {
-                $node = new Object();
+                $node = new JsonObject();
                 $node->{'@id'} = $id;
                 $nodeMap->{'-' . $activegraph}->{'-' . $id} = $node;
             } else {
@@ -1976,7 +1976,7 @@ class Processor
             if (is_object($activeid)) {
                 $this->mergeIntoProperty($node, $activeprty, $activeid, true, true);
             } elseif (null !== $activeprty) {
-                $reference = new Object();
+                $reference = new JsonObject();
                 $reference->{'@id'} = $id;
 
                 if (null === $list) {
@@ -2025,7 +2025,7 @@ class Processor
             if (property_exists($element, '@graph')) {
                 if (JsonLD::MERGED_GRAPH !== $activegraph) {
                     if (false === property_exists($nodeMap, '-' . $id)) {
-                        $nodeMap->{'-' . $id} = new Object();
+                        $nodeMap->{'-' . $id} = new JsonObject();
                     }
 
                     $this->generateNodeMap($nodeMap, $element->{'@graph'}, $id);
@@ -2087,8 +2087,8 @@ class Processor
      */
     public function flatten($element)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new JsonObject();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new JsonObject();
 
         $this->generateNodeMap($nodeMap, $element);
 
@@ -2099,7 +2099,7 @@ class Processor
         // the graph in the default graph
         foreach ($nodeMap as $graphName => $graph) {
             if (!isset($defaultGraph->{$graphName})) {
-                $defaultGraph->{$graphName} = new Object();
+                $defaultGraph->{$graphName} = new JsonObject();
                 $defaultGraph->{$graphName}->{'@id'} = substr($graphName, 1);
             }
 
@@ -2129,8 +2129,8 @@ class Processor
      */
     public function toRdf(array $document)
     {
-        $nodeMap = new Object();
-        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new Object();
+        $nodeMap = new JsonObject();
+        $nodeMap->{'-' . JsonLD::DEFAULT_GRAPH} = new JsonObject();
 
         $this->generateNodeMap($nodeMap, $document);
 
@@ -2208,11 +2208,11 @@ class Processor
     /**
      * Converts a JSON-LD element to a RDF Quad object
      *
-     * @param Object $element The element to be converted.
+     * @param JsonObject $element The element to be converted.
      *
      * @return IRI|TypedValue|LanguageTagged|null The converted element to be used as Quad object.
      */
-    private function elementToRdf(Object $element)
+    private function elementToRdf(JsonObject $element)
     {
         if (property_exists($element, '@value')) {
             return Value::fromJsonLd($element);
@@ -2273,9 +2273,9 @@ class Processor
      */
     public function fromRdf(array $quads)
     {
-        $graphs = new Object();
-        $graphs->{JsonLD::DEFAULT_GRAPH} = new Object();
-        $usages = new Object();
+        $graphs = new JsonObject();
+        $graphs->{JsonLD::DEFAULT_GRAPH} = new JsonObject();
+        $usages = new JsonObject();
 
         foreach ($quads as $quad) {
             $graphName = JsonLD::DEFAULT_GRAPH;
@@ -2292,7 +2292,7 @@ class Processor
             }
 
             if (false === isset($graphs->{$graphName})) {
-                $graphs->{$graphName} = new Object();
+                $graphs->{$graphName} = new JsonObject();
             }
             $graph = $graphs->{$graphName};
 
@@ -2390,8 +2390,8 @@ class Processor
     /**
      * Reconstruct @list arrays from linked list structures
      *
-     * @param  Object $graphs The graph map
-     * @param  Object $usages The global node usage map
+     * @param  JsonObject $graphs The graph map
+     * @param  JsonObject $usages The global node usage map
      */
     private function createListObjects($graphs, $usages)
     {
@@ -2468,8 +2468,8 @@ class Processor
     /**
      * Frames a JSON-LD document according a supplied frame
      *
-     * @param array|object $element A JSON-LD element to be framed.
-     * @param mixed        $frame   The frame.
+     * @param array|JsonObject $element A JSON-LD element to be framed.
+     * @param mixed            $frame   The frame.
      *
      * @return array $result The framed element in expanded form.
      *
@@ -2487,7 +2487,7 @@ class Processor
 
         $frame = $frame[0];
 
-        $options = new Object();
+        $options = new JsonObject();
         $options->{'@embed'} = true;
         $options->{'@embedChildren'} = true;   // TODO Change this as soon as the tests haven been updated
 
@@ -2500,7 +2500,7 @@ class Processor
             }
         }
 
-        $procOptions = new Object();
+        $procOptions = new JsonObject();
         $procOptions->base = (string) $this->baseIri;  // TODO Check which base IRI to use
         $procOptions->compactArrays = $this->compactArrays;
         $procOptions->optimize = $this->optimize;
@@ -2517,8 +2517,8 @@ class Processor
             $graph = JsonLD::DEFAULT_GRAPH;
         }
 
-        $nodeMap = new Object();
-        $nodeMap->{'-' . $graph} = new Object();
+        $nodeMap = new JsonObject();
+        $nodeMap->{'-' . $graph} = new JsonObject();
         $processor->generateNodeMap($nodeMap, $element, $graph);
 
         // Sort the node map to ensure a deterministic output
@@ -2545,13 +2545,13 @@ class Processor
     /**
      * Checks whether a node matches a frame or not.
      *
-     * @param object      $node    The node.
-     * @param null|object $frame   The frame.
-     * @param object      $options The current framing options.
-     * @param object      $nodeMap The node map.
-     * @param string      $graph   The currently used graph.
-     * @param array       $parent  The parent to which matching results should be added.
-     * @param array       $path    The path of already processed nodes.
+     * @param JsonObject      $node    The node.
+     * @param null|JsonObject $frame   The frame.
+     * @param JsonObject      $options The current framing options.
+     * @param JsonObject      $nodeMap The node map.
+     * @param string          $graph   The currently used graph.
+     * @param array           $parent  The parent to which matching results should be added.
+     * @param array           $path    The path of already processed nodes.
      *
      * @return bool Returns true if the node matches the frame, otherwise false.
      */
@@ -2565,7 +2565,7 @@ class Processor
             $filter = get_object_vars($frame);
         }
 
-        $result = new Object();
+        $result = new JsonObject();
 
         // Make sure that @id is always in the result if the node matches the filter
         if (property_exists($node, '@id')) {
@@ -2608,7 +2608,7 @@ class Processor
             }
 
             // If the property does not exist or is empty
-            if ((false === property_exists($node, $property)) || (0 === count($node->{$property}))) {
+            if ((false === property_exists($node, $property)) || (is_array($node->{$property}) && 0 === count($node->{$property}))) {
                 // first check if it's @graph and whether the referenced graph exists
                 if ('@graph' === $property) {
                     if (isset($result->{'@id'}) && property_exists($nodeMap, $result->{'@id'})) {
@@ -2648,7 +2648,7 @@ class Processor
                 foreach ($validValues as $validValue) {
                     if (is_object($validValue) && property_exists($validValue, '@default')) {
                         if (null === $validValue->{'@default'}) {
-                            $result->{$property} = new Object();
+                            $result->{$property} = new JsonObject();
                             $result->{$property}->{'@null'} = true;
                         } else {
                             $result->{$property} = (is_array($validValue->{'@default'}))
@@ -2749,7 +2749,7 @@ class Processor
 
         // Discard subtree if this object should not be embedded
         if ((false === $options->{'@embed'}) && property_exists($node, '@id')) {
-            $result = new Object();
+            $result = new JsonObject();
             $result->{'@id'} = $node->{'@id'};
             $parent[] = $result;
 
@@ -2770,12 +2770,12 @@ class Processor
     /**
      * Adds all properties from node to result if they haven't been added yet
      *
-     * @param object $node    The node whose properties should processed.
-     * @param object $options The current framing options.
-     * @param object $nodeMap The node map.
-     * @param string $graph   The currently used graph.
-     * @param object $result  The object to which the properties should be added.
-     * @param array  $path    The path of already processed nodes.
+     * @param JsonObject $node    The node whose properties should processed.
+     * @param JsonObject $options The current framing options.
+     * @param JsonObject $nodeMap The node map.
+     * @param string     $graph   The currently used graph.
+     * @param JsonObject $result  The object to which the properties should be added.
+     * @param array      $path    The path of already processed nodes.
      */
     private function addMissingNodeProperties($node, $options, $nodeMap, $graph, &$result, $path)
     {
@@ -2816,9 +2816,9 @@ class Processor
      * If the property already exists, an exception is thrown as otherwise
      * the existing value would be lost.
      *
-     * @param object $object   The object.
-     * @param string $property The name of the property.
-     * @param mixed  $value    The value of the property.
+     * @param JsonObject $object   The object.
+     * @param string     $property The name of the property.
+     * @param mixed      $value    The value of the property.
      *
      * @throws JsonLdException If the property exists already JSON-LD.
      */
@@ -2848,11 +2848,14 @@ class Processor
     /**
      * Merges a value into a property of an object
      *
-     * @param object $object      The object.
-     * @param string $property    The name of the property to which the value should be merged into.
-     * @param mixed  $value       The value to merge into the property.
-     * @param bool   $alwaysArray If set to true, the resulting property will always be an array.
-     * @param bool   $unique      If set to true, the value is only added if it doesn't exist yet.
+     * @param JsonObject $object      The object.
+     * @param string     $property    The name of the property to which the value
+     *                                should be merged into.
+     * @param mixed      $value       The value to merge into the property.
+     * @param bool       $alwaysArray If set to true, the resulting property will
+     *                                always be an array.
+     * @param bool       $unique      If set to true, the value is only added if
+     *                                it doesn't exist yet.
      */
     private static function mergeIntoProperty(&$object, $property, $value, $alwaysArray = false, $unique = false)
     {
@@ -2930,18 +2933,18 @@ class Processor
      * and {@link TypedValue typed values} are converted by this method. All
      * other objects are returned as-is.
      *
-     * @param object  $object         The object to convert.
-     * @param boolean $useNativeTypes If set to true, native types are used
-     *                                for xsd:integer, xsd:double, and
-     *                                xsd:boolean, otherwise typed strings
-     *                                will be used instead.
+     * @param JsonObject  $object         The object to convert.
+     * @param boolean     $useNativeTypes If set to true, native types are used
+     *                                    for xsd:integer, xsd:double, and
+     *                                    xsd:boolean, otherwise typed strings
+     *                                    will be used instead.
      *
      * @return mixed The JSON-LD representation of the object.
      */
     private static function objectToJsonLd($object, $useNativeTypes = true)
     {
         if ($object instanceof IRI) {
-            $result = new Object();
+            $result = new JsonObject();
             $result->{'@id'} = (string) $object;
 
             return $result;
@@ -2958,7 +2961,7 @@ class Processor
      * This is used to filter nodes consisting just of an @id-member when
      * flattening and converting from RDF.
      *
-     * @param object $node The node
+     * @param JsonObject $node The node
      *
      * @return boolean True if the node has properties (other than @id),
      *                 false otherwise.
