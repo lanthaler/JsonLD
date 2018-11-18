@@ -23,7 +23,8 @@
         "phpunit/phpunit": "^4"
     },
     "autoload": {
-        "psr-0": { "ML\\JsonLD": "" }
-    },
-    "target-dir": "ML/JsonLD"
+        "psr-4": {
+            "ML\\JsonLD\\": ""
+        }
+    }
 }
