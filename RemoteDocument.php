@@ -41,10 +41,10 @@ class RemoteDocument
     /**
      * Constructor
      *
-     * @param string      $documentUrl The final URL of the loaded document.
+     * @param null|string $documentUrl The final URL of the loaded document.
      * @param mixed       $document    The retrieved document (parsed or raw).
-     * @param string      $mediaType   The document's media type.
-     * @param string|null $contextUrl  The value of the context Link header
+     * @param null|string $mediaType   The document's media type.
+     * @param null|string $contextUrl  The value of the context Link header
      *                                 if available; otherwise null.
      */
     public function __construct($documentUrl = null, $document = null, $mediaType = null, $contextUrl = null)

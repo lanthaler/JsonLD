@@ -124,8 +124,8 @@ class EarlReportGenerator extends \PHPUnit_Util_Printer implements \PHPUnit_Fram
     /**
      * A test ended.
      *
-     * @param PHPUnit_Framework_Test $test
-     * @param float                  $time
+     * @param \PHPUnit_Framework_Test $test
+     * @param float                   $time
      */
     public function endTest(\PHPUnit_Framework_Test $test, $time)
     {

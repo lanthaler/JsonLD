@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD;
 
-
 /**
  * Interface for factories to create DocumentInterface objects
  *

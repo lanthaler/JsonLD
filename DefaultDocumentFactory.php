@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD;
 
-
 /**
  * DefaultDocumentFactory creates new Documents
  *

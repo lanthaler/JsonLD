@@ -77,7 +77,7 @@ class JsonLdException extends \RuntimeException
     const RECURSIVE_CONTEXT_INCLUSION = "recursive context inclusion";
 
     /**
-     * IRI An invalid base IRI has been detected, i.e., it is neither an
+     * An invalid base IRI has been detected, i.e., it is neither an
      * absolute IRI nor null.
      */
     const INVALID_BASE_IRI = "invalid base IRI";
@@ -218,6 +218,13 @@ class JsonLdException extends \RuntimeException
     const INVALID_REVERSE_PROPERTY_VALUE = "invalid reverse property value";
 
     /**
+     * The JSON-LD snippet that triggered the error
+     *
+     * @var null|string
+     */
+    private $snippet;
+
+    /**
      * The document that triggered the error
      *
      * @var null|string
@@ -234,11 +241,11 @@ class JsonLdException extends \RuntimeException
     /**
      * Constructor.
      *
-     * @param string    $code     The error code
-     * @param string    $message  The error message
-     * @param mixed     $snippet  The code snippet
-     * @param string    $document The document that triggered the error
-     * @param Exception $previous The previous exception
+     * @param string          $code     The error code
+     * @param null|string     $message  The error message
+     * @param null|mixed      $snippet  The code snippet
+     * @param null|string     $document The document that triggered the error
+     * @param null|\Exception $previous The previous exception
      */
     public function __construct($code, $message = null, $snippet = null, $document = null, \Exception $previous = null)
     {

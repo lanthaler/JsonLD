@@ -52,7 +52,7 @@ class Quad
      * @param IRI       $subject  The subject.
      * @param IRI       $property The property.
      * @param Value|IRI $object   The object.
-     * @param IRI       $graph    The graph.
+     * @param null|IRI  $graph    The graph.
      *
      * @throws InvalidArgumentException If the object parameter has a wrong type
      */
@@ -133,7 +133,7 @@ class Quad
     /**
      * Set the graph
      *
-     * @param IRI $graph The graph
+     * @param null|IRI $graph The graph
      */
     public function setGraph(IRI $graph = null)
     {

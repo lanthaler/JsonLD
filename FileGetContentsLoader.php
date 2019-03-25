@@ -17,27 +17,22 @@ use ML\IRI\IRI;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class FileGetContentsLoader
+class FileGetContentsLoader implements DocumentLoaderInterface
 {
     /**
-     * Loads a remote document or context
-     *
-     * @param string $url The URL of the document to load.
-     *
-     * @return RemoteDocument The remote document.
-     *
-     * @throws JsonLdException If loading the document failed.
+     * {@inheritdoc}
      */
-    public static function loadDocument($url)
+    public function loadDocument($url)
     {
         // if input looks like a file, try to retrieve it
         $input = trim($url);
-        if (false == (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
+        if (false === (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
             $remoteDocument = new RemoteDocument($url);
 
             $streamContextOptions = array(
               'method'  => 'GET',
-              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n",
+              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n"
+                           . "User-Agent: lanthaler JsonLD\r\n",
               'timeout' => Processor::REMOTE_TIMEOUT
             );
 
@@ -73,14 +68,16 @@ class FileGetContentsLoader
 
             // Extract HTTP Link headers
             $linkHeaderValues = array();
-            for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
-                if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
-                    $value = substr($http_response_header[$i], 5);
-                    $linkHeaderValues[] = $value;
+            if (is_array($http_response_header)) {
+                for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
+                    if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
+                        $value = substr($http_response_header[$i], 5);
+                        $linkHeaderValues[] = $value;
+                    }
                 }
             }
 
-            $linkHeaderValues = self::parseContextLinkHeaders($linkHeaderValues, new IRI($url));
+            $linkHeaderValues = $this->parseContextLinkHeaders($linkHeaderValues, new IRI($url));
 
             if (count($linkHeaderValues) === 1) {
                 $remoteDocument->contextUrl = reset($linkHeaderValues);
@@ -125,11 +122,11 @@ class FileGetContentsLoader
      * Parse HTTP Link headers
      *
      * @param array $values  An array of HTTP Link header values
-     * @param  IRI  $baseIRI The document's URL (used to expand relative URLs to absolutes)
+     * @param  IRI  $baseIri The document's URL (used to expand relative URLs to absolutes)
      *
      * @return array An array of parsed HTTP Link headers
      */
-    private static function parseContextLinkHeaders(array $values, IRI $baseIri)
+    private function parseContextLinkHeaders(array $values, IRI $baseIri)
     {
         // Separate multiple links contained in a single header value
         for ($i = 0, $total = count($values); $i < $total; $i++) {
