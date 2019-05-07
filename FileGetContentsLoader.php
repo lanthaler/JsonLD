@@ -53,7 +53,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                         $remoteDocument->documentUrl = $msg;
                         $remoteDocument->mediaType = null;
 
-                        $httpHeadersOffset = count($http_response_header);
+                        $httpHeadersOffset = isset($http_response_header) ? count($http_response_header) : 0;
                     }
                 }
             ));
