@@ -140,8 +140,6 @@ class FileGetContentsLoader implements DocumentLoaderInterface
 
             if ('application/ld+json' === $remoteDocument->mediaType) {
                 $remoteDocument->contextUrl = null;
-            } elseif ('application/octet-stream' === $remoteDocument->mediaType) {
-                $remoteDocument->contextUrl = null;
             } elseif (('application/json' !== $remoteDocument->mediaType) &&
                 (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))) {
                 throw new JsonLdException(
