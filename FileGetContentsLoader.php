@@ -27,95 +27,134 @@ class FileGetContentsLoader implements DocumentLoaderInterface
         // if input looks like a file, try to retrieve it
         $input = trim($url);
         if (false === (isset($input[0]) && ("{" === $input[0]) || ("[" === $input[0]))) {
-            $remoteDocument = new RemoteDocument($url);
-
-            $streamContextOptions = array(
-              'method'  => 'GET',
-              'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n"
-                           . "User-Agent: lanthaler JsonLD\r\n",
-              'timeout' => Processor::REMOTE_TIMEOUT
-            );
-
-            $context = stream_context_create(array(
-                'http' => $streamContextOptions,
-                'https' => $streamContextOptions
-            ));
-
-            $httpHeadersOffset = 0;
-
-            stream_context_set_params($context, array('notification' =>
-                function ($code, $severity, $msg, $msgCode, $bytesTx, $bytesMax) use (
-                    &$remoteDocument, &$http_response_header, &$httpHeadersOffset
-                ) {
-                    if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
-                        $remoteDocument->mediaType = $msg;
-                    } elseif ($code === STREAM_NOTIFY_REDIRECTED) {
-                        $remoteDocument->documentUrl = $msg;
-                        $remoteDocument->mediaType = null;
-
-                        $httpHeadersOffset = count($http_response_header);
-                    }
-                }
-            ));
-
-            if (false === ($input = @file_get_contents($url, false, $context))) {
-                throw new JsonLdException(
-                    JsonLdException::LOADING_DOCUMENT_FAILED,
-                    sprintf('Unable to load the remote document "%s".', $url),
-                    $http_response_header
-                );
-            }
-
-            // Extract HTTP Link headers
-            $linkHeaderValues = array();
-            if (is_array($http_response_header)) {
-                for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
-                    if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
-                        $value = substr($http_response_header[$i], 5);
-                        $linkHeaderValues[] = $value;
-                    }
-                }
-            }
-
-            $linkHeaderValues = $this->parseContextLinkHeaders($linkHeaderValues, new IRI($url));
-
-            if (count($linkHeaderValues) === 1) {
-                $remoteDocument->contextUrl = reset($linkHeaderValues);
-            } elseif (count($linkHeaderValues) > 1) {
-                throw new JsonLdException(
-                    JsonLdException::MULTIPLE_CONTEXT_LINK_HEADERS,
-                    'Found multiple contexts in HTTP Link headers',
-                    $http_response_header
-                );
-            }
-
-            // If we got a media type, we verify it
-            if ($remoteDocument->mediaType) {
-                // Drop any media type parameters such as profiles
-                if (false !== ($pos = strpos($remoteDocument->mediaType, ';'))) {
-                    $remoteDocument->mediaType = substr($remoteDocument->mediaType, 0, $pos);
-                }
-
-                $remoteDocument->mediaType = trim($remoteDocument->mediaType);
-
-                if ('application/ld+json' === $remoteDocument->mediaType) {
-                    $remoteDocument->contextUrl = null;
-                } elseif (('application/json' !== $remoteDocument->mediaType) &&
-                    (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))) {
-                    throw new JsonLdException(
-                        JsonLdException::LOADING_DOCUMENT_FAILED,
-                        'Invalid media type',
-                        $remoteDocument->mediaType
-                    );
-                }
-            }
-
-            $remoteDocument->document = Processor::parse($input);
-
-            return $remoteDocument;
+            return $this->retrieveRemoteDocument($url);
         }
 
         return new RemoteDocument($url, Processor::parse($input));
+    }
+
+    protected function retrieveRemoteDocument($url)
+    {
+        $remoteDocument = new RemoteDocument($url);
+
+        $streamContextOptions = array(
+          'method'  => 'GET',
+          'header'  => "Accept: application/ld+json, application/json; q=0.9, */*; q=0.1\r\n"
+                       . "User-Agent: lanthaler JsonLD\r\n",
+          'timeout' => Processor::REMOTE_TIMEOUT
+        );
+
+        $context = stream_context_create(array(
+            'http' => $streamContextOptions,
+            'https' => $streamContextOptions
+        ));
+
+        $httpHeadersOffset = 0;
+
+        stream_context_set_params($context, array('notification' =>
+            function ($code, $severity, $msg, $msgCode, $bytesTx, $bytesMax) use (
+                &$remoteDocument, &$http_response_header, &$httpHeadersOffset
+            ) {
+                if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
+                    $remoteDocument->mediaType = $msg;
+                } elseif ($code === STREAM_NOTIFY_REDIRECTED) {
+                    $remoteDocument->documentUrl = $msg;
+                    $remoteDocument->mediaType = null;
+
+                    $httpHeadersOffset = count($http_response_header);
+                }
+            }
+        ));
+
+        if (false === ($input = @file_get_contents($url, false, $context))) {
+            throw new JsonLdException(
+                JsonLdException::LOADING_DOCUMENT_FAILED,
+                sprintf('Unable to load the remote document "%s".', $url),
+                $http_response_header
+            );
+        }
+
+        // Extract HTTP Link headers
+        $linkHeaderValues = array();
+        if (is_array($http_response_header)) {
+            for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
+                if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
+                    $value = substr($http_response_header[$i], 5);
+                    $linkHeaderValues = array_merge($linkHeaderValues, explode(',', $value));
+                }
+            }
+        }
+
+        // Uh-oh - schema.org does no longer supports content negotiation!
+        // This re-routes the request to an appropriate resource as specified by the 'Link' header.
+        $base = new IRI($url);
+
+        foreach ($linkHeaderValues as $value) {
+            if (preg_match("/<(.[^>]+)>;/", $value, $uri)) {
+                $iri = new IRI($uri[1]);
+
+                $link = array('uri' => $iri->isAbsolute() ? $uri[1] : (string) $base->resolve($iri));
+
+                preg_match_all("/;\s?([A-z][^,=]+)=\"(.[^\"]+)\"/", $value, $parameters);
+
+                if (count($parameters) == 3) {
+                    $keys = $parameters[1];
+                    $values = $parameters[2];
+
+                    for ($i=0; $i < count($keys); $i++) {
+                        $link[trim($keys[$i])] = trim($values[$i]);
+                    }
+                }
+
+                if (isset($link['rel']) && isset($link['type']) && ($link['rel'] === 'alternate')) {
+                    switch($link['type']) {
+                        case 'application/ld+json':
+                        case 'application/json':
+                            return $this->retrieveRemoteDocument($link['uri']);
+                            break;
+                    }
+                }
+            }
+        }
+
+        $linkHeaderValues = $this->parseContextLinkHeaders($linkHeaderValues, new IRI($url));
+
+        if (count($linkHeaderValues) === 1) {
+            $remoteDocument->contextUrl = reset($linkHeaderValues);
+        } elseif (count($linkHeaderValues) > 1) {
+            throw new JsonLdException(
+                JsonLdException::MULTIPLE_CONTEXT_LINK_HEADERS,
+                'Found multiple contexts in HTTP Link headers',
+                $http_response_header
+            );
+        }
+
+        // If we got a media type, we verify it
+        if ($remoteDocument->mediaType) {
+            // Drop any media type parameters such as profiles
+            if (false !== ($pos = strpos($remoteDocument->mediaType, ';'))) {
+                $remoteDocument->mediaType = substr($remoteDocument->mediaType, 0, $pos);
+            }
+
+            $remoteDocument->mediaType = trim($remoteDocument->mediaType);
+
+            if ('application/ld+json' === $remoteDocument->mediaType) {
+                $remoteDocument->contextUrl = null;
+            } elseif ('application/octet-stream' === $remoteDocument->mediaType) {
+                $remoteDocument->contextUrl = null;
+            } elseif (('application/json' !== $remoteDocument->mediaType) &&
+                (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))) {
+                throw new JsonLdException(
+                    JsonLdException::LOADING_DOCUMENT_FAILED,
+                    'Invalid media type',
+                    $remoteDocument->mediaType
+                );
+            }
+        }
+
+        $remoteDocument->document = Processor::parse($input);
+
+        return $remoteDocument;
     }
 
     /**
