@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD\Test;
 
+use ML\JsonLD\JsonLD;
 use ML\JsonLD\NQuads;
 
 /**
@@ -27,5 +28,22 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
     {
         $nquads = new NQuads();
         $nquads->parse('Invalid NQuads file');
+    }
+
+    /**
+     * Tests escaping
+     */
+    public function testEscaping()
+    {
+        $doc = '<http://example.com>';
+        $doc .= ' <http://schema.org/description>';
+        $doc .= ' "String with line-break \n and quote (\")" .';
+        $doc .= "\n";
+
+        $nquads = new NQuads();
+        $parsed = JsonLD::fromRdf($nquads->parse($doc));
+        $serialized = $nquads->serialize(JsonLD::toRdf($parsed));
+
+        $this->assertSame($doc, $serialized);
     }
 }
