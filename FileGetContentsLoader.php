@@ -139,7 +139,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
      * @param  array  $headers  An array of HTTP Link headers
      * @param  IRI  $baseIri The document's URL (used to expand relative URLs to absolutes)
      * 
-     * @return string|null an application/ld+json URI (if available) 
+     * @return array  $links  A structured array of Link header data
      */
     protected function parseLinkHeaders(array $headers, IRI $baseIri)
     {
