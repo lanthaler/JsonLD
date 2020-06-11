@@ -40,9 +40,9 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersExactsValues()
     {
-        $headers = [ 
+        $headers = array(
             '<https://www.google.com>; param1=foo; param2="bar";',
-        ];
+       );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -53,9 +53,9 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersTrimsValues()
     {
-        $headers = [ 
+        $headers = array(
             '< https://www.google.com  >; param1= foo ; param2=" bar ";',
-        ];
+       );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -66,10 +66,10 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersWithMultipleHeaders()
     {
-        $headers = [ 
+        $headers = array(
             '<https://www.google.com>; param1=foo; param2=bar;',
             '<https://www.yahoo.com>; param1=fizz; param2=buzz;',
-        ];
+       );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -78,7 +78,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersWithMultipleLinks()
     {
-        $headers = [ '<https://www.google.com>; param1=foo; param2=bar;, <https://www.yahoo.com>; param1=fizz; param2=buzz;' ];
+        $headers = array('<https://www.google.com>; param1=foo; param2=bar;, <https://www.yahoo.com>; param1=fizz; param2=buzz;');
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -89,7 +89,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersConvertsRelativeLinksToAbsolute()
     {
-        $headers = [ '</foo/bar>;' ];
+        $headers = array('</foo/bar>;');
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
         $this->assertEquals('https://www.google.com/foo/bar', $parsed[0]['uri']);
     }
