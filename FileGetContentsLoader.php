@@ -141,7 +141,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
      * 
      * @return array  $links  A structured array of Link header data
      */
-    protected function parseLinkHeaders(array $headers, IRI $baseIri)
+    public function parseLinkHeaders(array $headers, IRI $baseIri)
     {
         $links = array();
 
