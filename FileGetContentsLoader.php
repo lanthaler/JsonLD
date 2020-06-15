@@ -116,7 +116,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                     // using the alternate link relation with type="application/ld+json"'
                     if (count($altLinkHeaders) === 1) {
                         return $this->loadDocument($altLinkHeaders[0]['uri']);
-                    } elseif(count($altLinkHeaders > 1)) {
+                    } elseif(count($altLinkHeaders) > 1) {
                         throw new JsonLdException(
                             JsonLdException::LOADING_DOCUMENT_FAILED,
                             'Received multiple alternate link headers'
@@ -143,40 +143,52 @@ class FileGetContentsLoader implements DocumentLoaderInterface
     }
 
     /**
-     * Attempts to retrieve any Link header being offered for application/ld+json content negotiation.
+     * Parses Link headers.
      *
-     * @param  array  $headers  An array of HTTP Link headers
+     * @param  array  $values  An array of HTTP Link headers
      * @param  IRI  $baseIri The document's URL (used to expand relative URLs to absolutes)
      * 
      * @return array  $links  A structured array of Link header data
      */
-    public function parseLinkHeaders(array $headers, IRI $baseIri)
+    public function parseLinkHeaders(array $values, IRI $baseIri)
     {
-        $links = array();
-
-        foreach ($headers as $header) { // Foreach individual Link header
-            foreach (explode(',', $header) as $value) { // Handle case of multiple links within a single Link header
-                if (preg_match("/<(.[^>]+)>;/", $value, $uri)) {
-                    $iri = new IRI(trim($uri[1]));
-
-                    $link = array('uri' => $iri->isAbsolute() ? (string) $iri : (string) $baseIri->resolve($iri));
-
-                    preg_match_all("/;\s?([A-z][^,=]+)=\"?(.[^\";]+)/", $value, $parameters);
-
-                    if (count($parameters) == 3) {
-                        $keys = $parameters[1];
-                        $values = $parameters[2];
-
-                        for ($i=0; $i < count($keys); $i++) {
-                            $link[trim($keys[$i])] = trim($values[$i]);
-                        }
-                    }
-
-                    $links[] = $link;
+        // Separate multiple links contained in a single header value
+        for ($i = 0, $total = count($values); $i < $total; $i++) {
+            if (strpos($values[$i], ',') !== false) {
+                foreach (preg_split('/,(?=([^"]*"[^"]*")*[^"]*$)/', $values[$i]) as $v) {
+                    $values[] = trim($v);
                 }
+                unset($values[$i]);
             }
         }
 
-        return $links;
+        $contexts = $matches = array();
+        $trimWhitespaceCallback = function ($str) {
+            return trim($str, "\"'  \n\t");
+        };
+
+        // Split the header in key-value pairs
+        $result = array();
+
+        foreach ($values as $val) {
+            $part = array();
+
+            foreach (preg_split('/;(?=([^"]*"[^"]*")*[^"]*$)/', $val) as $kvp) {
+                preg_match_all('/<[^>]+>|[^=]+/', $kvp, $matches);
+                $pieces = array_map($trimWhitespaceCallback, $matches[0]);
+
+                if (count($pieces) > 1) {
+                    $part[$pieces[0]] = $pieces[1];
+                } elseif(count($pieces) === 1) {
+                    $part['uri'] = (string) $baseIri->resolve(trim($pieces[0], '<> '));
+                }
+            }
+        
+            if (!empty($part)) {
+                $result[] = $part;
+            }
+        }
+
+        return $result;
     }
 }
