@@ -112,9 +112,18 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                             && ($link['rel'] === 'alternate') && ($link['type'] === 'application/ld+json'));
                     });
 
-                    if (count($altLinkHeaders) && $altLinkHeaders[0]['uri']) {
+                    // The spec states 'A response MUST NOT contain more than one HTTP Link Header
+                    // using the alternate link relation with type="application/ld+json"'
+                    if (count($altLinkHeaders) === 1) {
                         return $this->loadDocument($altLinkHeaders[0]['uri']);
-                    } elseif (('application/json' !== $remoteDocument->mediaType) && 
+                    } elseif(count($altLinkHeaders > 1)) {
+                        throw new JsonLdException(
+                            JsonLdException::LOADING_DOCUMENT_FAILED,
+                            'Received multiple alternate link headers'
+                        );
+                    } 
+
+                    if (('application/json' !== $remoteDocument->mediaType) && 
                         (0 !== substr_compare($remoteDocument->mediaType, '+json', -5))) {
                         throw new JsonLdException(
                             JsonLdException::LOADING_DOCUMENT_FAILED,
