@@ -34,7 +34,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
     {
         unset($iri);
         unset($this->loader);
-        
+
         parent::tearDown();
     }
 
@@ -42,7 +42,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
     {
         $headers = array(
             '<https://www.foobar.com>; param1=foo; param2="bar";',
-       );
+        );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -55,7 +55,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
     {
         $headers = array(
             '< https://www.foobar.com  >; param1= foo ; param2=" bar ";',
-       );
+        );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -69,7 +69,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
         $headers = array(
             '<https://www.foobar.com>; param1=foo; param2=bar;',
             '<https://www.fizzbuzz.net>; param1=fizz; param2=buzz;',
-       );
+        );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -78,7 +78,10 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
 
     public function testParseLinkHeadersWithMultipleLinks()
     {
-        $headers = array('<https://www.foobar.com>; param1=foo; param2=bar;, <https://www.fizzbuzz.net>; param1=fizz; param2=buzz;');
+        $headers = array(
+            '<https://www.foobar.com>; param1=foo; param2=bar;, '
+                . '<https://www.fizzbuzz.net>; param1=fizz; param2=buzz;'
+        );
 
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
 
@@ -93,5 +96,4 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
         $parsed = $this->loader->parseLinkHeaders($headers, $this->iri);
         $this->assertEquals('https://www.foobar.com/foo/bar', $parsed[0]['uri']);
     }
-
 }
