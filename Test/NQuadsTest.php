@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD\Test;
 
+use ML\JsonLD\Exception\InvalidQuadException;
 use ML\JsonLD\JsonLD;
 use ML\JsonLD\NQuads;
 
@@ -45,5 +46,101 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
         $serialized = $nquads->serialize(JsonLD::toRdf($parsed));
 
         $this->assertSame($doc, $serialized);
+    }
+
+    /**
+     * Tests parse
+     */
+    public function testParseBlankNodes()
+    {
+        $nquads = new NQuads();
+
+        /*
+         * type 1
+         */
+        $blankNodeType1 = '_:b1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $result = $nquads->parse($blankNodeType1);
+        self::assertCount(1, $result);
+
+        /*
+         * type 2 (containing _)
+         */
+        $blankNodeType2 = '_:b_1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $result = $nquads->parse($blankNodeType2);
+        self::assertCount(1, $result);
+
+        /*
+         * type 3 (containing .)
+         */
+        $blankNodeType3 = '_:b.1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $result = $nquads->parse($blankNodeType3);
+        self::assertCount(1, $result);
+
+        /*
+         * type 4 (containing -)
+         */
+        $blankNodeType4 = '_:b-1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $result = $nquads->parse($blankNodeType4);
+        self::assertCount(1, $result);
+    }
+
+    /**
+     * Parser has to fail if a - is at the beginning of the blank node label.
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     * @see https://www.w3.org/TR/n-quads/#BNodes
+     */
+    public function testParseBlankNodesDashAtTheBeginning()
+    {
+        $blankNodeType1 = '_:-b1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $nquads = new NQuads();
+        $nquads->parse($blankNodeType1);
+    }
+
+    /**
+     * Parser has to fail if a . is at the beginning of the blank node label.
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     * @see https://www.w3.org/TR/n-quads/#BNodes
+     */
+    public function testParseBlankNodesPointAtTheBeginning()
+    {
+        $blankNodeType1 = '_:.b1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $nquads = new NQuads();
+        $nquads->parse($blankNodeType1);
+    }
+
+    /**
+     * Parser has to fail if a . is at the end of the blank node label.
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     * @see https://www.w3.org/TR/n-quads/#BNodes
+     */
+    public function testParseBlankNodesPointAtTheEnd()
+    {
+        $blankNodeType1 = '_:b1. <http://ex/1> "Test" .'.PHP_EOL;
+
+        $nquads = new NQuads();
+        $nquads->parse($blankNodeType1);
+    }
+
+    /**
+     * Parser has to fail if a _ is at the beginning of the blank node label.
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     * @see https://www.w3.org/TR/n-quads/#BNodes
+     */
+    public function testParseBlankNodesUnderlineAtTheBeginning()
+    {
+        $blankNodeType1 = '_:_b1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        $nquads = new NQuads();
+        $nquads->parse($blankNodeType1);
     }
 }
