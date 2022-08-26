@@ -58,13 +58,21 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
         /*
          * type 1
          */
+        $blankNodeType1 = '_:b <http://ex/1> "Test" .'.PHP_EOL;
+
+        $result = $nquads->parse($blankNodeType1);
+        self::assertCount(1, $result);
+
+        /*
+         * type 2
+         */
         $blankNodeType1 = '_:b1 <http://ex/1> "Test" .'.PHP_EOL;
 
         $result = $nquads->parse($blankNodeType1);
         self::assertCount(1, $result);
 
         /*
-         * type 2 (containing _)
+         * type 3 containing _
          */
         $blankNodeType2 = '_:b_1 <http://ex/1> "Test" .'.PHP_EOL;
 
@@ -72,7 +80,7 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
         self::assertCount(1, $result);
 
         /*
-         * type 3 (containing .)
+         * type 4: containing .
          */
         $blankNodeType3 = '_:b.1 <http://ex/1> "Test" .'.PHP_EOL;
 
@@ -80,9 +88,16 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
         self::assertCount(1, $result);
 
         /*
-         * type 4 (containing -)
+         * type 5: containing -
          */
         $blankNodeType4 = '_:b-1 <http://ex/1> "Test" .'.PHP_EOL;
+
+        /*
+         * type 6: containing ‿
+         *
+         * https://www.fileformat.info/info/unicode/char/203f/index.htm
+         */
+        $blankNodeType4 = '_:b‿1 <http://ex/1> "Test" .'.PHP_EOL;
 
         $result = $nquads->parse($blankNodeType4);
         self::assertCount(1, $result);

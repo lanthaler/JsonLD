@@ -80,7 +80,10 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
         $iri = '(?:<([^>]*)>)';
 
         // blank node labels based on https://www.w3.org/TR/n-quads/#BNodes
-        $bnode = '(_:(?:[a-z0-9A-Z]{1}[A-Za-z0-9\_\.\-]*[a-zA-Z0-9]{1}))';
+        $bnode = '(_:(?:';
+        $bnode .= '([a-z0-9A-Z]{1}';
+        $bnode .= '[A-Za-z0-9\_\.\-\x{00B7}\x{203F}-\x{2400}]*[a-zA-Z0-9{00B7}\x{203F}-\x{2040}]{1})';
+        $bnode .= '|[a-zA-Z_]))';
 
         $plain = '"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"';
         $datatype = "\\^\\^$iri";
@@ -96,7 +99,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
 
         // full regexes
         $eoln = '/(?:(\r\n)|[\n\r])/';
-        $quadRegex = "/^$ws*$subject$property$object$graph?$ws*.$ws*$/";
+        $quadRegex = "/^$ws*$subject$property$object$graph?$ws*.$ws*$/u";
         $ignoreRegex = "/^$ws*(?:$comment)?$/";
 
         // build RDF statements
