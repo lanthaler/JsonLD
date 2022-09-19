@@ -50,56 +50,50 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
 
     /**
      * Tests parse
+     *
+     * This test checks handling of certain special charaters like _ which can be part of bnode name.
      */
     public function testParseBlankNodes()
     {
         $nquads = new NQuads();
 
         /*
-         * type 1
+         * type 1 - just a letter
          */
-        $blankNodeType1 = '_:b <http://ex/1> "Test" .'.PHP_EOL;
+        $blankNodeType = '_:b <http://ex/1> "Test" .'.PHP_EOL;
 
-        $result = $nquads->parse($blankNodeType1);
+        $result = $nquads->parse($blankNodeType);
         self::assertCount(1, $result);
 
         /*
-         * type 2
+         * type 2 - letter + number
          */
-        $blankNodeType1 = '_:b1 <http://ex/1> "Test" .'.PHP_EOL;
+        $blankNodeType = '_:b1 <http://ex/1> "Test" .'.PHP_EOL;
 
-        $result = $nquads->parse($blankNodeType1);
+        $result = $nquads->parse($blankNodeType);
         self::assertCount(1, $result);
 
         /*
          * type 3 containing _
          */
-        $blankNodeType2 = '_:b_1 <http://ex/1> "Test" .'.PHP_EOL;
+        $blankNodeType = '_:b_1 <http://ex/1> "Test" .'.PHP_EOL;
 
-        $result = $nquads->parse($blankNodeType2);
+        $result = $nquads->parse($blankNodeType);
         self::assertCount(1, $result);
 
         /*
          * type 4: containing .
          */
-        $blankNodeType3 = '_:b.1 <http://ex/1> "Test" .'.PHP_EOL;
+        $blankNodeType = '_:b.1 <http://ex/1> "Test" .'.PHP_EOL;
 
-        $result = $nquads->parse($blankNodeType3);
+        $result = $nquads->parse($blankNodeType);
         self::assertCount(1, $result);
 
         /*
          * type 5: containing -
          */
-        $blankNodeType4 = '_:b-1 <http://ex/1> "Test" .'.PHP_EOL;
-
-        /*
-         * type 6: containing ‿
-         *
-         * https://www.fileformat.info/info/unicode/char/203f/index.htm
-         */
-        $blankNodeType4 = '_:b‿1 <http://ex/1> "Test" .'.PHP_EOL;
-
-        $result = $nquads->parse($blankNodeType4);
+        $blankNodeType = '_:b-1 <http://ex/1> "Test" .'.PHP_EOL;
+        $result = $nquads->parse($blankNodeType);
         self::assertCount(1, $result);
     }
 
