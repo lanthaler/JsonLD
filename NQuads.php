@@ -98,7 +98,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
 
         // full regexes
         $eoln = '/(?:(\r\n)|[\n\r])/';
-        $quadRegex = "/^$ws*$subject$property$object$graph?$ws*.$ws*$/u";
+        $quadRegex = "/^$ws*$subject$property$object$graph?$ws*.$ws*$/";
         $ignoreRegex = "/^$ws*(?:$comment)?$/";
 
         // build RDF statements
