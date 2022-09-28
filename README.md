@@ -1,4 +1,4 @@
-JsonLD [![Build Status](https://secure.travis-ci.org/lanthaler/JsonLD.png?branch=master)](http://travis-ci.org/lanthaler/JsonLD)
+JsonLD [![Continuous integration](https://github.com/lanthaler/JsonLD/actions/workflows/ci.yaml/badge.svg)](https://github.com/lanthaler/JsonLD/actions/workflows/ci.yaml)
 ==============
 
 JsonLD is a fully conforming [JSON-LD](http://www.w3.org/TR/json-ld/)
