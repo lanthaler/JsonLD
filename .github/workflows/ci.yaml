@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      extensions: intl, mbstring
+      extensions: intl, mbstring, xdebug
 
     strategy:
       matrix:
