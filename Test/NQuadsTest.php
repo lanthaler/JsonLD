@@ -9,7 +9,6 @@
 
 namespace ML\JsonLD\Test;
 
-use ML\JsonLD\Exception\InvalidQuadException;
 use ML\JsonLD\JsonLD;
 use ML\JsonLD\NQuads;
 
