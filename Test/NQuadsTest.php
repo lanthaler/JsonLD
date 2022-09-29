@@ -21,7 +21,7 @@ use ML\JsonLD\NQuads;
 class NQuadsTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * Tests the expansion API
+     * Tests that parsing an invalid NQuad file fails
      *
      * @expectedException \ML\JsonLD\Exception\InvalidQuadException
      */
@@ -49,107 +49,59 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Tests parse
-     *
-     * This test checks handling of certain special charaters like _ which can be part of bnode name.
+     * Tests blank node label parsing
      */
     public function testParseBlankNodes()
     {
         $nquads = new NQuads();
 
-        /*
-         * type 1 - just a letter
-         */
-        $blankNodeType = '_:b <http://ex/1> "Test" .'.PHP_EOL;
+        $this->assertNotEmpty($nquads->parse('_:b <http://ex/1> "Test" .'), 'just a letter');
 
-        $result = $nquads->parse($blankNodeType);
-        self::assertCount(1, $result);
+        $this->assertNotEmpty($nquads->parse('_:b1 <http://ex/1> "Test" .'), 'letter and number');
 
-        /*
-         * type 2 - letter + number
-         */
-        $blankNodeType = '_:b1 <http://ex/1> "Test" .'.PHP_EOL;
+        $this->assertNotEmpty($nquads->parse('_:_b1 <http://ex/1> "Test" .'), 'beginning _');
 
-        $result = $nquads->parse($blankNodeType);
-        self::assertCount(1, $result);
+        $this->assertNotEmpty($nquads->parse('_:b_1 <http://ex/1> "Test" .'), 'containing _');
 
-        /*
-         * type 3 containing _
-         */
-        $blankNodeType = '_:b_1 <http://ex/1> "Test" .'.PHP_EOL;
+        $this->assertNotEmpty($nquads->parse('_:b1_ <http://ex/1> "Test" .'), 'ending _');
 
-        $result = $nquads->parse($blankNodeType);
-        self::assertCount(1, $result);
+        $this->assertNotEmpty($nquads->parse('_:b-1 <http://ex/1> "Test" .'), 'containing -');
 
-        /*
-         * type 4: containing .
-         */
-        $blankNodeType = '_:b.1 <http://ex/1> "Test" .'.PHP_EOL;
+        $this->assertNotEmpty($nquads->parse('_:b-1 <http://ex/1> "Test" .'), 'ending -');
 
-        $result = $nquads->parse($blankNodeType);
-        self::assertCount(1, $result);
-
-        /*
-         * type 5: containing -
-         */
-        $blankNodeType = '_:b-1 <http://ex/1> "Test" .'.PHP_EOL;
-        $result = $nquads->parse($blankNodeType);
-        self::assertCount(1, $result);
+        $this->assertNotEmpty($nquads->parse('_:b.1 <http://ex/1> "Test" .'), 'containing .');
     }
 
     /**
-     * Parser has to fail if a - is at the beginning of the blank node label.
+     * Tests that parsing fails for blank node labels beginning with "-"
      *
      * @expectedException \ML\JsonLD\Exception\InvalidQuadException
-     * @see https://www.w3.org/TR/n-quads/#BNodes
      */
-    public function testParseBlankNodesDashAtTheBeginning()
+    public function testParseBlankNodeDashAtTheBeginning()
     {
-        $blankNodeType1 = '_:-b1 <http://ex/1> "Test" .'.PHP_EOL;
-
         $nquads = new NQuads();
-        $nquads->parse($blankNodeType1);
+        $nquads->parse('_:-b1 <http://ex/1> "Test" .');
     }
 
     /**
-     * Parser has to fail if a . is at the beginning of the blank node label.
+     * Tests that parsing fails for blank node labels beginning with "."
      *
      * @expectedException \ML\JsonLD\Exception\InvalidQuadException
-     * @see https://www.w3.org/TR/n-quads/#BNodes
      */
-    public function testParseBlankNodesPointAtTheBeginning()
+    public function testParseBlankNodePeriodAtTheBeginning()
     {
-        $blankNodeType1 = '_:.b1 <http://ex/1> "Test" .'.PHP_EOL;
-
         $nquads = new NQuads();
-        $nquads->parse($blankNodeType1);
+        $nquads->parse('_:.b1 <http://ex/1> "Test" .');
     }
 
     /**
-     * Parser has to fail if a . is at the end of the blank node label.
+     * Tests that parsing fails for blank node labels ending with "."
      *
      * @expectedException \ML\JsonLD\Exception\InvalidQuadException
-     * @see https://www.w3.org/TR/n-quads/#BNodes
      */
-    public function testParseBlankNodesPointAtTheEnd()
+    public function testParseBlankNodePeriodAtTheEnd()
     {
-        $blankNodeType1 = '_:b1. <http://ex/1> "Test" .'.PHP_EOL;
-
         $nquads = new NQuads();
-        $nquads->parse($blankNodeType1);
-    }
-
-    /**
-     * Parser has to fail if a _ is at the beginning of the blank node label.
-     *
-     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
-     * @see https://www.w3.org/TR/n-quads/#BNodes
-     */
-    public function testParseBlankNodesUnderlineAtTheBeginning()
-    {
-        $blankNodeType1 = '_:_b1 <http://ex/1> "Test" .'.PHP_EOL;
-
-        $nquads = new NQuads();
-        $nquads->parse($blankNodeType1);
+        $nquads->parse('_:b1. <http://ex/1> "Test" .');
     }
 }

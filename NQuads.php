@@ -80,9 +80,7 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
         $iri = '(?:<([^>]*)>)';
 
         // blank node labels based on https://www.w3.org/TR/n-quads/#BNodes
-        $bnode = '(_:(?:';
-        $bnode .= '([a-z0-9A-Z]{1}[A-Za-z0-9\_\.\-]*[a-zA-Z0-9]{1})';
-        $bnode .= '|[a-zA-Z_]))';
+        $bnode = '(_:(?:[A-Za-z0-9_]|[A-Za-z0-9_][A-Za-z0-9_\-.]*[A-Za-z0-9_\-]))';
 
         $plain = '"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"';
         $datatype = "\\^\\^$iri";
