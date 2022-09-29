@@ -20,7 +20,7 @@ use ML\JsonLD\NQuads;
 class NQuadsTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * Tests the expansion API
+     * Tests that parsing an invalid NQuad file fails
      *
      * @expectedException \ML\JsonLD\Exception\InvalidQuadException
      */
@@ -45,5 +45,62 @@ class NQuadsTest extends \PHPUnit_Framework_TestCase
         $serialized = $nquads->serialize(JsonLD::toRdf($parsed));
 
         $this->assertSame($doc, $serialized);
+    }
+
+    /**
+     * Tests blank node label parsing
+     */
+    public function testParseBlankNodes()
+    {
+        $nquads = new NQuads();
+
+        $this->assertNotEmpty($nquads->parse('_:b <http://ex/1> "Test" .'), 'just a letter');
+
+        $this->assertNotEmpty($nquads->parse('_:b1 <http://ex/1> "Test" .'), 'letter and number');
+
+        $this->assertNotEmpty($nquads->parse('_:_b1 <http://ex/1> "Test" .'), 'beginning _');
+
+        $this->assertNotEmpty($nquads->parse('_:b_1 <http://ex/1> "Test" .'), 'containing _');
+
+        $this->assertNotEmpty($nquads->parse('_:b1_ <http://ex/1> "Test" .'), 'ending _');
+
+        $this->assertNotEmpty($nquads->parse('_:b-1 <http://ex/1> "Test" .'), 'containing -');
+
+        $this->assertNotEmpty($nquads->parse('_:b-1 <http://ex/1> "Test" .'), 'ending -');
+
+        $this->assertNotEmpty($nquads->parse('_:b.1 <http://ex/1> "Test" .'), 'containing .');
+    }
+
+    /**
+     * Tests that parsing fails for blank node labels beginning with "-"
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     */
+    public function testParseBlankNodeDashAtTheBeginning()
+    {
+        $nquads = new NQuads();
+        $nquads->parse('_:-b1 <http://ex/1> "Test" .');
+    }
+
+    /**
+     * Tests that parsing fails for blank node labels beginning with "."
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     */
+    public function testParseBlankNodePeriodAtTheBeginning()
+    {
+        $nquads = new NQuads();
+        $nquads->parse('_:.b1 <http://ex/1> "Test" .');
+    }
+
+    /**
+     * Tests that parsing fails for blank node labels ending with "."
+     *
+     * @expectedException \ML\JsonLD\Exception\InvalidQuadException
+     */
+    public function testParseBlankNodePeriodAtTheEnd()
+    {
+        $nquads = new NQuads();
+        $nquads->parse('_:b1. <http://ex/1> "Test" .');
     }
 }

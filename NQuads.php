@@ -78,7 +78,10 @@ class NQuads implements QuadSerializerInterface, QuadParserInterface
     {
         // define partial regexes
         $iri = '(?:<([^>]*)>)';
-        $bnode = '(_:(?:[A-Za-z0-9]+))';
+
+        // blank node labels based on https://www.w3.org/TR/n-quads/#BNodes
+        $bnode = '(_:(?:[A-Za-z0-9_]|[A-Za-z0-9_][A-Za-z0-9_\-.]*[A-Za-z0-9_\-]))';
+
         $plain = '"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"';
         $datatype = "\\^\\^$iri";
         $language = '(?:@([a-z]+(?:-[a-z0-9]+)*))';
