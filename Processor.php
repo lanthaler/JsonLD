@@ -391,7 +391,7 @@ class Processor
                 $this->expandKeywordValue($element, $activeprty, $expProperty, $value, $activectx, $frame);
 
                 continue;
-            } elseif (false === strpos($expProperty, ':')) {
+            } elseif ($expProperty !== null && false === strpos($expProperty, ':')) {
                 // the expanded property is neither a keyword nor an IRI
                 continue;
             }
@@ -2874,6 +2874,10 @@ class Processor
                 static::mergeIntoProperty($object, $property, $val, $alwaysArray, $unique);
             }
 
+            return;
+        }
+
+        if ($property === null) {
             return;
         }
 

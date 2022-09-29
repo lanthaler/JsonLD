@@ -11,13 +11,14 @@ namespace ML\JsonLD\Test;
 
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test LanguageTaggedString and TypedValue
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class ValueTest extends \PHPUnit_Framework_TestCase
+class ValueTest extends TestCase
 {
     /**
      * Tests LanguageTaggedString

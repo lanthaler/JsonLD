@@ -11,13 +11,14 @@ namespace ML\JsonLD\Test;
 
 use ML\JsonLD\JsonLD;
 use ML\JsonLD\NQuads;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Tests NQuads
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class NQuadsTest extends \PHPUnit_Framework_TestCase
+class NQuadsTest extends TestCase
 {
     /**
      * Tests that parsing an invalid NQuad file fails

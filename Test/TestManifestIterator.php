@@ -51,7 +51,7 @@ class TestManifestIterator implements \Iterator
     /**
      * Rewinds the TestManifestIterator to the first element.
      */
-    public function rewind()
+    public function rewind(): void
     {
         $this->key = 0;
     }
@@ -61,7 +61,7 @@ class TestManifestIterator implements \Iterator
      *
      * @return bool True if the current position is valid; otherwise, false.
      */
-    public function valid()
+    public function valid(): bool
     {
         return ($this->key < $this->numberTests);
     }
@@ -113,7 +113,7 @@ class TestManifestIterator implements \Iterator
     /**
      * Moves forward to next element.
      */
-    public function next()
+    public function next(): void
     {
         $this->key++;
     }

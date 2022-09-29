@@ -9,6 +9,8 @@
 
 namespace ML\JsonLD\Test;
 
+use PHPUnit\Framework\TestCase;
+
 /**
  * A JSON Test Case
  *
@@ -17,7 +19,7 @@ namespace ML\JsonLD\Test;
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-abstract class JsonTestCase extends \PHPUnit_Framework_TestCase
+abstract class JsonTestCase extends TestCase
 {
     /**
      * Asserts that two JSON structures are equal.

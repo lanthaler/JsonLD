@@ -17,13 +17,14 @@ use ML\JsonLD\Node;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 use ML\JsonLD\RdfConstants;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test the parsing of a JSON-LD document into a Graph.
  *
  * @author Markus Lanthaler <mail@markus-lanthaler.com>
  */
-class GraphTest extends \PHPUnit_Framework_TestCase
+class GraphTest extends TestCase
 {
     /**
      * The graph instance being used throughout the tests.
@@ -40,7 +41,7 @@ class GraphTest extends \PHPUnit_Framework_TestCase
     /**
      * Create the graph to test.
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $json = <<<JSON_LD_DOCUMENT
 {

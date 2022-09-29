@@ -20,7 +20,8 @@
     },
     "require-dev": {
         "json-ld/tests": "1.0",
-        "phpunit/phpunit": "^4"
+        "phpunit/phpunit": "^9",
+        "yoast/phpunit-polyfills": "^1.0"
     },
     "autoload": {
         "psr-4": {

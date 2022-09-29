@@ -287,7 +287,9 @@ class JsonLdException extends \RuntimeException
         $this->message = $this->rawMessage;
 
         $dot = false;
-        if ('.' === substr($this->message, -1)) {
+        if (null == $this->message) {
+            $this->message = '';
+        } elseif ('.' === substr($this->message, -1)) {
             $this->message = substr($this->message, 0, -1);
             $dot = true;
         }

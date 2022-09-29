@@ -11,18 +11,19 @@ namespace ML\JsonLD\Test;
 
 use ML\IRI\IRI;
 use ML\JsonLD\FileGetContentsLoader;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test the parsing of a JSON-LD document into a Document.
  */
-class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
+class FileGetContentsLoaderTest extends TestCase
 {
 
     protected $iri;
 
     protected $loader;
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
 
@@ -30,7 +31,7 @@ class FileGetContentsLoaderTest extends \PHPUnit_Framework_TestCase
         $this->loader = new FileGetContentsLoader;
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
         unset($iri);
         unset($this->loader);
