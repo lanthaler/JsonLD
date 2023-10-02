@@ -1599,6 +1599,32 @@ class Processor
                     unset($context->{'@language'});
                 }
 
+                if (property_exists($context, '@protected')) {
+                    if ((null !== $context->{'@protected'}) && (false === is_bool($context->{'@protected'}))) {
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_PROTECTED,
+                            'The value of @protected must be a bool.',
+                            $context
+                        );
+                    }
+
+                    $activectx['@protected'] = $context->{'@protected'};
+                    unset($context->{'@protected'});
+                }
+
+                if (property_exists($context, '@version')) {
+                    if ((null !== $context->{'@version'}) && (false === is_numeric($context->{'@version'}))) {
+                        throw new JsonLdException(
+                            JsonLdException::INVALID_VERSION,
+                            'The value of @version must be a float or integer.',
+                            $context
+                        );
+                    }
+
+                    $activectx['@version'] = $context->{'@version'};
+                    unset($context->{'@version'});
+                }
+
                 foreach ($context as $key => $value) {
                     unset($context->{$key});
                     unset($activectx[$key]);
