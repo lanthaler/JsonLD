@@ -95,6 +95,16 @@ class JsonLdException extends \RuntimeException
     const INVALID_DEFAULT_LANGUAGE = "invalid default language";
 
     /**
+     * The protected value is not a bool and thus invalid.
+     */
+    const INVALID_PROTECTED = "invalid protected value";
+
+    /**
+     * The version is not numeric and thus invalid.
+     */
+    const INVALID_VERSION = "invalid version";
+
+    /**
      * A keyword redefinition has been detected.
      */
     const KEYWORD_REDEFINITION = "keyword redefinition";
