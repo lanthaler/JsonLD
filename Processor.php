@@ -2232,7 +2232,7 @@ class Processor
      *
      * @return IRI Returns the IRI of the head of the list
      */
-    private function listToRdf(array $entries, array &$quads, IRI $graph = null)
+    private function listToRdf(array $entries, array &$quads, ?IRI $graph = null)
     {
         if (0 === count($entries)) {
             return new IRI(RdfConstants::RDF_NIL);
