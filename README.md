@@ -35,7 +35,7 @@ require('vendor/autoload.php');
 Of course, you can also download JsonLD as
 [ZIP archive](https://github.com/lanthaler/JsonLD/releases) from Github.
 
-JsonLD requires PHP 5.3 or later.
+JsonLD requires **PHP 8.1** or later.
 
 
 Usage

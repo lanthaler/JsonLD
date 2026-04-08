@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit backupGlobals="false"
-         backupStaticAttributes="false"
          colors="true"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
          processIsolation="false"
          stopOnFailure="false"
-         strict="true"
          bootstrap="./Test/bootstrap.php">
 
     <testsuites>
@@ -25,47 +20,6 @@
             </exclude>
         </whitelist>
     </filter>
-
-    <!-- Uncomment this section if you want to generate an EARL implementation report
-    <listeners>
-      <listener class="\ML\JsonLD\Test\EarlReportGenerator">
-        <arguments>
-          <array>
-            <element key="target">
-              <string>earl-report.jsonld</string>
-            </element>
-            <element key="project-name">
-              <string>JsonLD</string>
-            </element>
-            <element key="project-url">
-              <string>https://github.com/lanthaler/JsonLD</string>
-            </element>
-            <element key="project-homepage">
-              <string>https://github.com/lanthaler/JsonLD</string>
-            </element>
-            <element key="license-url">
-              <string>https://raw.github.com/lanthaler/JsonLD/master/LICENSE</string>
-            </element>
-            <element key="project-description">
-              <string>JSON-LD processor for PHP</string>
-            </element>
-            <element key="programming-language">
-              <string>PHP</string>
-            </element>
-            <element key="developer-name">
-              <string>Markus Lanthaler</string>
-            </element>
-            <element key="developer-url">
-              <string>http://me.markus-lanthaler.com</string>
-            </element>
-            <element key="developer-homepage">
-              <string>http://www.markus-lanthaler.com/</string>
-            </element>
-          </array>
-        </arguments>
-      </listener>
-    </listeners>
-    -->
 
     <logging>
         <log type="coverage-text" target="php://stdout" showUncoveredFiles="true" />

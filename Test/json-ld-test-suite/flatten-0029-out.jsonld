@@ -1,0 +1,57 @@
+[
+    {
+        "@id": "http://localhost:8080/test-suite/tests/relativeIris",
+        "@type": [
+            "http://localhost:8080/test-suite/tests/link",
+            "http://localhost:8080/test-suite/tests/flatten-0029-in.jsonld#fragment-works",
+            "http://localhost:8080/test-suite/tests/flatten-0029-in.jsonld?query=works",
+            "http://localhost:8080/test-suite/tests/",
+            "http://localhost:8080/test-suite/",
+            "http://localhost:8080/test-suite/parent",
+            "http://localhost:8080/parent-parent-eq-root",
+            "http://localhost:8080/still-root",
+            "http://localhost:8080/too-many-dots",
+            "http://localhost:8080/absolute",
+            "http://example.org/scheme-relative"
+        ],
+        "http://www.example.com/link": [
+            {
+                "@list": [
+                    {
+                        "@id": "http://localhost:8080/test-suite/tests/link"
+                    },
+                    {
+                        "@id": "http://localhost:8080/test-suite/tests/flatten-0029-in.jsonld#fragment-works"
+                    },
+                    {
+                        "@id": "http://localhost:8080/test-suite/tests/flatten-0029-in.jsonld?query=works"
+                    },
+                    {
+                        "@id": "http://localhost:8080/test-suite/tests/"
+                    },
+                    {
+                        "@id": "http://localhost:8080/test-suite/"
+                    },
+                    {
+                        "@id": "http://localhost:8080/test-suite/parent"
+                    },
+                    {
+                        "@id": "http://localhost:8080/parent-parent-eq-root"
+                    },
+                    {
+                        "@id": "http://localhost:8080/still-root"
+                    },
+                    {
+                        "@id": "http://localhost:8080/too-many-dots"
+                    },
+                    {
+                        "@id": "http://localhost:8080/absolute"
+                    },
+                    {
+                        "@id": "http://example.org/scheme-relative"
+                    }
+                ]
+            }
+        ]
+    }
+]

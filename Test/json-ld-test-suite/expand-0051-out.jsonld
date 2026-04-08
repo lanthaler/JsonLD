@@ -1,0 +1,6 @@
+[{
+   "http://example.com/property": [{
+      "@value": "ok"
+   }],
+   "@id": "http://localhost:8080/issue/1"
+}]

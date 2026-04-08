@@ -1482,6 +1482,12 @@ class Processor
             $result['isKeyword'] = true;
             $result['compactArrays'] = (bool) (('@list' !== $property) && ('@graph' !== $property));
         } else {
+            // Adaptions to avoid the following deprecation later on:
+            // Using null as an array offset is deprecated, use an empty string instead
+            if (null === $property) {
+                $property = '';
+            }
+
             $def = (isset($activectx[$property])) ? $activectx[$property] : null;
 
             if (null !== $def) {
@@ -2070,6 +2076,12 @@ class Processor
     {
         if ((null !== $id) && isset($this->blankNodeMap[$id])) {
             return $this->blankNodeMap[$id];
+        }
+
+        // Adaption to avoid the following deprecation later on:
+        // Using null as an array offset is deprecated, use an empty string instead
+        if (null === $id) {
+            $id = '';
         }
 
         $bnode = '_:b' . $this->blankNodeCounter++;

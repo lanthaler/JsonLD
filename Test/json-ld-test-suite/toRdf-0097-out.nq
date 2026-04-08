@@ -1,0 +1,1 @@
+_:b0 <http://example.org/term> <http://localhost:8080/test-suite/tests/not-a-term-thus-a-relative-IRI> .

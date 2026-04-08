@@ -1,0 +1,17 @@
+[
+  {
+    "@id": "http://localhost:8080/test-suite/tests/flatten-0043-in.jsonld",
+    "http://example/sequence": [
+      {"@list": [{"@id": "http://localhost:8080/test-suite/tests/flatten-0043-in.jsonld#t0001"}]}
+    ]
+  },
+  {
+    "@id": "http://localhost:8080/test-suite/tests/flatten-0043-in.jsonld#t0001",
+    "http://example/input": [
+      {"@id": "http://localhost:8080/test-suite/tests/error-expand-0001-in.jsonld"}
+    ],
+    "http://example/name": [
+      {"@value": "Keywords cannot be aliased to other keywords"}
+    ]
+  }
+]

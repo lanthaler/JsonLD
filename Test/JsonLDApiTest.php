@@ -10,6 +10,7 @@
 namespace ML\JsonLD\Test;
 
 use ML\JsonLD\JsonLD;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests JsonLD's API
@@ -20,9 +21,8 @@ class JsonLDApiTest extends JsonTestCase
 {
     /**
      * Tests the expansion API
-     *
-     * @group expansion
      */
+    #[Group('expansion')]
     public function testExpansion()
     {
         $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
@@ -40,9 +40,8 @@ class JsonLDApiTest extends JsonTestCase
 
     /**
      * Tests the compaction API
-     *
-     * @group compaction
      */
+    #[Group('compaction')]
     public function testCompaction()
     {
         $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
@@ -63,9 +62,8 @@ class JsonLDApiTest extends JsonTestCase
 
     /**
      * Tests the flattening API
-     *
-     * @group flattening
      */
+    #[Group('flattening')]
     public function testFlatten()
     {
         $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;
@@ -88,9 +86,8 @@ class JsonLDApiTest extends JsonTestCase
      * Tests the framing API
      *
      * This test intentionally uses the same fixtures as the flattening tests.
-     *
-     * @group framing
      */
+    #[Group('framing')]
     public function testFrame()
     {
         $path = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR;

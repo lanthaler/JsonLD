@@ -1,0 +1,4 @@
+<http://localhost:8080/test-suite/tests/example-vocab-reset> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://localhost:8080/test-suite/tests/document-relative> .
+<http://localhost:8080/test-suite/tests/example-with-vocab> <http://example.org/vocab#embed> <http://localhost:8080/test-suite/tests/example-vocab-reset> .
+<http://localhost:8080/test-suite/tests/example-with-vocab> <http://example.org/vocab#property> "property expanded using @vocab" .
+<http://localhost:8080/test-suite/tests/example-with-vocab> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/vocab#vocab-prefixed> .

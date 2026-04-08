@@ -2,9 +2,12 @@ name: Continuous integration
 
 on:
   push:
-    branches: [ master ]
+    branches:
+    - "**"
   pull_request:
-    branches: [ master ]
+    branches:
+    - master
+    - php8
 
 jobs:
   ci:
@@ -16,15 +19,11 @@ jobs:
     strategy:
       matrix:
         php-version:
-          - "5.3"
-          - "5.4"
-          - "5.5"
-          - "5.6"
-          - "7.0"
-          - "7.1"
-          - "7.2"
-          - "7.3"
-          - "7.4"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+          - "8.5"
 
     steps:
       - name: "Install PHP"

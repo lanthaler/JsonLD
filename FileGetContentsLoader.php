@@ -43,9 +43,28 @@ class FileGetContentsLoader implements DocumentLoaderInterface
 
             $httpHeadersOffset = 0;
 
+            /*
+             * TODO: remove this if-clause when dropping 8.4.x support
+             * As of PHP 8.4.0 using $http_response_header is deprecated, related deprecation message:
+             *
+             *      The predefined locally scoped $http_response_header variable is deprecated,
+             *      call http_get_last_response_headers() instead.
+             *
+             * See: https://www.php.net/manual/de/function.http-get-last-response-headers
+             * 
+             * On PHP 8.5 the deprecation persists even though the following code should avoid it.
+             */
+            if (function_exists('http_get_last_response_headers')) {
+                $httpResponseHeader = http_get_last_response_headers();
+            } elseif (isset($http_response_header)) {
+                $httpResponseHeader = $http_response_header;
+            } else {
+                $httpResponseHeader = null;
+            }
+
             stream_context_set_params($context, array('notification' =>
                 function ($code, $severity, $msg, $msgCode, $bytesTx, $bytesMax) use (
-                    &$remoteDocument, &$http_response_header, &$httpHeadersOffset
+                    &$remoteDocument, &$httpResponseHeader, &$httpHeadersOffset
                 ) {
                     if ($code === STREAM_NOTIFY_MIME_TYPE_IS) {
                         $remoteDocument->mediaType = $msg;
@@ -53,7 +72,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                         $remoteDocument->documentUrl = $msg;
                         $remoteDocument->mediaType = null;
 
-                        $httpHeadersOffset = isset($http_response_header) ? count($http_response_header) : 0;
+                        $httpHeadersOffset = is_array($httpResponseHeader) ? count($httpResponseHeader) : 0;
                     }
                 }
             ));
@@ -62,16 +81,16 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                 throw new JsonLdException(
                     JsonLdException::LOADING_DOCUMENT_FAILED,
                     sprintf('Unable to load the remote document "%s".', $url),
-                    $http_response_header
+                    $httpResponseHeader
                 );
             }
 
             // Extract HTTP Link headers
             $linkHeaderValues = array();
-            if (is_array($http_response_header)) {
-                for ($i = count($http_response_header) - 1; $i > $httpHeadersOffset; $i--) {
-                    if (0 === substr_compare($http_response_header[$i], 'Link:', 0, 5, true)) {
-                        $value = substr($http_response_header[$i], 5);
+            if (is_array($httpResponseHeader)) {
+                for ($i = count($httpResponseHeader) - 1; $i > $httpHeadersOffset; $i--) {
+                    if (0 === substr_compare($httpResponseHeader[$i], 'Link:', 0, 5, true)) {
+                        $value = substr($httpResponseHeader[$i], 5);
                         $linkHeaderValues[] = $value;
                     }
                 }
@@ -90,7 +109,7 @@ class FileGetContentsLoader implements DocumentLoaderInterface
                 throw new JsonLdException(
                     JsonLdException::MULTIPLE_CONTEXT_LINK_HEADERS,
                     'Found multiple contexts in HTTP Link headers',
-                    $http_response_header
+                    $httpResponseHeader
                 );
             }
 

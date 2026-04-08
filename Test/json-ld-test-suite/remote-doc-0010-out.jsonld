@@ -1,0 +1,4 @@
+[{
+  "@id": "http://localhost:8080/test-suite/tests/remote-doc-0010-in.json",
+  "http://example/vocab#term": [{"@value": "value"}]
+}]

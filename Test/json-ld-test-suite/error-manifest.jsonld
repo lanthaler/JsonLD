@@ -1,0 +1,313 @@
+{
+  "@context": "http://localhost:8080/test-suite/context.jsonld",
+  "@id": "",
+  "@type": "mf:Manifest",
+  "description": "JSON-LD to Expansion tests use object compare",
+  "name": "Error handling",
+  "baseIri": "http://localhost:8080/test-suite/tests/",
+  "sequence": [
+    {
+      "@id": "#t0001",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Keywords cannot be aliased to other keywords",
+      "purpose": "Verifies that an exception is raised on expansion when processing an invalid context aliasing a keyword to another keyword",
+      "input": "error-0001-in.jsonld",
+      "expect": "(near \"@type\")"
+    }, {
+      "@id": "#t0002",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "A context may not include itself recursively (direct)",
+      "purpose": "Verifies that an exception is raised on expansion when processing a context referencing itself",
+      "input": "error-0002-in.jsonld",
+      "expect": "Loading http://localhost:8080/test-suite/tests/error-0002-in.jsonld failed"
+    }, {
+      "@id": "#t0003",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "A context may not include itself recursively (indirect)",
+      "purpose": "Verifies that an exception is raised on expansion when processing a context referencing itself indirectly",
+      "input": "error-0003-in.jsonld",
+      "expect": "Loading http://localhost:8080/test-suite/tests/error-0003-ctx.jsonld failed"
+    }, {
+      "@id": "#t0004",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Error dereferencing a remote context",
+      "purpose": "Verifies that an exception is raised on expansion when a context dereference results in an error",
+      "input": "error-0004-in.jsonld",
+      "expect": "Loading tag:non-dereferencable-iri failed"
+    }, {
+      "@id": "#t0005",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid remote context",
+      "purpose": "Verifies that an exception is raised on expansion when a remote context is not an object containing @context",
+      "input": "error-0005-in.jsonld",
+      "expect": "Loading http://localhost:8080/test-suite/tests/error-0005-in.jsonld failed"
+    }, {
+      "@id": "#t0006",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid local context",
+      "purpose": "Verifies that an exception is raised on expansion when a context is not a string or object",
+      "input": "error-0006-in.jsonld",
+      "expect": ""
+    }, {
+      "@id": "#t0007",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid base IRI",
+      "purpose": "Verifies that an exception is raised on expansion when a context contains an invalid @base",
+      "input": "error-0007-in.jsonld",
+      "expect": "The value of @base must be an IRI or null (near {\"@base\":true})."
+    }, {
+      "@id": "#t0008",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid vocab mapping",
+      "purpose": "Verifies that an exception is raised on expansion when a context contains an invalid @vocab mapping",
+      "input": "error-0008-in.jsonld",
+      "expect": "invalid vocab mapping"
+    }, {
+      "@id": "#t0009",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid default language",
+      "purpose": "Verifies that an exception is raised on expansion when a context contains an invalid @language",
+      "input": "error-0009-in.jsonld",
+      "expect": "The value of @language must be a string (near {\"@language\":true})."
+    }, {
+      "@id": "#t0010",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Cyclic IRI mapping",
+      "purpose": "Verifies that an exception is raised on expansion when a cyclic IRI mapping is found",
+      "input": "error-0010-in.jsonld",
+      "expect": "Cycle in context definition detected: term -> term:term -> term (near {})"
+    }, {
+      "@id": "#t0011",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid term definition",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid term definition is found",
+      "input": "error-0011-in.jsonld",
+      "expect": ""
+    }, {
+      "@id": "#t0012",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid type mapping (not a string)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid type mapping is found",
+      "input": "error-0012-in.jsonld",
+      "expect": ""
+    }, {
+      "@id": "#t0013",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid type mapping (not absolute IRI)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid type mapping is found",
+      "input": "error-0013-in.jsonld",
+      "expect": "Failed to expand _:not-an-iri to an absolute IRI (near [{\"term\":{\"@id\":\"http://example/term\",\"@type\":\"_:not-an-iri\"}}])."
+    }, {
+      "@id": "#t0014",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid reverse property (contains @id)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid reverse property is found",
+      "input": "error-0014-in.jsonld",
+      "expect": "Invalid term definition using both @reverse and @id detected (near {\"@id\":\"http://example/term\",\"@reverse\":\"http://example/reverse\"})"
+    }, {
+      "@id": "#t0015",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid IRI mapping (@reverse not a string)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid IRI mapping is found",
+      "input": "error-0015-in.jsonld",
+      "expect": "(near true)"
+    }, {
+      "@id": "#t0016",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid IRI mapping (not an absolute IRI)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid IRI mapping is found",
+      "input": "error-0016-in.jsonld",
+      "expect": "Reverse properties must expand to absolute IRIs, \"term\" expands to \"@reverse\"."
+    }, {
+      "@id": "#t0017",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid reverse property (invalid @container)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid reverse property is found",
+      "input": "error-0017-in.jsonld",
+      "expect": "Terms using the @reverse feature support only @set- and @index-containers (near {\"@reverse\":\"http://example/reverse\",\"@container\":\"@list\"})."
+    }, {
+      "@id": "#t0018",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid IRI mapping (@id not a string)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid IRI mapping is found",
+      "input": "error-0018-in.jsonld",
+      "expect": "(near true)"
+    }, {
+      "@id": "#t0019",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid keyword alias",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid keyword alias is found",
+      "input": "error-0019-in.jsonld",
+      "expect": "Aliases for @context are not supported (near {\"@id\":\"@context\",\"@reverse\":false})"
+    }, {
+      "@id": "#t0020",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid IRI mapping (no vocab mapping)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid IRI mapping is found",
+      "input": "error-0020-in.jsonld",
+      "expect": "Failed to expand \"term\" to an absolute IRI (near [{\"term\":{\"@container\":\"@set\"}}])."
+    }, {
+      "@id": "#t0021",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid container mapping",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid container mapping is found",
+      "input": "error-0021-in.jsonld",
+      "expect": "A container mapping of @id is not supported."
+    }, {
+      "@id": "#t0022",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid language mapping",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid language mapping is found",
+      "input": "error-0022-in.jsonld",
+      "expect": "The value of @language must be a string or null (near {\"@id\":\"http://example/term\",\"@language\":true,\"@reverse\":false})."
+    }, {
+      "@id": "#t0023",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid IRI mapping (relative IRI in @type)",
+      "purpose": "Verifies that an exception is raised on expansion when a invalid type mapping is found",
+      "input": "error-0023-in.jsonld",
+      "expect": "Failed to expand relative/iri to an absolute IRI (near [{\"term\":{\"@id\":\"http://example/term\",\"@type\":\"relative/iri\"}}])."
+    }, {
+      "@id": "#t0024",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "List of lists (from array)",
+      "purpose": "Verifies that an exception is raised in Expansion when a list of lists is found",
+      "input": "error-0024-in.jsonld",
+      "expect": "List of lists detected in property \"foo\" (near [{\"@list\":[{\"@value\":\"baz\"}]}])."
+    }, {
+      "@id": "#t0025",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid reverse property map",
+      "purpose": "Verifies that an exception is raised in Expansion when a invalid reverse property map is found",
+      "input": "error-0025-in.jsonld",
+      "expect": "No keywords or keyword aliases are allowed in @reverse-maps, found @id"
+    }, {
+      "@id": "#t0026",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Colliding keywords",
+      "purpose": "Verifies that an exception is raised in Expansion when colliding keywords are found",
+      "input": "error-0026-in.jsonld",
+      "expect": "Object already contains a property \"@id\" (near {\"@id\":\"http://example/bar\"})."
+    }, {
+      "@id": "#t0027",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid @id value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid @id value is found",
+      "input": "error-0027-in.jsonld",
+      "expect": "Invalid value for @id detected (must be a string) (near {})."
+    }, {
+      "@id": "#t0028",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid type value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid type value is found",
+      "input": "error-0028-in.jsonld",
+      "expect": "Invalid value for @type detected (near [true])."
+    }, {
+      "@id": "#t0029",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid value object value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid value object value is found",
+      "input": "error-0029-in.jsonld",
+      "expect": "Invalid value for @value detected (must be a scalar) (near [\"foo\"])."
+    }, {
+      "@id": "#t0030",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid language-tagged string",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid language-tagged string value is found",
+      "input": "error-0030-in.jsonld",
+      "expect": "@language must be a string (near true)"
+    }, {
+      "@id": "#t0031",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid @index value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid @index value value is found",
+      "input": "error-0031-in.jsonld",
+      "expect": "@index must be a string (near true)"
+    }, {
+      "@id": "#t0032",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "List of lists (from array)",
+      "purpose": "Verifies that an exception is raised in Expansion when a list of lists is found",
+      "input": "error-0032-in.jsonld",
+      "expect": "List of lists detected (near {})."
+    }, {
+      "@id": "#t0033",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid @reverse value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid @reverse value is found",
+      "input": "error-0033-in.jsonld",
+      "expect": "Detected invalid value for @reverse (must be an object) (near true)."
+    }, {
+      "@id": "#t0034",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid reverse property value (in @reverse)",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid reverse property value is found",
+      "input": "error-0034-in.jsonld",
+      "expect": "Detected invalid value in @reverse-map (only nodes are allowed (near {\"@value\":\"Dave Longley\"})"
+    }, {
+      "@id": "#t0035",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid language map value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid language map value is found",
+      "input": "error-0035-in.jsonld",
+      "expect": "Detected invalid value in label->en: it must be a string as it is part of a language map (near true)."
+    }, {
+      "@id": "#t0036",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid reverse property value (through coercion)",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid reverse property value is found",
+      "input": "error-0036-in.jsonld",
+      "expect": "Detected invalid value in @reverse-map (only nodes are allowed (near {\"@list\":[{\"@value\":\"http://example/bar\"}]})"
+    }, {
+      "@id": "#t0037",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid value object (unexpected keyword)",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid value object is found",
+      "input": "error-0037-in.jsonld",
+      "expect": "Detected an invalid @value object (near {\"@id\":\"http://example/baz\",\"@value\":\"bar\"})."
+    }, {
+      "@id": "#t0038",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid value object (@type and @language)",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid value object is found",
+      "input": "error-0038-in.jsonld",
+      "expect": "Detected an invalid @value object (near {\"@language\":\"en\",\"@type\":\"http://example/type\",\"@value\":\"bar\"})."
+    }, {
+      "@id": "#t0039",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid language-tagged value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid language-tagged value is found",
+      "input": "error-0039-in.jsonld",
+      "expect": "Only strings can be language tagged (near {\"@language\":\"en\",\"@value\":true})."
+    }, {
+      "@id": "#t0040",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid typed value",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid typed value is found",
+      "input": "error-0040-in.jsonld",
+      "expect": "Invalid value for @type detected (must be an IRI) (near {\"@type\":\"_:dt\",\"@value\":\"bar\"})."
+    }, {
+      "@id": "#t0041",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Invalid set or list object",
+      "purpose": "Verifies that an exception is raised in Expansion when an invalid set or list object is found",
+      "input": "error-0041-in.jsonld",
+      "expect": "An object with a @list or @set property can't contain other properties (near {\"@id\":\"http://example/bar\",\"@list\":[{\"@value\":\"foo\"}]})."
+    }, {
+      "@id": "#t0042",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Compaction to list of lists",
+      "purpose": "Verifies that an exception is raised in Compaction when attempting to compact a list of lists",
+      "input": "error-0042-in.jsonld",
+      "context": "error-0042-context.jsonld",
+      "expect": "Object already contains a property \"list\" (near {\"@id\":\"_:b0\",\"list\":[\"foo\"]})."
+    }, {
+      "@id": "#t0043",
+      "@type": [ "jld:NegativeEvaluationTest", "jld:FlattenTest" ],
+      "name": "Conflicting indexes",
+      "purpose": "Verifies that an exception is raised in Flattening when conflicting indexes are found",
+      "input": "error-0043-in.jsonld",
+      "expect": "Object already contains a property \"@index\" (near {\"@id\":\"http://example/foo\",\"@index\":\"bar\"})."
+    }
+  ]
+}

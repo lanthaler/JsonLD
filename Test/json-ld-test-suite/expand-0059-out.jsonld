@@ -1,0 +1,13 @@
+[
+  {
+    "@id": "http://localhost:8080/test-suite/tests/example-with-vocab",
+    "@type": [ "http://example.org/vocab#vocab-prefixed" ],
+    "http://example.org/vocab#embed": [
+      {
+        "@id": "http://localhost:8080/test-suite/tests/example-vocab-reset",
+        "@type": [ "http://localhost:8080/test-suite/tests/document-relative" ]
+      }
+    ],
+    "http://example.org/vocab#property": [ { "@value": "property expanded using @vocab" } ]
+  }
+]

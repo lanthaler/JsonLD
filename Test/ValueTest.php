@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD\Test;
 
+use InvalidArgumentException;
 use ML\JsonLD\LanguageTaggedString;
 use ML\JsonLD\TypedValue;
 use PHPUnit\Framework\TestCase;
@@ -40,22 +41,22 @@ class ValueTest extends TestCase
 
     /**
      * Tests LanguageTaggedString with an invalid value
-     *
-     * @expectedException \InvalidArgumentException
      */
     public function testLanguageTaggedStringInvalidValue()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $string1 = new LanguageTaggedString('value', 'language');
         $string1->setValue(1);
     }
 
     /**
      * Tests LanguageTaggedString with an invalid language
-     *
-     * @expectedException \InvalidArgumentException
      */
     public function testLanguageTaggedStringInvalidLanguage()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $string1 = new LanguageTaggedString('value', 'language');
         $string1->setLanguage(null);
     }
@@ -80,22 +81,22 @@ class ValueTest extends TestCase
 
     /**
      * Tests TypedValue with an invalid value
-     *
-     * @expectedException \InvalidArgumentException
      */
     public function testTypedValueInvalidValue()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $value1 = new LanguageTaggedString('value', 'language');
         $value1->setValue(1);
     }
 
     /**
      * Tests TypedValue with an invalid type
-     *
-     * @expectedException \InvalidArgumentException
      */
     public function testTypedValueInvalidLanguage()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $value1 = new TypedValue('value', 'http://example.com/type');
         $value1->setType(1);
     }

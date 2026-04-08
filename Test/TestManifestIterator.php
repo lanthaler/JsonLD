@@ -9,6 +9,8 @@
 
 namespace ML\JsonLD\Test;
 
+use Exception;
+
 /**
  * TestManifestIterator reads a test manifest and returns the contained test
  * definitions.
@@ -71,7 +73,7 @@ class TestManifestIterator implements \Iterator
      *
      * @return string The key of the current element
      */
-    public function key()
+    public function key(): mixed
     {
         return $this->url . $this->manifest->{'sequence'}[$this->key]->{'@id'};
     }
@@ -80,9 +82,11 @@ class TestManifestIterator implements \Iterator
      * Returns the current element.
      *
      * @return array Returns an array containing the name of the test and the
-     *                test definition object.
+     *               test definition object.
+     *
+     * @throws Exception
      */
-    public function current()
+    public function current(): mixed
     {
         $test = $this->manifest->{'sequence'}[$this->key];
         $options = isset($test->{'option'})
@@ -99,6 +103,33 @@ class TestManifestIterator implements \Iterator
 
         if (isset($options->{'expandContext'}) && (false === strpos($options->{'expandContext'}, ':'))) {
             $options->{'expandContext'} = $this->directory . $options->{'expandContext'};
+        }
+
+        /*
+         * This code in the if-clause fixes at least the following tests of the W3C test suite:
+         *
+         * - remote-doc-manifest.jsonld#t0011
+         *
+         * Tests failed because context was not provided properly. The following code extracts
+         * the context file and loads it into the options object. Later on the value of
+         * expandContext is being merged into the active context.
+         *
+         * For further information: https://github.com/lanthaler/JsonLD/pull/113#issuecomment-3426479583
+         */
+        if (
+            isset($options->httpLink)
+            && is_string($options->httpLink)
+            && 1 === preg_match('/<(.*?)>/', $options->httpLink, $match)
+            && isset($match[1])
+        ) {
+            // TODO use a local file path
+            $linkToContextFile = 'http://localhost:8080/Test/json-ld-test-suite/'.$match[1];
+            $content = file_get_contents($linkToContextFile);
+            if (false === $content) {
+                throw new Exception('Could not context from URL: '. $linkToContextFile);
+            }
+
+            $options->expandContext = json_decode($content, false);
         }
 
         $test = array(

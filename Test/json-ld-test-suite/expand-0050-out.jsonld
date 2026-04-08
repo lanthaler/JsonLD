@@ -1,0 +1,6 @@
+[
+  {
+    "http://example.com/issue/": [ { "@id": "http://localhost:8080/issue/1" } ],
+    "http://example.com/issue/raisedBy": [ { "@value": "Markus" } ]
+  }
+]

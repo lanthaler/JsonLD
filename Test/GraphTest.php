@@ -9,6 +9,7 @@
 
 namespace ML\JsonLD\Test;
 
+use InvalidArgumentException;
 use ML\JsonLD\Document;
 use ML\JsonLD\FileGetContentsLoader;
 use ML\JsonLD\Graph;
@@ -564,11 +565,11 @@ JSON_LD_DOCUMENT;
 
     /**
      * Tests whether it is possible to add invalid values
-     *
-     * @expectedException InvalidArgumentException
      */
     public function testAddInvalidPropertyValue()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $graph = new Graph();
         $newNode = $graph->createNode();
 
@@ -579,11 +580,11 @@ JSON_LD_DOCUMENT;
     /**
      * Tests whether it is possible to set the node's type to an invalid
      * value
-     *
-     * @expectedException InvalidArgumentException
      */
     public function testSetInvalidTypeValue()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $node1 = $this->graph->getNode('http://example.com/node/1');
         $node1->setType('http://vocab.com/type/aTypeAsString');
     }
@@ -591,11 +592,11 @@ JSON_LD_DOCUMENT;
     /**
      * Tests whether it is possible to set the node's type to an invalid
      * value when an array is used.
-     *
-     * @expectedException InvalidArgumentException
      */
     public function testSetInvalidTypeArray()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $types = array(
             $this->graph->getNode('http://vocab.com/type/nodeWithAliases'),
             'http://vocab.com/type/aTypeAsString'
@@ -609,11 +610,11 @@ JSON_LD_DOCUMENT;
     /**
      * Tests whether it is possible to add an type which is not part of the
      * graph
-     *
-     * @expectedException InvalidArgumentException
      */
     public function testAddTypeNotInGraph()
     {
+        $this->expectException(InvalidArgumentException::class);
+
         $graph = new Graph();
         $newType = $graph->createNode();
 

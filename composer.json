@@ -14,14 +14,13 @@
         }
     ],
     "require": {
-        "php": ">=5.3.0",
+        "php": ">=8.1.0",
         "ext-json": "*",
         "ml/iri": "^1.1.1"
     },
     "require-dev": {
-        "json-ld/tests": "1.0",
-        "phpunit/phpunit": "^9",
-        "yoast/phpunit-polyfills": "^1.0"
+        "phpunit/phpunit": "^10||^11",
+        "symfony/process": "^6|^7|^8"
     },
     "autoload": {
         "psr-4": {
